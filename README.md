@@ -134,3 +134,4 @@ Bloqueiam evolução (detalhe em `data/stack.md` §10):
 4. **`Num Ped Clie` como texto** — hoje 8.971 pedidos saem como `2,00E+15`; o Excel
    converte o ID em notação científica e o dado se perde a cada exportação.
 # Bi_margem_lucro
+# Bi_margem_lucro
