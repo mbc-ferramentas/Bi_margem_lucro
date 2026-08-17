@@ -135,3 +135,4 @@ Bloqueiam evolução (detalhe em `data/stack.md` §10):
    converte o ID em notação científica e o dado se perde a cada exportação.
 # Bi_margem_lucro
 # Bi_margem_lucro
+# Bi_margem_lucro
