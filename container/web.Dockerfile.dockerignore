@@ -1,0 +1,24 @@
+# Contexto = raiz do repo. A imagem web so precisa de frontend/ e container/nginx.web.conf.
+
+frontend/node_modules/
+frontend/dist/
+
+.venv/
+apps/
+config/
+tests/
+data/
+migrations/
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+.git/
+.env
+container/.env
+container/.env.dev
+backups/
+staticfiles/

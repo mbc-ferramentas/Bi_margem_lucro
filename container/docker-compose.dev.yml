@@ -1,0 +1,98 @@
+# Ambiente de DESENVOLVIMENTO e execucao dos testes.
+# Producao usa container/docker-compose.vps.yml — nunca este arquivo.
+#
+#   docker compose --env-file container/.env.dev -f container/docker-compose.dev.yml up -d --build
+#   docker compose --env-file container/.env.dev -f container/docker-compose.dev.yml exec bi-margem-lucro-api pytest
+#
+# Ou simplesmente `make dev`.
+
+name: bi-margem-lucro-dev
+
+services:
+  bi-margem-lucro-db:
+    image: postgres:18
+    container_name: bi-margem-lucro-db-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bi_margem
+      POSTGRES_USER: bi
+      POSTGRES_PASSWORD: bi
+    ports:
+      # Publicada para inspecao externa (DBeaver, psql). Em producao NAO se publica.
+      # 5433 no host para nao conflitar com um Postgres ja instalado na maquina.
+      - "${DB_HOST_PORT:-5433}:5432"
+    volumes:
+      # PG18 mudou a convencao: o mount vai em /var/lib/postgresql e a imagem cria
+      # o subdiretorio da versao. Montar em /data faz o container abortar.
+      - pgdata_dev:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bi -d bi_margem"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      internal-services:
+        aliases:
+          - bi-margem-lucro-db
+
+  bi-margem-lucro-api:
+    image: bi-margem-lucro-api:dev
+    build:
+      context: ..
+      dockerfile: container/api.Dockerfile
+      target: dev
+    container_name: bi-margem-lucro-api-dev
+    restart: unless-stopped
+    command: python manage.py runserver 0.0.0.0:8000
+    environment:
+      DEBUG: "1"
+      SECRET_KEY: dev-inseguro
+      ALLOWED_HOSTS: localhost,127.0.0.1,bi-margem-lucro-api,${DEV_HOST_IP:-localhost}
+      POSTGRES_HOST: bi-margem-lucro-db
+      POSTGRES_DB: bi_margem
+      POSTGRES_USER: bi
+      POSTGRES_PASSWORD: bi
+      CORS_ALLOWED_ORIGINS: http://localhost:${WEB_HOST_PORT:-5173},http://${DEV_HOST_IP:-localhost}:${WEB_HOST_PORT:-5173}
+      LOG_LEVEL: DEBUG
+    volumes:
+      - ..:/app
+      # CSVs reais montados somente-leitura: o ETL roda contra os dados de verdade
+      # sem risco de o container alterar o export original.
+      - ../data/dados/usarei:/app/data/dados/usarei:ro
+    ports:
+      - "${API_HOST_PORT:-8000}:8000"
+    depends_on:
+      bi-margem-lucro-db:
+        condition: service_healthy
+    networks:
+      internal-services:
+        aliases:
+          - bi-margem-lucro-api
+
+  bi-margem-lucro-web:
+    image: bi-margem-lucro-web:dev
+    build:
+      context: ..
+      dockerfile: container/web.Dockerfile
+      target: development
+    container_name: bi-margem-lucro-web-dev
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://${DEV_HOST_IP:-localhost}:${API_HOST_PORT:-8000}/api/v1
+    volumes:
+      - ../frontend:/app
+      # Preserva o node_modules instalado na imagem, que o bind mount cobriria.
+      - node_modules_dev:/app/node_modules
+    ports:
+      - "${WEB_HOST_PORT:-5173}:5173"
+    networks:
+      - internal-services
+
+volumes:
+  pgdata_dev:
+  node_modules_dev:
+
+networks:
+  internal-services:
+    name: internal-services
+    external: false

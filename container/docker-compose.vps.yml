@@ -1,0 +1,84 @@
+# Ambiente de PRODUCAO na VPS.
+#
+#   docker compose -f container/docker-compose.vps.yml up -d --build
+#   docker compose -f container/docker-compose.vps.yml exec bi-margem-lucro-api python manage.py migrate
+#
+# PRE-REQUISITOS (ver README.dev.md):
+#   1. Rede compartilhada ja existente:  docker network create internal-services
+#   2. Postgres rodando NO HOST com a base e o usuario criados
+#      (POSTGRES_HOST=host.docker.internal no container/.env)
+#   3. Entrada no proxy reverso da VPS apontando para bi-margem-lucro-web:80
+#      e bi-margem-lucro-api:8000
+#
+# Nenhum servico publica porta no host: a VPS ja hospeda outras stacks.
+
+name: bi-margem-lucro
+
+services:
+  bi-margem-lucro-api:
+    image: bi-margem-lucro-api:latest
+    build:
+      context: ..
+      dockerfile: container/api.Dockerfile
+      target: prod
+    container_name: bi-margem-lucro-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DEBUG: "0"
+      URL_PREFIX: ${URL_PREFIX:-/bi-margem-lucro}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    expose:
+      - "8000"
+    volumes:
+      # O Parquet de staging e o historico auditavel da carga: persiste fora da imagem.
+      - staging:/app/data/staging
+      - static:/app/staticfiles
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    networks:
+      internal_services:
+        aliases:
+          - bi-margem-lucro-api
+
+  bi-margem-lucro-web:
+    image: bi-margem-lucro-web:latest
+    build:
+      context: ..
+      dockerfile: container/web.Dockerfile
+      target: production
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/bi-margem-lucro/api/v1}
+        VITE_BASE_PATH: ${VITE_BASE_PATH:-/bi-margem-lucro/}
+    container_name: bi-margem-lucro-web
+    restart: unless-stopped
+    expose:
+      - "80"
+    volumes:
+      - static:/usr/share/nginx/static:ro
+    depends_on:
+      - bi-margem-lucro-api
+    networks:
+      internal_services:
+        aliases:
+          - bi-margem-lucro-web
+
+volumes:
+  staging:
+    name: bi-margem-lucro-staging
+  static:
+    name: bi-margem-lucro-static
+
+networks:
+  internal_services:
+    name: ${SOFTWARE_NETWORK:-internal-services}
+    external: true

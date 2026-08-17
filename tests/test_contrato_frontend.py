@@ -1,0 +1,166 @@
+"""Contrato entre a API e o SPA.
+
+Os schemas Zod em `frontend/src/api/tipos.ts` sao a leitura que o frontend faz de
+cada resposta. Se a API mudar de forma sem que estes testes quebrem primeiro, o
+erro so aparece no navegador do usuario — e como Zod valida em runtime, aparece
+como tela em branco, nao como aviso.
+
+Cada teste aqui espelha um schema do arquivo acima.
+"""
+
+import pytest
+from django.contrib.auth.models import Group
+from rest_framework.test import APIClient
+
+from apps.core.models import Usuario
+from tests.helpers import sem_csv
+
+pytestmark = [pytest.mark.django_db, sem_csv]
+
+CHAVES_ESCOPO = {
+    "tipo",
+    "rotulo",
+    "formula",
+    "nao_inclui",
+    "aviso_marketplace",
+    "comparacao_entre_canais",
+}
+
+
+@pytest.fixture
+def gerente(carga):
+    usuario = Usuario.objects.create_user(username="contrato", password="x")
+    usuario.groups.add(Group.objects.get(name="gerente"))
+    cliente = APIClient()
+    cliente.force_authenticate(user=usuario)
+    return cliente
+
+
+def test_kpis(gerente):
+    corpo = gerente.get("/api/v1/kpis").json()
+    assert CHAVES_ESCOPO <= set(corpo["escopo"])
+    assert {
+        "receita_bruta",
+        "desconto_total",
+        "receita_liquida",
+        "margem_liquida",
+        "margem_liquida_pct",
+        "custo_total",
+        "margem_bruta",
+        "margem_pct",
+        "ticket_medio",
+        "pedidos",
+        "skus",
+        "linhas",
+        "quantidade",
+    } <= set(corpo["kpis"])
+
+
+def test_serie(gerente):
+    corpo = gerente.get("/api/v1/margem/serie").json()
+    assert corpo["granularidade"] in ("dia", "mes")
+    assert {
+        "periodo",
+        "canal",
+        "receita",
+        "receita_liquida",
+        "desconto",
+        "custo",
+        "margem",
+        "margem_liquida",
+        "margem_pct",
+        "pedidos",
+    } <= set(corpo["serie"][0])
+
+
+def test_serie_diaria(gerente):
+    corpo = gerente.get("/api/v1/margem/serie?granularidade=dia").json()
+    assert corpo["granularidade"] == "dia"
+    assert len(corpo["serie"]) > 0
+
+
+def test_vendedores(gerente):
+    corpo = gerente.get("/api/v1/margem/vendedor").json()
+    assert "observacao" in corpo
+    assert {
+        "vendedor_codigo",
+        "vendedor_nome",
+        "canal",
+        "receita",
+        "receita_liquida",
+        "desconto",
+        "margem_liquida",
+        "custo",
+        "margem",
+        "margem_pct",
+        "pedidos",
+        "linhas",
+    } <= set(corpo["vendedores"][0])
+
+
+def test_skus(gerente):
+    corpo = gerente.get("/api/v1/margem/sku").json()
+    assert {"total", "limite", "offset", "itens"} <= set(corpo)
+    assert {
+        "sku",
+        "descricao",
+        "grupo",
+        "quantidade",
+        "receita",
+        "receita_liquida",
+        "desconto",
+        "margem_liquida",
+        "custo",
+        "margem",
+        "margem_pct",
+    } <= set(corpo["itens"][0])
+
+
+def test_filtros(gerente):
+    opcoes = gerente.get("/api/v1/filtros").json()["opcoes"]
+    assert {
+        "canais",
+        "grupos",
+        "armazens",
+        "vendedores",
+        "tes",
+        "competencias",
+    } <= set(opcoes)
+    assert {"codigo", "conta_como_venda"} <= set(opcoes["tes"][0])
+    assert {"codigo", "rotulo"} <= set(opcoes["grupos"][0])
+    assert {"codigo", "nome"} <= set(opcoes["vendedores"][0])
+
+
+def test_eu(gerente):
+    corpo = gerente.get("/api/v1/auth/eu").json()
+    assert {"username", "nome", "perfis", "vendedor"} <= set(corpo)
+
+
+def test_valores_monetarios_sao_texto(gerente):
+    """O SPA converte para Number so na exibicao.
+
+    Se a API voltar a serializar Decimal como float, os centavos somem e a tela
+    passa a divergir do fechamento do financeiro.
+    """
+    kpis = gerente.get("/api/v1/kpis").json()["kpis"]
+    for campo in ("receita_bruta", "custo_total", "margem_bruta", "ticket_medio"):
+        assert isinstance(kpis[campo], str), f"{campo} deveria ser string, veio float"
+
+
+def test_contagens_sao_inteiras(gerente):
+    """`sum()` sobre bigint volta numeric no Postgres, e Decimal sai como texto.
+
+    O Zod do SPA espera number nesses campos — se voltar string, a tela some.
+    """
+    serie = gerente.get("/api/v1/margem/serie").json()["serie"][0]
+    assert isinstance(serie["pedidos"], int), "pedidos deveria ser int, veio string"
+
+    vendedor = gerente.get("/api/v1/margem/vendedor").json()["vendedores"][0]
+    for campo in ("pedidos", "linhas"):
+        assert isinstance(vendedor[campo], int), f"{campo} deveria ser int, veio string"
+
+
+def test_margem_pct_e_fracao(gerente):
+    """A UI formata com Intl percent, que espera fracao (0.258), nao 25.8."""
+    valor = float(gerente.get("/api/v1/kpis").json()["kpis"]["margem_pct"])
+    assert 0 < valor < 1

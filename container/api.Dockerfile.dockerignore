@@ -1,0 +1,19 @@
+# Contexto = raiz do repo. O que a imagem da API nao precisa.
+
+# O venv do host e do SO errado e sobreporia o do container.
+.venv/
+frontend/
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+.git/
+.env
+container/.env
+container/.env.dev
+backups/
+data/staging/
+staticfiles/

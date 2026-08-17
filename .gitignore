@@ -1,0 +1,21 @@
+.env
+container/.env
+container/.env.dev
+*.pyc
+__pycache__/
+.venv/
+staticfiles/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Parquet de staging e regenerado pelo ETL
+data/staging/
+backups/
+container/certs/
+
+node_modules/
+frontend/dist/
+
+.idea/
+.vscode/
