@@ -41,7 +41,13 @@ CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
 FROM deps AS prod
 COPY . .
 RUN python manage.py collectstatic --noinput --settings=config.settings || true
-RUN useradd --create-home --uid 1000 app && chown -R app:app /app
+# O mountpoint do volume de staging precisa existir NA IMAGEM e ja pertencer ao
+# usuario app: um volume vazio herda dono/modo do diretorio da imagem; se o
+# diretorio nao existe, o Docker o cria como root e o gunicorn (uid 1000) nao
+# consegue gravar o Parquet.
+RUN useradd --create-home --uid 1000 app \
+    && mkdir -p /app/data/staging \
+    && chown -R app:app /app
 USER app
 EXPOSE 8000
 CMD ["gunicorn", "config.wsgi:application", \

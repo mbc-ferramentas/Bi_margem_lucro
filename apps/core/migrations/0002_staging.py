@@ -7,7 +7,8 @@ analitico e sempre por SQL sobre as materialized views.
 from django.db import migrations
 
 STAGING = """
-CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+-- pg_trgm: exigida pelos indices GIN de busca por descricao (migrations 0003/0008).
+-- E uma extensao "trusted" no PG 13+, entao o dono do banco a cria sem ser superusuario.
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- SB2: fotografia de estoque e custo.
