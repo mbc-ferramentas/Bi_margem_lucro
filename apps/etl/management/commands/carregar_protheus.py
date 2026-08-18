@@ -23,7 +23,7 @@ from apps.etl.schemas import ARQUIVOS
 
 
 class Command(BaseCommand):
-    help = "Carrega SB2/SC5/SD2 do Protheus para Parquet e Postgres"
+    help = "Carrega SB2/SC5/SC6/SD1/SD2 do Protheus para Parquet e Postgres"
 
     def add_arguments(self, parser) -> None:
         parser.add_argument(

@@ -20,6 +20,7 @@ import { inteiro } from "../formato";
 const CAMPOS = [
   { nome: "SB2", rotulo: "SB2 — Saldos e custo de estoque" },
   { nome: "SC5", rotulo: "SC5 — Cabecalho dos pedidos" },
+  { nome: "SC6", rotulo: "SC6 — Itens dos pedidos (carteira em aberto)" },
   { nome: "SD1", rotulo: "SD1 — Itens de notas de entrada" },
   { nome: "SD2", rotulo: "SD2 — Itens faturados" },
 ] as const;

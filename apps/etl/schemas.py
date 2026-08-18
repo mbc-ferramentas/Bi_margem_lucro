@@ -1,6 +1,6 @@
 """Contrato de leitura dos arquivos exportados do Protheus.
 
-Os quatro arquivos compartilham o mesmo formato de exportacao:
+Os arquivos compartilham o mesmo formato de exportacao:
 
 - separador ';'
 - encoding latin-1 ('Descricao' vem como 'Descri\\xe7\\xe3o')
@@ -85,6 +85,60 @@ SC5 = ArquivoProtheus(
     obrigatorias=("numero",),
     chave=("numero",),
 )
+
+# SC6 — itens do pedido de venda. E a carteira: o que foi vendido, entregue ou nao.
+# O export nao traz C6_ITEM, entao nao ha chave natural unica; a carga e um snapshot
+# versionado por dt_carga (como o SB2), que e a leitura correta de uma carteira: a
+# fotografia do que estava em aberto no dia da exportacao.
+SC6 = ArquivoProtheus(
+    nome="SC6",
+    arquivo="SC6.csv",
+    tabela="stg_sc6",
+    colunas={
+        "Filial": "filial",
+        "Num. Pedido": "num_pedido",
+        "Produto": "produto",
+        # Sem cedilha, ao contrario do SB2 ('Descrição'). Nao unificar: o nome aqui
+        # e o cabecalho literal do arquivo.
+        "Descricao": "descricao",
+        "Unidade": "unidade",
+        "Quantidade": "quantidade",
+        # Nomeada 'vlr_unitario' de proposito: e o que faz readers.validar conferir
+        # Vlr.Total = Quantidade x Preco tambem neste arquivo.
+        "Prc Unitario": "vlr_unitario",
+        "Vlr.Total": "vlr_total",
+        "Armazem": "armazem",
+        # Quanto do item ja saiu. Linha em aberto = qtd_entregue < quantidade.
+        "Qtd.Entregue": "qtd_entregue",
+        "Entrega": "dt_entrega",
+        # Vazia enquanto o item nao foi faturado — e o outro sinal de "em aberto".
+        "Nota Fiscal": "nota_fiscal",
+        "DT Ult.Fat.": "dt_ult_faturamento",
+        "Vlr Desconto": "vlr_desconto",
+        "% Desconto": "pct_desconto",
+        "Cliente": "cliente",
+        "Loja": "loja",
+        "Serie NF": "serie_nf",
+        # Vazias em 100% do export atual; mapeadas para aproveitar o dia que o
+        # Protheus passar a preencher.
+        "Ped Cliente": "ped_cliente",
+        "N.F.Original": "nf_original",
+        "Serie Orig.": "serie_origem",
+        "Endereco": "endereco",
+    },
+    numericas=(
+        "quantidade", "vlr_unitario", "vlr_total",
+        "qtd_entregue", "vlr_desconto", "pct_desconto",
+    ),
+    datas=("dt_entrega", "dt_ult_faturamento"),
+    obrigatorias=("num_pedido", "produto"),
+    # Sem C6_ITEM nao ha chave unica: deduplicar apagaria o mesmo SKU repetido
+    # legitimamente em itens diferentes do pedido.
+    chave=(),
+    opcionais=("ped_cliente", "nf_original", "serie_origem", "endereco"),
+    # Sem coluna_competencia: a particao e dt_carga (snapshot), nao o mes.
+)
+
 
 SD2 = ArquivoProtheus(
     nome="SD2",
@@ -179,4 +233,4 @@ SD1 = ArquivoProtheus(
     coluna_competencia="dt_emissao",
 )
 
-ARQUIVOS: dict[str, ArquivoProtheus] = {a.nome: a for a in (SB2, SC5, SD1, SD2)}
+ARQUIVOS: dict[str, ArquivoProtheus] = {a.nome: a for a in (SB2, SC5, SC6, SD1, SD2)}

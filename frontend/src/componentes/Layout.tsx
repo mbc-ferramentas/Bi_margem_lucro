@@ -9,9 +9,11 @@ const PAGINAS = [
   { para: "/vendedores", rotulo: "Por vendedor" },
   { para: "/skus", rotulo: "Por SKU" },
   { para: "/canais", rotulo: "Por canal" },
+  { para: "/carteira", rotulo: "Carteira em aberto" },
   // Esconder o item nao e a protecao: a API recusa quem nao e admin. Aqui e so
   // para nao oferecer uma tela que o usuario receberia 403 ao usar.
   { para: "/uploads", rotulo: "Uploads", somenteAdmin: true },
+  { para: "/usuarios", rotulo: "Usuários", somenteAdmin: true },
 ];
 
 /** Moldura fixa da aplicacao: existe igual nos tres estados (carregando, erro e
@@ -51,7 +53,7 @@ export function Layout() {
           <div role="status" aria-live="polite" aria-busy="true">
             <span style={{ position: "absolute", left: "-9999px" }}>Carregando</span>
             <div aria-hidden="true">
-              {PAGINAS.slice(0, 4).map((p) => (
+              {PAGINAS.filter((p) => !p.somenteAdmin).map((p) => (
                 <div key={p.para} className="nav-item">
                   <Barra largura="70%" altura="11px" />
                 </div>

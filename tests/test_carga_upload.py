@@ -102,22 +102,29 @@ def test_upload_carrega_e_audita():
     antes = ExecucaoCarga.objects.filter(status="sucesso").count()
     resposta = cliente_de("admin").post(
         ROTA,
-        {"SB2": upload("SB2"), "SC5": upload("SC5"), "SD1": upload("SD1"), "SD2": upload("SD2")},
+        {
+            "SB2": upload("SB2"),
+            "SC5": upload("SC5"),
+            "SC6": upload("SC6"),
+            "SD1": upload("SD1"),
+            "SD2": upload("SD2"),
+        },
         format="multipart",
     )
 
     assert resposta.status_code == 200
     resumo = {a["arquivo"]: a for a in resposta.data["arquivos"]}
-    assert set(resumo) == {"SB2", "SC5", "SD1", "SD2"}
+    assert set(resumo) == {"SB2", "SC5", "SC6", "SD1", "SD2"}
     assert all(a["status"] == "sucesso" for a in resumo.values())
     assert resumo["SD1"]["linhas_lidas"] == 185_297
     assert resumo["SD1"]["linhas_gravadas"] == 185_297
+    assert resumo["SC6"]["linhas_lidas"] == 57_650
     assert resumo["SD2"]["linhas_lidas"] == 38_047
     assert resumo["SD2"]["linhas_gravadas"] == 38_047
 
     # A carga substitui a competencia inteira, entao reenviar nao duplica linha.
     assert escalar("SELECT count(*) FROM stg_sd2") == 38_047
-    assert ExecucaoCarga.objects.filter(status="sucesso").count() == antes + 4
+    assert ExecucaoCarga.objects.filter(status="sucesso").count() == antes + 5
 
 
 @sem_csv

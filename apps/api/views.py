@@ -138,6 +138,62 @@ class FiltrosView(BaseBI):
         return self.responder({"opcoes": queries.opcoes(escopo)})
 
 
+class CarteiraView(BaseBI):
+    """Pedidos de venda em aberto — o que ja foi vendido e ainda nao saiu.
+
+    Le `mv_carteira_aberta`, alimentada pelo SC6. O recorte de data e a **data de
+    entrega**, nao a competencia: a carteira olha para frente, e um item com
+    entrega vencida e exatamente o que a tela precisa destacar.
+
+    O resumo vem calculado sobre o conjunto filtrado inteiro, nao sobre a pagina.
+    """
+
+    coluna_data = "dt_entrega"
+
+    ORDENAVEIS = {
+        "valor": "vlr_aberto",
+        "margem": "margem_prevista",
+        "margem_pct": "margem_prevista_pct",
+        "quantidade": "qtd_aberta",
+        "entrega": "dt_entrega",
+        "dias": "dias_em_aberto",
+        "pedido": "num_pedido",
+        "sku": "sku",
+    }
+
+    def get(self, request: Request) -> Response:
+        escopo, clausula = self.contexto(request)
+        clausula = filtros.carteira(request, clausula)
+        ordem = filtros.ordenacao(request, self.ORDENAVEIS, "-valor")
+        limite, offset = filtros.paginacao(request)
+
+        resultado = queries.carteira(clausula, ordem, limite, offset)
+        return self.responder(
+            {
+                **resultado,
+                "resumo": queries.carteira_resumo(clausula),
+                "limite": limite,
+                "offset": offset,
+                "observacao": (
+                    "Margem prevista: sem nota fiscal nao existe custo congelado, "
+                    "entao a referencia e o cadastro de custo do SB2 mais recente. "
+                    "Pedidos fora da janela do export do SC5 aparecem sem vendedor."
+                ),
+            }
+        )
+
+
+class CarteiraFiltrosView(BaseBI):
+    """Opcoes de filtro da carteira.
+
+    Separado de `/filtros`: a carteira tem pedidos fora da janela do SD2, e
+    oferecer um vendedor sem item em aberto so produziria tela vazia.
+    """
+
+    def get(self, request: Request) -> Response:
+        escopo = escopo_de(request.user)
+        return self.responder({"opcoes": queries.carteira_opcoes(escopo)})
+
 class EuView(APIView):
     """Identidade e perfil do usuario autenticado."""
 

@@ -29,7 +29,8 @@ logger = logging.getLogger(__name__)
 
 # SB2 antes de tudo: e a fotografia de custo com que as vendas fazem join. Carregar
 # SD2 primeiro deixaria a margem do periodo apoiada no snapshot anterior.
-ORDEM = ("SB2", "SC5", "SD1", "SD2")
+# SC6 depois do SC5: a carteira faz join com o cabecalho do pedido.
+ORDEM = ("SB2", "SC5", "SC6", "SD1", "SD2")
 
 # Constante arbitraria e estavel: identifica *esta* trava no Postgres.
 LOCK_CARGA = 8_150_423

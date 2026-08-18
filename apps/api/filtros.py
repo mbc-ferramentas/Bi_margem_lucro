@@ -81,6 +81,34 @@ def montar(request, escopo: Escopo, coluna_data: str = "competencia") -> Clausul
     return c
 
 
+def carteira(request, clausula: Clausula) -> Clausula:
+    """Filtros exclusivos da carteira, aplicados sobre a clausula comum.
+
+    `situacao` e `busca` nao existem nas telas de margem: la o recorte e o
+    periodo, aqui e a cobranca — quem ja venceu, e onde esta um pedido especifico.
+    """
+    situacao = request.query_params.get("situacao")
+    if situacao == "atrasados":
+        clausula.e("atrasado")
+    elif situacao == "a_vencer":
+        clausula.e("NOT atrasado")
+    elif situacao:
+        raise ValidationError({"situacao": "Use 'atrasados' ou 'a_vencer'."})
+
+    busca = (request.query_params.get("busca") or "").strip()
+    if busca:
+        # Numero de pedido, codigo ou descricao do item: quem abre a carteira
+        # geralmente esta procurando um pedido nominal, nao explorando o total.
+        clausula.e(
+            "(num_pedido ILIKE %s OR sku ILIKE %s OR descricao ILIKE %s)",
+            f"%{busca}%",
+            f"%{busca}%",
+            f"%{busca}%",
+        )
+
+    return clausula
+
+
 def ordenacao(request, permitidas: dict[str, str], padrao: str) -> str:
     """Traduz ?ordenar=-margem para SQL, aceitando apenas colunas conhecidas."""
     bruto = request.query_params.get("ordenar", padrao)

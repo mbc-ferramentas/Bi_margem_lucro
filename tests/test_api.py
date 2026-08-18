@@ -23,6 +23,8 @@ ENDPOINTS = [
     "/api/v1/margem/vendedor",
     "/api/v1/margem/sku",
     "/api/v1/filtros",
+    "/api/v1/carteira",
+    "/api/v1/carteira/filtros",
 ]
 
 

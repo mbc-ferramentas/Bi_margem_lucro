@@ -49,7 +49,7 @@ Comandos uteis: `make logs`, `make migrate`, `make test`, `make lint`,
 ## Como os dados entram
 
 Quem alimenta o BI e o **administrador**, enviando os CSVs exportados do Protheus
-(SB2/SC5/SD1/SD2) na tela **Uploads**. O processamento e sincrono e leva ~6s no
+(SB2/SC5/SC6/SD1/SD2) na tela **Uploads**. O processamento e sincrono e leva ~6s no
 volume atual (~145 mil linhas); a resposta traz o resultado por arquivo.
 
 - Nao ha job agendado nem fila: o projeto **nao usa Celery/Redis**.
@@ -92,8 +92,20 @@ reverso da VPS (fora desta stack) faz TLS e roteamento.
 
 ```bash
 cp container/.env.example container/.env   # preencha os segredos
-make deploy                                 # up -d --build + migrate
+make deploy                                 # up -d --build
 ```
+
+Sem `make`:
+
+```bash
+docker compose -f container/docker-compose.vps.yml up -d --build
+```
+
+**Nao existe passo manual de migrate.** O container da api roda
+`migrate` + `collectstatic` e so entao sobe o gunicorn, entao atualizar a stack em
+producao e sempre o mesmo comando acima — mesmo desenho do `Bi_controle_financeiro`.
+Enquanto as migrations rodam o healthcheck ainda esta em `start_period`, e o `web`
+so passa a receber trafego depois que a api fica saudavel.
 
 ### Backup
 

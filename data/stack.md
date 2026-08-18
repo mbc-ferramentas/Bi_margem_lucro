@@ -394,6 +394,66 @@ R$ 27.407 / 0,3% da receita.
 
 ---
 
+## 7.1 SC6 — carteira de pedidos em aberto
+
+O SC6 traz os **itens do pedido de venda**, faturados ou não. É a única fonte do que
+já foi vendido e ainda não saiu — o SD2 só enxerga o que virou nota.
+
+**Carga: snapshot por `dt_carga`, como o SB2.** O export não traz `C6_ITEM`, então não
+existe chave natural única (o mesmo SKU aparece em itens diferentes do mesmo pedido) e
+deduplicar apagaria linha legítima. Uma carteira também é, por natureza, a fotografia de
+um dia: `stg_sc6` guarda as fotos anteriores, e a evolução da carteira sai de graça
+quando for pedida.
+
+**Critério de "em aberto"** (`mv_carteira_aberta`): `nota_fiscal IS NULL` **ou**
+`qtd_entregue < quantidade`. O segundo termo é o que cobre a entrega parcial — sem ele,
+um item faturado pela metade sumiria da carteira com metade ainda por sair. O valor
+exposto é `vlr_aberto = (quantidade − qtd_entregue) × preço`, não o valor cheio do
+pedido: senão a parte já faturada contaria duas vezes, uma na margem e outra na carteira.
+
+**A view é separada de `mv_margem_item` de propósito.** Pedido em aberto não é receita;
+somar os dois na mesma view inflaria faturamento e margem. As duas compartilham as
+tabelas de classificação (`core_mapacanal`, `core_mapagrupo`, `core_reclassificacaosku`),
+então um ajuste feito no admin vale nas duas telas. `core_mapates` fica de fora: o SC6
+não tem TES.
+
+O custo da carteira é a cascata da Regra 3 reduzida ao que existe antes da nota:
+`C Unitario` → `V. Ult. Comp` do SB2 mais recente. Sem `D2_CUSTO1`, que só nasce no
+faturamento, a margem da carteira é **prevista**, não realizada.
+
+### Medição de referência (foto de 18/08/2026)
+
+| Medida | Valor |
+| --- | --- |
+| Linhas no export | 57.650 |
+| Itens em aberto | 1.123 |
+| Valor em aberto | R$ 1.181.265,60 |
+| Custo previsto | R$ 523.395,60 |
+| Itens sem custo de referência | 250 |
+| Itens com entrega vencida | 1.062 |
+
+**75% da carteira cai em `(pedido sem cadastro)`** — 848 dos 1.123 itens. É o mesmo
+defeito da pendência 5 da seção 10, mas aqui ele dói mais: o SC5 é exportado por data de
+emissão do pedido, e um pedido em aberto é justamente o antigo ou o recém-lançado que
+fica fora dessa janela. Sem cabeçalho não há vendedor nem nome de cliente na carteira.
+Ampliar a janela do SC5 é o que destrava a tela de carteira por vendedor.
+
+### Tela e endpoints
+
+`GET /api/v1/carteira` devolve, na mesma resposta, o `resumo` (calculado sobre o
+conjunto filtrado inteiro, não sobre a página) e os `itens` paginados. Filtros próprios:
+`situacao=atrasados|a_vencer` e `busca` (pedido, SKU ou descrição); os demais — canal,
+grupo, armazém, vendedor — são os mesmos da margem. `competencia_inicio`/`_fim` mantêm o
+nome por reaproveitarem `filtros.montar`, mas na carteira recortam **`dt_entrega`**.
+
+`GET /api/v1/carteira/filtros` tem lista própria de opções: a carteira contém pedidos
+fora da janela do SD2, e oferecer um vendedor sem item em aberto só produziria tela
+vazia.
+
+O escopo do perfil `vendedor` vale igual aqui — `vendedor_codigo` existe na view, então
+a mesma cláusula base isola as linhas sem nenhum tratamento especial.
+
+
 ## 8. Skeleton de carregamento
 
 ### Estrutura do projeto
@@ -821,7 +881,8 @@ Observação sobre o SB2: apesar de 39,8% do cadastro estar sem custo, isso atin
 
 ### Bloqueiam a fase 1
 
-1. **`D2_ITEM` no export do SD2** — sem chave única não há carga incremental.
+1. **`D2_ITEM` no export do SD2** — sem chave única não há carga incremental. Mesma
+   pendência no SC6 (`C6_ITEM`), que por isso carrega por snapshot.
 2. **`D2_CUSTO1` no export do SD2** — sem custo congelado, meses fechados mudam
    sozinhos a cada recarga.
 3. **CFOP / TES no export do SD2** — sem isso, remessa e bonificação entram como
@@ -833,7 +894,8 @@ Observação sobre o SB2: apesar de 39,8% do cadastro estar sem custo, isso atin
    recuperá-lo é o que permite, na fase 2, saber se Shopee rende mais que Mercado
    Livre. Ideal: o Lexos entregar o nome do marketplace em coluna própria.
 5. **SC5 com janela ~90 dias maior** que o período do SD2, para eliminar os 4,6% de
-   pedidos sem cadastro.
+   pedidos sem cadastro. A carteira do SC6 torna isso mais urgente: 75% dos
+   itens em aberto ficam sem vendedor por essa mesma janela (seção 7.1).
 6. **Regra 2** — definir o corte de quarentena de outlier.
 
 ### Perguntas ao negócio ainda em aberto

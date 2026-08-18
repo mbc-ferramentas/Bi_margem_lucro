@@ -123,6 +123,83 @@ export const filtrosSchema = z.object({
   escopo: escopoSchema,
 });
 
+/** Carteira de pedidos em aberto (SC6).
+ *
+ *  Os valores sao sempre a parte que **falta sair**: `qtd_aberta` e `vlr_aberto`
+ *  descontam o que ja foi entregue. A margem e prevista, apoiada no cadastro de
+ *  custo do SB2 — sem nota fiscal nao existe custo congelado. */
+export const carteiraSchema = z.object({
+  total: z.number(),
+  limite: z.number(),
+  offset: z.number(),
+  resumo: z.object({
+    itens: contagem,
+    pedidos: contagem,
+    skus: contagem,
+    quantidade: numero,
+    valor_aberto: dinheiro,
+    custo_previsto: dinheiro,
+    margem_prevista: dinheiro,
+    margem_prevista_pct: numero,
+    valor_medio_pedido: dinheiro,
+    itens_atrasados: contagem,
+    valor_atrasado: dinheiro,
+    itens_sem_custo: contagem,
+    /** Pedidos fora da janela do export do SC5: ficam sem vendedor e sem nome
+     *  de cliente. Exibido na tela para o numero nao parecer um bug. */
+    itens_sem_cadastro: contagem,
+    dt_foto: z.string().nullable(),
+    entrega_min: z.string().nullable(),
+    entrega_max: z.string().nullable(),
+  }),
+  itens: z.array(
+    z.object({
+      id: z.string(),
+      num_pedido: z.string(),
+      sku: z.string(),
+      descricao: z.string().nullable(),
+      grupo: z.string().nullable(),
+      armazem: z.string().nullable(),
+      canal: z.string(),
+      vendedor_codigo: z.string().nullable(),
+      vendedor_nome: z.string().nullable(),
+      cod_cliente: z.string().nullable(),
+      nome_cliente: z.string().nullable(),
+      dt_emissao: z.string().nullable(),
+      dt_entrega: z.string().nullable(),
+      dias_em_aberto: z.number().nullable(),
+      atrasado: z.boolean(),
+      qtd_pedida: numero,
+      qtd_entregue: numero,
+      qtd_aberta: numero,
+      vlr_unitario: dinheiro,
+      vlr_aberto: dinheiro,
+      custo_aberto: dinheiro,
+      margem_prevista: dinheiro,
+      margem_prevista_pct: numero,
+      sem_custo: z.boolean(),
+    }),
+  ),
+  observacao: z.string(),
+  escopo: escopoSchema,
+});
+export type Carteira = z.infer<typeof carteiraSchema>;
+export type ItemCarteira = Carteira["itens"][number];
+export type ResumoCarteira = Carteira["resumo"];
+
+export const carteiraFiltrosSchema = z.object({
+  opcoes: z.object({
+    canais: z.array(z.string()),
+    grupos: z.array(z.object({ codigo: z.string(), rotulo: z.string().nullable() })),
+    armazens: z.array(z.string().nullable()),
+    vendedores: z.array(
+      z.object({ codigo: z.string(), nome: z.string().nullable() }),
+    ),
+  }),
+  escopo: escopoSchema,
+});
+
+
 export const euSchema = z.object({
   username: z.string(),
   nome: z.string(),
@@ -149,10 +226,60 @@ export type Uploads = z.infer<typeof uploadsSchema>;
 export type ResultadoArquivo = Uploads["arquivos"][number];
 
 export type Filtros = {
+  /** Na carteira estas duas recortam a **data de entrega**, nao a competencia:
+   *  a view nao tem competencia, e o que interessa la e o prazo prometido. */
   competencia_inicio?: string;
   competencia_fim?: string;
   canal?: string;
   grupo?: string;
   armazem?: string;
   vendedor?: string;
+  /** Exclusivos da carteira. */
+  situacao?: "atrasados" | "a_vencer";
+  busca?: string;
+};
+
+/** Perfis do BI. A API aceita um unico perfil por conta — 'gerente + vendedor'
+ *  nao significa nada, porque o escopo mais amplo engole o outro. */
+export const PERFIS = ["admin", "gerente", "vendedor"] as const;
+export type Perfil = (typeof PERFIS)[number];
+
+export const usuarioSchema = z.object({
+  id: z.number(),
+  username: z.string(),
+  nome: z.string(),
+  email: z.string(),
+  perfil: z.string(),
+  ativo: z.boolean(),
+  /** Conta administrativa de emergencia: aparece na lista, mas nao aceita
+   *  alteracao, remocao nem troca de senha pela aplicacao. */
+  protegido: z.boolean(),
+  ultimo_acesso: z.string().nullable(),
+  vendedor: z.object({ codigo: z.string(), nome: z.string() }).nullable(),
+});
+export type Usuario = z.infer<typeof usuarioSchema>;
+
+export const usuariosSchema = z.object({
+  usuarios: z.array(usuarioSchema),
+  vendedores: z.array(
+    z.object({
+      codigo: z.string(),
+      nome: z.string(),
+      /** Ja vinculado a esta conta — o formulario marca para nao oferecer duas
+       *  vezes o mesmo codigo. */
+      usuario: z.string().nullable(),
+    }),
+  ),
+});
+
+export const detalheSchema = z.object({ detail: z.string() });
+
+export type FormularioUsuario = {
+  username: string;
+  nome: string;
+  email: string;
+  perfil: Perfil;
+  ativo: boolean;
+  vendedor_codigo: string;
+  senha?: string;
 };

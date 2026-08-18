@@ -43,6 +43,8 @@ def test_contagem_de_linhas(dados):
     # 72.333 linhas com Produto, menos 53 de controle da filial.
     assert dados["SB2"].height == 72_280
     assert dados["SD1"].height == 185_297
+    # Nenhuma linha do SC6 e descartada: todas tem pedido e produto.
+    assert dados["SC6"].height == 57_650
 
 
 def test_receita_total(dados):
@@ -155,6 +157,47 @@ def test_duplicatas_preservadas_sem_d2_item(dados):
     chave = ["filial", "num_docto", "serie", "produto"]
     distintas = sd2.select(chave).unique().height
     assert sd2.height - distintas == 187
+
+
+# --------------------------------------------------------------------------- #
+# SC6 — carteira de pedidos
+# --------------------------------------------------------------------------- #
+
+def test_sc6_carteira_em_aberto(dados):
+    """O criterio de "em aberto" precisa sobreviver ao parsing.
+
+    Nota fiscal vazia so vira NULL porque o reader normaliza '' -> NULL; se essa
+    normalizacao regredir, a carteira passa a ter 57.650 linhas em vez de 1.123.
+    """
+    sc6 = dados["SC6"]
+    assert sc6["vlr_total"].sum() == Decimal("16068412.77")
+
+    sem_nota = sc6.filter(pl.col("nota_fiscal").is_null())
+    assert sem_nota.height == 1_047
+
+    em_aberto = sc6.filter(
+        pl.col("nota_fiscal").is_null()
+        | (pl.col("qtd_entregue").fill_null(0) < pl.col("quantidade"))
+    )
+    assert em_aberto.height == 1_123
+
+
+def test_sc6_datas_parseadas(dados):
+    sc6 = dados["SC6"]
+    assert sc6.schema["dt_entrega"] == pl.Date
+    assert sc6.schema["dt_ult_faturamento"] == pl.Date
+    assert sc6["dt_entrega"].null_count() == 0
+
+
+def test_sc6_colunas_quase_vazias_no_export(dados):
+    """`Ped Cliente` e `Endereco` chegam sempre vazias; a nota de origem so vem
+    preenchida nas 9 linhas de devolucao. Mapeadas para o dia que o Protheus
+    passar a preencher o resto."""
+    sc6 = dados["SC6"]
+    for coluna in ("ped_cliente", "endereco"):
+        assert sc6[coluna].null_count() == sc6.height, coluna
+    for coluna in ("nf_original", "serie_origem"):
+        assert sc6[coluna].null_count() == 57_641, coluna
 
 
 # --------------------------------------------------------------------------- #

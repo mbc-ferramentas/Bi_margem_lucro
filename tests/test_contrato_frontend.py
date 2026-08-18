@@ -164,3 +164,62 @@ def test_margem_pct_e_fracao(gerente):
     """A UI formata com Intl percent, que espera fracao (0.258), nao 25.8."""
     valor = float(gerente.get("/api/v1/kpis").json()["kpis"]["margem_pct"])
     assert 0 < valor < 1
+
+
+def test_carteira(gerente):
+    """Espelha `carteiraSchema`. A tela le `resumo` e `itens` na mesma resposta."""
+    corpo = gerente.get("/api/v1/carteira?limite=1").json()
+    assert CHAVES_ESCOPO <= set(corpo["escopo"])
+    assert {"total", "limite", "offset", "resumo", "itens", "observacao"} <= set(corpo)
+    assert {
+        "itens",
+        "pedidos",
+        "skus",
+        "quantidade",
+        "valor_aberto",
+        "custo_previsto",
+        "margem_prevista",
+        "margem_prevista_pct",
+        "valor_medio_pedido",
+        "itens_atrasados",
+        "valor_atrasado",
+        "itens_sem_custo",
+        "itens_sem_cadastro",
+        "dt_foto",
+        "entrega_min",
+        "entrega_max",
+    } <= set(corpo["resumo"])
+    assert {
+        "id",
+        "num_pedido",
+        "sku",
+        "descricao",
+        "grupo",
+        "armazem",
+        "canal",
+        "vendedor_codigo",
+        "vendedor_nome",
+        "cod_cliente",
+        "nome_cliente",
+        "dt_emissao",
+        "dt_entrega",
+        "dias_em_aberto",
+        "atrasado",
+        "qtd_pedida",
+        "qtd_entregue",
+        "qtd_aberta",
+        "vlr_unitario",
+        "vlr_aberto",
+        "custo_aberto",
+        "margem_prevista",
+        "margem_prevista_pct",
+        "sem_custo",
+    } <= set(corpo["itens"][0])
+
+
+def test_carteira_filtros(gerente):
+    """Espelha `carteiraFiltrosSchema` — lista propria, nao a de `/filtros`."""
+    opcoes = gerente.get("/api/v1/carteira/filtros").json()["opcoes"]
+    assert {"canais", "grupos", "armazens", "vendedores"} == set(opcoes)
+    assert all({"codigo", "rotulo"} <= set(g) for g in opcoes["grupos"])
+    assert all({"codigo", "nome"} <= set(v) for v in opcoes["vendedores"])

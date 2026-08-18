@@ -59,7 +59,7 @@ def _preparar(df: pl.DataFrame, dt_carga: date) -> pl.DataFrame:
 
 
 def carregar_snapshot(spec: ArquivoProtheus, df: pl.DataFrame, dt_carga: date) -> int:
-    """SB2: substitui a fotografia do dia, preservando as anteriores."""
+    """SB2 e SC6: substitui a fotografia do dia, preservando as anteriores."""
     df = _preparar(df, dt_carga)
     with transaction.atomic(), connection.cursor() as cur:
         cur.execute(f"DELETE FROM {spec.tabela} WHERE dt_carga = %s", [dt_carga])
@@ -114,7 +114,9 @@ def carregar_upsert(spec: ArquivoProtheus, df: pl.DataFrame, dt_carga: date) -> 
 
 def estrategia_de(spec: ArquivoProtheus, df: pl.DataFrame):
     """Escolhe a estrategia de carga conforme o que o arquivo oferece."""
-    if spec.nome == "SB2":
+    # SB2 e SC6 sao fotografias do dia (custo de estoque e carteira em aberto):
+    # versionadas por dt_carga, cada carga substitui apenas a foto daquele dia.
+    if spec.nome in ("SB2", "SC6"):
         return carregar_snapshot
     if spec.nome == "SD1":
         return carregar_periodo
@@ -136,6 +138,7 @@ VIEWS = (
     "mv_margem_diaria",
     "mv_margem_vendedor",
     "mv_margem_sku",
+    "mv_carteira_aberta",
 )
 
 

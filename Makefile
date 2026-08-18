@@ -34,8 +34,8 @@ lint:
 	$(DEV) exec $(API) ruff format --check .
 
 deploy:                   ## producao na VPS
+	# migrate e collectstatic rodam no proprio container da api (ver vps.yml).
 	$(PROD) up -d --build
-	$(PROD) exec $(API) python manage.py migrate
 
 # Backup do banco de producao NAO e responsabilidade desta stack: o Postgres
 # roda no host da VPS e o dump e agendado la (ver container/README.dev.md).

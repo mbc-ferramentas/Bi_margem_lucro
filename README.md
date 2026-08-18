@@ -1,7 +1,7 @@
 # BI de Margem de Lucro
 
 Margem bruta por SKU, vendedor, grupo e canal, sobre as exportações do Protheus
-(`SB2`, `SC5`, `SD1`, `SD2`).
+(`SB2`, `SC5`, `SC6`, `SD1`, `SD2`).
 
 **Fase 1 — margem bruta:** `receita − (quantidade × custo unitário)`.
 Não inclui impostos, frete, comissão de marketplace nem devoluções. A fase 2 e as
@@ -76,8 +76,17 @@ apps/core/     models de cadastro, migrations SQL (staging + materialized views)
 apps/etl/      leitura dos CSVs (Polars), Parquet, carga no Postgres
 apps/api/      DRF: SQL puro sobre as views, RBAC
 frontend/      React + Vite + TS, TanStack Query, ECharts
-tests/         100 testes ancorados no baseline de 07/2026
+tests/         123 testes ancorados no baseline de 07/2026
 ```
+
+O `SC6` (itens do pedido de venda) alimenta a **carteira em aberto** — o que já foi
+vendido e ainda não saiu. Fica em `mv_carteira_aberta`, view separada da margem: pedido
+em aberto não é receita, e somar os dois inflaria o faturamento. Em aberto = sem nota
+fiscal **ou** entregue apenas em parte; o valor exposto é só a parte que falta sair.
+Detalhe em [`data/stack.md`](data/stack.md) §7.1. Na tela **Carteira em aberto**
+(`GET /api/v1/carteira`), com filtro de situação (entrega vencida / a vencer) e busca
+por pedido, SKU ou descrição. O recorte de período ali é a **data de entrega**, não a
+competência.
 
 O `SD1` (itens de nota de entrada) é carregado para o staging mas **não entra na
 margem da fase 1**: o export cobre 46 competências, de 2000 a 08/2026, enquanto o
@@ -126,7 +135,8 @@ e zero **permanece** no KPI: é prejuízo plausível, não erro.
 Bloqueiam evolução (detalhe em `data/stack.md` §10):
 
 1. **`D2_ITEM`** — sem chave única não há carga incremental; hoje a carga substitui
-   a competência inteira. Vale também para o `SD1`.
+   a competência inteira. Vale também para o `SD1`, e para o `SC6` (`C6_ITEM`), que
+   por isso carrega por snapshot do dia.
 2. ~~`D2_CUSTO1`~~ — **resolvido** no export de 08/2026.
 3. **CFOP** — o `TES` chegou; o CFOP ainda não. Enquanto a classificação dos 32
    códigos de TES não for feita no Admin, remessa e bonificação seguem contando

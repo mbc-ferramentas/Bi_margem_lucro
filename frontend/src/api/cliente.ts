@@ -128,6 +128,54 @@ export async function enviar<T>(
   return schema.parse(await resposta.json());
 }
 
+/** Requisicao JSON autenticada (POST/PATCH/DELETE), com o mesmo retry de 401.
+ *
+ *  O erro do DRF vem de duas formas: `{detail: "..."}` nas permissoes e
+ *  `{campo: ["..."]}` na validacao. As duas viram uma frase legivel, senao a tela
+ *  mostraria "Falha (400)" para um problema que o servidor explicou. */
+export async function escrever<T>(
+  caminho: string,
+  metodo: "POST" | "PATCH" | "DELETE",
+  corpo: unknown,
+  schema: ZodSchema<T>,
+  tentouRenovar = false,
+): Promise<T> {
+  const resposta = await fetch(`${BASE}${caminho}`, {
+    method: metodo,
+    headers: {
+      "Content-Type": "application/json",
+      ...(tokens.access ? { Authorization: `Bearer ${tokens.access}` } : {}),
+    },
+    body: corpo === undefined ? undefined : JSON.stringify(corpo),
+  });
+
+  if (resposta.status === 401 && !tentouRenovar) {
+    if (await renovar()) return escrever(caminho, metodo, corpo, schema, true);
+  }
+
+  if (!resposta.ok) {
+    throw new ErroApi(await mensagemDeErro(resposta), resposta.status);
+  }
+
+  // 204 (remocao) nao tem corpo: o schema desses casos e `z.null()`.
+  if (resposta.status === 204) return schema.parse(null);
+  return schema.parse(await resposta.json());
+}
+
+async function mensagemDeErro(resposta: Response): Promise<string> {
+  try {
+    const corpo = await resposta.json();
+    if (typeof corpo?.detail === "string") return corpo.detail;
+    const partes = Object.values(corpo ?? {})
+      .flat()
+      .filter((v): v is string => typeof v === "string");
+    if (partes.length) return partes.join(" ");
+  } catch {
+    /* resposta sem corpo JSON */
+  }
+  return `Falha na operação (${resposta.status})`;
+}
+
 export async function entrar(username: string, password: string): Promise<void> {
   const resposta = await fetch(`${BASE}/auth/token`, {
     method: "POST",
