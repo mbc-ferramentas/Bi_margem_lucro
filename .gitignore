@@ -8,6 +8,7 @@ staticfiles/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+data/dados/usarei/
 
 # Parquet de staging e regenerado pelo ETL
 data/staging/
