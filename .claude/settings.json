@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make test)",
+      "Bash(make lint)",
+      "Bash(make logs)",
+      "Bash(make dev)",
+      "Bash(make migrate)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(docker compose --env-file container/.env.dev -f container/docker-compose.dev.yml ps:*)",
+      "Bash(docker compose --env-file container/.env.dev -f container/docker-compose.dev.yml logs:*)",
+      "Bash(docker compose --env-file container/.env.dev -f container/docker-compose.dev.yml exec bi-margem-lucro-api pytest:*)",
+      "Bash(docker compose --env-file container/.env.dev -f container/docker-compose.dev.yml exec bi-margem-lucro-api ruff:*)",
+      "Bash(docker compose --env-file container/.env.dev -f container/docker-compose.dev.yml exec bi-margem-lucro-api python manage.py showmigrations:*)",
+      "Bash(rg:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)"
+    ],
+    "deny": [
+      "Read(./container/.env)",
+      "Read(./container/.env.dev)",
+      "Read(./data/dados/usarei/**)",
+      "Bash(make deploy)",
+      "Bash(docker compose -f container/docker-compose.vps.yml:*)"
+    ]
+  }
+}
