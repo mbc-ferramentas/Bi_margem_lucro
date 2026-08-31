@@ -301,6 +301,20 @@ def test_pedidos(gerente):
     assert all(p["origem"] in ("pedido", "pdv") for p in corpo["pedidos"])
 
 
+def test_pedidos_por_vendedor(gerente):
+    """A mesma rota, recortada por vendedor — o drill-down de `Por vendedor`.
+
+    O frontend nao ganhou endpoint novo: a tela por vendedor troca a dimensao
+    travada na URL e continua batendo em `margem/pedidos`. O teste existe para
+    que remover `vendedor` das DIMENSOES quebre aqui, e nao na tela.
+    """
+    codigo = gerente.get("/api/v1/margem/vendedor").json()["vendedores"][0]["vendedor_codigo"]
+    corpo = gerente.get(f"/api/v1/margem/pedidos?vendedor={codigo}&limite=5").json()
+    assert CHAVES_ESCOPO <= set(corpo["escopo"])
+    assert corpo["total"] > 0
+    assert all(p["vendedor_codigo"] == codigo for p in corpo["pedidos"])
+
+
 def test_pedido(gerente):
     """Espelha `pedidoSchema` — cabecalho, totais e itens."""
     chave = gerente.get("/api/v1/margem/pedidos?armazem=02&limite=1").json()[

@@ -34,6 +34,12 @@ export function App() {
             element={<PedidoDetalhe />}
           />
           <Route path="vendedores" element={<Vendedores />} />
+          {/* Mesmo drill-down, outra dimensao travada pela rota. */}
+          <Route path="vendedores/:vendedor/pedidos" element={<Pedidos />} />
+          <Route
+            path="vendedores/:vendedor/pedidos/:chave"
+            element={<PedidoDetalhe />}
+          />
           <Route path="skus" element={<Skus />} />
           <Route path="canais" element={<Canais />} />
           <Route path="carteira" element={<Carteira />} />

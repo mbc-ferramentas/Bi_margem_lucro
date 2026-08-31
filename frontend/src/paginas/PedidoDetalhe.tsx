@@ -31,9 +31,9 @@ import {
  *  para quem lê a tela, e a diferença entre 'saida' e 'ultima_compra' é
  *  exatamente o que explica uma margem fora do esperado. */
 const ORIGEM_CUSTO: Record<string, string> = {
-  saida: "Custo da saída (D2_CUSTO1)",
-  medio: "Custo médio do cadastro",
-  ultima_compra: "Valor da última compra",
+  saida: "Saída", 
+  medio: "Custo do Cadastro",
+  ultima_compra: "valor Ult.Compra",
   outro_armazem: "Mesmo SKU em outro armazém",
 };
 
@@ -56,14 +56,20 @@ function motivosForaDoKpi(item: ItemPedido): string[] {
 }
 
 export function PedidoDetalhe() {
-  const { armazem = "", chave = "" } = useParams();
+  // Chega-se aqui por dois caminhos (armazém ou vendedor). Quem travou o
+  // recorte lá em cima é quem manda no recorte daqui e no destino do Voltar.
+  const { armazem = "", vendedor = "", chave = "" } = useParams();
+  const porArmazem = Boolean(armazem);
   const [filtros] = useFiltrosUrl();
   const consulta = escreverFiltros(filtros);
-  const voltar = `/armazens/${armazem}/pedidos${consulta ? `?${consulta}` : ""}`;
+  const base = porArmazem
+    ? `/armazens/${armazem}/pedidos`
+    : `/vendedores/${encodeURIComponent(vendedor)}/pedidos`;
+  const voltar = `${base}${consulta ? `?${consulta}` : ""}`;
 
   const { data, isPending, isError, error } = usePedido(chave, {
     ...filtros,
-    armazem,
+    ...(porArmazem ? { armazem } : { vendedor }),
   });
 
   const cabecalho = data?.pedido;
@@ -163,8 +169,8 @@ export function PedidoDetalhe() {
             {cabecalho.linhas_fora_do_recorte > 0 && (
               <p className="nota">
                 Este pedido tem mais {inteiro(cabecalho.linhas_fora_do_recorte)} linhas
-                fora do filtro atual (outro armazém ou outra competência). Os totais
-                aqui são só do recorte que você está vendo.
+                fora do filtro atual (outro armazém, outro vendedor ou outra
+                competência). Os totais aqui são só do recorte que você está vendo.
               </p>
             )}
           </div>

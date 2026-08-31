@@ -1,33 +1,41 @@
 import type { EChartsOption } from "echarts";
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { useVendedores } from "../api/hooks";
 import type { Filtros } from "../api/tipos";
 import { BarraFiltros } from "../componentes/Filtros";
 import { Grafico, baseDoTema, corDaSerie } from "../componentes/Grafico";
+import { IconeOlho } from "../componentes/Icones";
 import { Erro, Vazio } from "../componentes/Layout";
 import { Paginacao } from "../componentes/Paginacao";
 import { SeletorTema } from "../componentes/SeletorTema";
 import { SkeletonTabela } from "../componentes/Skeleton";
+import { escreverFiltros, useFiltrosUrl } from "../filtrosUrl";
 import { inteiro, moeda, moedaCurta, numeroBruto, percentual } from "../formato";
 import { useTema } from "../tema";
 
-const COLUNAS = [
+// `chave: null` = coluna que nao ordena; a de acoes nao e um dado do ranking.
+const COLUNAS: readonly { chave: string | null; rotulo: string; num: boolean }[] = [
   { chave: "nome", rotulo: "Vendedor", num: false },
   { chave: "receita", rotulo: "Receita", num: true },
   { chave: "margem", rotulo: "Margem", num: true },
   { chave: "margem_pct", rotulo: "Margem %", num: true },
   { chave: "pedidos", rotulo: "Pedidos", num: true },
-] as const;
+  { chave: null, rotulo: "Ações", num: false },
+];
 
 export function Vendedores() {
-  const [filtros, setFiltros] = useState<Filtros>({});
+  // Filtros na URL, e nao em memoria: sem isso, voltar do drill-down devolveria
+  // a tela sem periodo nem grupo (ver o cabecalho de `filtrosUrl.ts`).
+  const [filtros, setFiltros] = useFiltrosUrl();
   const [ordenar, setOrdenar] = useState("-margem");
   const [offset, setOffset] = useState(0);
   const [itensPorPagina, setItensPorPagina] = useState(25);
 
   const { data, isPending, isError, error } = useVendedores(filtros, ordenar);
   const linhas = data?.vendedores ?? [];
+  const consulta = escreverFiltros(filtros);
 
   // Ver a nota em VisaoGeral: `resolvido` entra nas deps porque baseDoTema() e
   // corDaSerie() leem as variaveis CSS no momento do calculo.
@@ -81,7 +89,8 @@ export function Vendedores() {
     };
   }, [linhas, resolvido]);
 
-  function ordenarPor(chave: string) {
+  function ordenarPor(chave: string | null) {
+    if (!chave) return;
     setOffset(0);
     setOrdenar((atual) => (atual === `-${chave}` ? chave : `-${chave}`));
   }
@@ -107,7 +116,7 @@ export function Vendedores() {
       <BarraFiltros valor={filtros} aoMudar={mudarFiltros} ocultarCanal />
 
       {isError && <Erro mensagem={(error as Error).message} />}
-      {isPending && <SkeletonTabela linhas={8} colunas={5} />}
+      {isPending && <SkeletonTabela linhas={8} colunas={6} />}
 
       {data && linhas.length === 0 && (
         <Vazio mensagem="Nenhum vendedor com venda no período selecionado." />
@@ -137,19 +146,21 @@ export function Vendedores() {
                   <tr>
                     {COLUNAS.map((c) => (
                       <th
-                        key={c.chave}
+                        key={c.rotulo}
                         className={c.num ? "num" : undefined}
                         onClick={() => ordenarPor(c.chave)}
+                        style={{ cursor: c.chave ? "pointer" : "default" }}
                         aria-sort={
-                          ordenar.replace("-", "") === c.chave
-                            ? ordenar.startsWith("-")
+                          !c.chave || ordenar.replace("-", "") !== c.chave
+                            ? "none"
+                            : ordenar.startsWith("-")
                               ? "descending"
                               : "ascending"
-                            : "none"
                         }
                       >
                         {c.rotulo}
-                        {ordenar.replace("-", "") === c.chave &&
+                        {c.chave &&
+                          ordenar.replace("-", "") === c.chave &&
                           (ordenar.startsWith("-") ? " ↓" : " ↑")}
                       </th>
                     ))}
@@ -165,6 +176,24 @@ export function Vendedores() {
                       </td>
                       <td className="num">{percentual(v.margem_pct)}</td>
                       <td className="num">{inteiro(v.pedidos)}</td>
+                      <td className="acoes">
+                        {/* A view ja filtra vendedor nulo, mas o schema tipa como
+                            nullable: sem a guarda o link viraria /undefined/. */}
+                        {v.vendedor_codigo && (
+                          <Link
+                            className="botao-alt acao-visualizar"
+                            to={`/vendedores/${encodeURIComponent(
+                              v.vendedor_codigo,
+                            )}/pedidos${consulta ? `?${consulta}` : ""}`}
+                            aria-label={`Visualizar pedidos de ${
+                              v.vendedor_nome ?? v.vendedor_codigo
+                            }`}
+                          >
+                            <IconeOlho />
+                            Visualizar
+                          </Link>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -1,4 +1,9 @@
-/** Pedidos faturados de um armazém — o drill-down de `Por armazém`.
+/** Pedidos faturados — o drill-down de `Por armazém` e de `Por vendedor`.
+ *
+ *  A rota decide qual dimensão vem travada (armazém ou vendedor); o resto do
+ *  recorte continua sendo o mesmo de todas as telas de margem. Uma tela só, e
+ *  não duas quase iguais, porque o que muda entre as duas origens é de onde vem
+ *  o recorte — não o que a tela mostra.
  *
  *  É o oposto da Carteira: lá o pedido ainda não saiu, aqui ele já virou nota.
  *  Por isso a tela fala em **receita faturada**, e não em valor em aberto.
@@ -84,17 +89,21 @@ function Resumo({ resumo }: { resumo: ResumoPedidos }) {
 }
 
 export function Pedidos() {
-  // O armazém vem da rota, não do filtro: a URL é que diz qual tela é esta. Por
-  // isso a barra esconde o select de armazém — duas verdades para o mesmo
-  // recorte seria pior que uma trava.
-  const { armazem = "" } = useParams();
+  // A dimensão de origem vem da rota, não do filtro: a URL é que diz qual tela
+  // é esta. Por isso a barra esconde o select correspondente — duas verdades
+  // para o mesmo recorte seria pior que uma trava.
+  const { armazem = "", vendedor = "" } = useParams();
+  const porArmazem = Boolean(armazem);
   const [filtros, setFiltros] = useFiltrosUrl();
   const [ordenar, setOrdenar] = useState("-margem");
   const [offset, setOffset] = useState(0);
   const [itensPorPagina, setItensPorPagina] = useState(25);
 
   const consulta = escreverFiltros(filtros);
-  const recorte = { ...filtros, armazem };
+  const recorte = { ...filtros, ...(porArmazem ? { armazem } : { vendedor }) };
+  const base = porArmazem
+    ? `/armazens/${armazem}/pedidos`
+    : `/vendedores/${encodeURIComponent(vendedor)}/pedidos`;
   const { data, isPending, isError, error } = usePedidos(
     recorte,
     ordenar,
@@ -108,16 +117,21 @@ export function Pedidos() {
     setOrdenar((atual) => (atual === `-${chave}` ? chave : `-${chave}`));
   }
 
-  const rotuloArmazem = data?.pedidos[0]?.armazem_rotulo ?? armazem;
+  const rotulo = porArmazem
+    ? (data?.pedidos[0]?.armazem_rotulo ?? armazem)
+    : (data?.pedidos[0]?.vendedor_nome ?? vendedor);
 
   return (
     <>
       <div className="cabecalho">
         <div>
-          <Link className="voltar" to={`/armazens${consulta ? `?${consulta}` : ""}`}>
-            ← Voltar para Por armazém
+          <Link
+            className="voltar"
+            to={`/${porArmazem ? "armazens" : "vendedores"}${consulta ? `?${consulta}` : ""}`}
+          >
+            ← Voltar para {porArmazem ? "Por armazém" : "Por vendedor"}
           </Link>
-          <h1>Pedidos faturados — {rotuloArmazem}</h1>
+          <h1>Pedidos faturados — {rotulo}</h1>
           <p className="subtitulo">
             Cada linha é um pedido que já virou nota fiscal (SD2). Clique num pedido
             para ver os itens, o custo de cada um e por que a margem ficou nesse
@@ -133,7 +147,8 @@ export function Pedidos() {
           setOffset(0);
           setFiltros(novos);
         }}
-        ocultarArmazem
+        ocultarArmazem={porArmazem}
+        ocultarCanal={!porArmazem}
       />
 
       {isError && <Erro mensagem={(error as Error).message} />}
@@ -234,9 +249,9 @@ export function Pedidos() {
                     <td className="acoes">
                       <Link
                         className="botao-alt acao-visualizar"
-                        to={`/armazens/${armazem}/pedidos/${encodeURIComponent(
-                          pedido.chave,
-                        )}${consulta ? `?${consulta}` : ""}`}
+                        to={`${base}/${encodeURIComponent(pedido.chave)}${
+                          consulta ? `?${consulta}` : ""
+                        }`}
                         aria-label={`Visualizar detalhes do pedido ${pedido.chave}`}
                       >
                         <IconeOlho />
