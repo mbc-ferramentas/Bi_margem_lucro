@@ -22,6 +22,7 @@ ENDPOINTS = [
     "/api/v1/margem/serie",
     "/api/v1/margem/vendedor",
     "/api/v1/margem/sku",
+    "/api/v1/margem/pedidos",
     "/api/v1/filtros",
     "/api/v1/carteira",
     "/api/v1/carteira/filtros",
@@ -313,3 +314,127 @@ def test_leitura_por_armazem_bate_com_o_kpi(carga):
     soma = sum(Decimal(linha["margem"]) for linha in linhas)
     assert soma == Decimal(total["margem_bruta"])
     assert sum(linha["linhas"] for linha in linhas) == total["linhas"]
+
+
+# --------------------------------------------------------------------------- #
+# Pedidos faturados (drill-down de Por armazem)
+# --------------------------------------------------------------------------- #
+
+def test_pedidos_reconciliam_com_a_leitura_por_armazem(carga):
+    """A receita que entra no indicador tem que ser a mesma das duas telas.
+
+    O total faturado e maior de proposito: as agregadas ja nascem cortadas por
+    sem_custo/outlier/TES nao-venda, e faturamento nao se corta. Se os dois
+    numeros empatassem, um dos dois estaria errado.
+    """
+    c = cliente(cria_usuario("ger_ped1", "gerente"))
+    resumo = c.get("/api/v1/margem/pedidos?armazem=02").json()["resumo"]
+    linhas = c.get("/api/v1/margem/armazem?armazem=02").json()["armazens"]
+
+    assert Decimal(resumo["receita_no_kpi"]) == sum(
+        Decimal(linha["receita"]) for linha in linhas
+    )
+    assert Decimal(resumo["margem"]) == sum(Decimal(linha["margem"]) for linha in linhas)
+    assert Decimal(resumo["receita"]) > Decimal(resumo["receita_no_kpi"])
+    assert resumo["itens_fora_do_kpi"] > 0
+
+
+def test_pedido_abre_os_itens_que_somam_o_total(carga):
+    c = cliente(cria_usuario("ger_ped2", "gerente"))
+    primeiro = c.get("/api/v1/margem/pedidos?armazem=02&limite=1").json()["pedidos"][0]
+
+    detalhe = c.get(f"/api/v1/margem/pedidos/{primeiro['chave']}?armazem=02").json()
+    assert len(detalhe["itens"]) == primeiro["itens"]
+    assert Decimal(detalhe["pedido"]["receita"]) == Decimal(primeiro["receita"])
+    assert sum(Decimal(i["receita_bruta"]) for i in detalhe["itens"]) == Decimal(
+        primeiro["receita"]
+    )
+
+
+def test_venda_de_balcao_e_identificada_pela_nota(carga):
+    """Balcao nao tem pedido: o documento dela e a nota fiscal.
+
+    Sem essa chave as linhas colapsariam num unico 'pedido vazio' — e agrupar por
+    linha inventaria vendas que nao existiram.
+    """
+    c = cliente(cria_usuario("ger_ped3", "gerente"))
+    dados = c.get("/api/v1/margem/pedidos?canal=Balcao-PDV&limite=5").json()
+
+    assert dados["total"] == escalar(
+        "SELECT count(DISTINCT (nota_fiscal, serie_nf)) FROM mv_margem_item "
+        "WHERE num_pedido IS NULL"
+    )
+    assert all(p["origem"] == "pdv" for p in dados["pedidos"])
+    assert all(p["chave"].startswith("NF-") for p in dados["pedidos"])
+
+    # E a chave abre o detalhe, senao o olho da tela levaria a lugar nenhum.
+    chave = dados["pedidos"][0]["chave"]
+    assert c.get(f"/api/v1/margem/pedidos/{chave}").status_code == 200
+
+
+def test_pedido_faturado_em_varias_notas_mostra_todas(carga):
+    """Pedido e nota nao andam colados: 256 pedidos saem em mais de uma nota.
+
+    Escolher uma delas para representar o pedido mentiria sobre qual documento
+    faturou o que — por isso a lista conta e o detalhe lista.
+    """
+    c = cliente(cria_usuario("ger_ped7", "gerente"))
+    numero = escalar(
+        "SELECT num_pedido FROM mv_margem_item WHERE num_pedido IS NOT NULL "
+        "GROUP BY 1 HAVING count(DISTINCT (nota_fiscal, serie_nf)) > 1 LIMIT 1"
+    )
+    detalhe = c.get(f"/api/v1/margem/pedidos/{numero}").json()["pedido"]
+
+    assert len(detalhe["notas"]) > 1
+    assert detalhe["notas"] == sorted(
+        detalhe["notas"], key=lambda n: (n["nota_fiscal"], n["serie_nf"])
+    )
+
+
+def test_toda_linha_faturada_tem_nota(carga):
+    """A nota e o documento do faturamento: linha sem ela nao e conferivel."""
+    assert (
+        escalar("SELECT count(*) FROM mv_margem_item WHERE nota_fiscal IS NULL") == 0
+    )
+
+
+def test_pedido_inexistente_ou_malformado_da_404(carga):
+    c = cliente(cria_usuario("ger_ped4", "gerente"))
+    assert c.get("/api/v1/margem/pedidos/ZZZZZZ").status_code == 404
+    # Chave de nota que nao existe: 404, e nao erro de parsing.
+    assert c.get("/api/v1/margem/pedidos/NF-9-000000").status_code == 404
+
+
+def test_vendedor_nao_ve_pedido_de_colega(carga, dois_vendedores):
+    """O escopo entra na clausula base: adivinhar o numero nao abre o pedido."""
+    meu, outro = dois_vendedores
+    usuario = cria_usuario("vend_ped", "vendedor", codigo_vendedor=meu)
+    c = cliente(usuario)
+
+    lista = c.get("/api/v1/margem/pedidos").json()["pedidos"]
+    assert lista
+    assert all(p["vendedor_codigo"] == meu for p in lista)
+
+    alheio = escalar(
+        "SELECT min(num_pedido) FROM mv_margem_item WHERE vendedor_codigo = %s",
+        [outro],
+    )
+    assert c.get(f"/api/v1/margem/pedidos/{alheio}").status_code == 404
+
+
+def test_ordenacao_desconhecida_de_pedido_da_400(carga):
+    c = cliente(cria_usuario("ger_ped5", "gerente"))
+    assert c.get("/api/v1/margem/pedidos?ordenar=lucro").status_code == 400
+
+
+def test_paginacao_de_pedidos_respeita_limite_e_offset(carga):
+    c = cliente(cria_usuario("ger_ped6", "gerente"))
+    pagina1 = c.get("/api/v1/margem/pedidos?armazem=02&limite=5").json()
+    pagina2 = c.get("/api/v1/margem/pedidos?armazem=02&limite=5&offset=5").json()
+
+    assert len(pagina1["pedidos"]) == 5
+    assert pagina1["total"] == pagina2["total"]
+    # O resumo e do conjunto inteiro: virar a pagina nao pode mexer nele.
+    assert pagina1["resumo"] == pagina2["resumo"]
+    chaves1 = {p["chave"] for p in pagina1["pedidos"]}
+    assert chaves1.isdisjoint({p["chave"] for p in pagina2["pedidos"]})

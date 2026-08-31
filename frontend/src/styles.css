@@ -488,6 +488,86 @@ tbody tr:hover {
   color: var(--status-critical);
 }
 
+/* Drill-down: voltar, acao de linha e marcadores.
+   O botao de voltar mora acima do titulo, no canto superior esquerdo, porque e o
+   primeiro alvo de quem entrou por engano numa tela de terceiro nivel. */
+.voltar {
+  display: inline-block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.voltar:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+/* A celula de acao nao rola junto com o texto da linha: ela e sempre o alvo de
+   clique, entao nao pode encolher. */
+td.acoes,
+th.acoes {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.acao-visualizar {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--raio);
+  color: var(--text-primary);
+  text-decoration: none;
+  padding: 4px 9px;
+  font-size: 12px;
+}
+
+.acao-visualizar:hover {
+  background: color-mix(in oklab, var(--text-primary) 5%, var(--surface-1));
+}
+
+/* Marcador de linha: um fato sobre o dado, nao um enfeite. `alerta` e para o que
+   fica fora do KPI de margem — continua somando receita, e por isso continua na
+   tela em vez de sumir. */
+.marcador {
+  display: inline-block;
+  margin-left: 7px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  background: color-mix(in oklab, var(--text-primary) 7%, transparent);
+}
+
+.marcador.alerta {
+  color: var(--text-primary);
+  background: color-mix(in oklab, var(--status-warning) 22%, transparent);
+}
+
+/* Cabecalho do pedido: pares rotulo/valor, nao um formulario. */
+.grade-leitura {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px 18px;
+  margin-top: 10px;
+}
+
+.campo-leitura .rotulo {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.campo-leitura .valor {
+  font-size: 14px;
+  margin-top: 2px;
+}
+
 .paginacao { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; padding-top: 14px; }
 .paginacao-tamanho { display: flex; align-items: center; gap: 7px; color: var(--text-secondary); font-size: 12px; }
 .paginacao-tamanho select { padding: 4px 24px 4px 7px; }

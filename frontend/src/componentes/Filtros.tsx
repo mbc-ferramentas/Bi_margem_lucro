@@ -9,9 +9,12 @@ type Props = {
   /** O ranking de vendedor ja e restrito a venda interna: o seletor de canal
    *  nao faz sentido la. */
   ocultarCanal?: boolean;
+  /** Na lista de pedidos o armazem vem da rota: um select que discordasse da URL
+   *  daria duas verdades para o mesmo recorte. */
+  ocultarArmazem?: boolean;
 };
 
-export function BarraFiltros({ valor, aoMudar, ocultarCanal }: Props) {
+export function BarraFiltros({ valor, aoMudar, ocultarCanal, ocultarArmazem }: Props) {
   // As opcoes vem recortadas pelos filtros ativos: escolher um armazem reduz a
   // lista de grupos aos que existem nele. Por isso o proprio `valor` entra aqui.
   const { data } = useOpcoes(valor);
@@ -83,17 +86,19 @@ export function BarraFiltros({ valor, aoMudar, ocultarCanal }: Props) {
       )}
 
       {/* Armazem antes de grupo: a ordem na barra e a hierarquia da analise. */}
-      <div className="campo">
-        <label htmlFor="f-armazem">Armazém</label>
-        <select id="f-armazem" value={valor.armazem ?? ""} onChange={definirArmazem}>
-          <option value="">Todos</option>
-          {opcoes?.armazens.map((a) => (
-            <option key={a.codigo} value={a.codigo}>
-              {a.rotulo ?? a.codigo}
-            </option>
-          ))}
-        </select>
-      </div>
+      {!ocultarArmazem && (
+        <div className="campo">
+          <label htmlFor="f-armazem">Armazém</label>
+          <select id="f-armazem" value={valor.armazem ?? ""} onChange={definirArmazem}>
+            <option value="">Todos</option>
+            {opcoes?.armazens.map((a) => (
+              <option key={a.codigo} value={a.codigo}>
+                {a.rotulo ?? a.codigo}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <SeletorGrupos
         opcoes={opcoes?.grupos}

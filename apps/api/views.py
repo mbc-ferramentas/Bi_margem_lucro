@@ -13,7 +13,7 @@ from pathlib import Path
 
 from django.conf import settings
 from rest_framework import status
-from rest_framework.exceptions import APIException, ValidationError
+from rest_framework.exceptions import APIException, NotFound, ValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -150,6 +150,55 @@ class ArmazemView(BaseBI):
         # Empate por armazem mantem os grupos do mesmo armazem juntos na tabela.
         ordem = filtros.ordenacao(request, self.ORDENAVEIS, "-margem")
         return self.responder({"armazens": queries.por_armazem(clausula, ordem)})
+
+
+class PedidosView(BaseBI):
+    """Pedidos faturados, um por linha — o drill-down de `Por armazem`.
+
+    Le `mv_margem_item` (SD2). E o oposto de `/carteira`, que mostra o que ainda
+    **nao** foi faturado: aqui cada linha ja virou nota.
+
+    Ao contrario dos KPIs, a lista nao aplica o corte de qualidade. Linha sem
+    custo ou com outlier continua sendo faturamento e precisa aparecer, senao o
+    total da tela nao bate com a nota — o corte vem como contagem por pedido.
+    """
+
+    ORDENAVEIS = {
+        "margem": "sum(margem_bruta)",
+        "margem_pct": (
+            "CASE WHEN sum(receita_bruta) <> 0 "
+            "THEN sum(margem_bruta)/sum(receita_bruta) END"
+        ),
+        "receita": "sum(receita_bruta)",
+        "quantidade": "sum(quantidade)",
+        "itens": "count(*)",
+        "emissao": "min(emissao)",
+        "cliente": "min(nome_cliente)",
+        "nota": "min(nota_fiscal)",
+        "pedido": queries.CHAVE_PEDIDO,
+    }
+
+    def get(self, request: Request) -> Response:
+        _, clausula = self.contexto(request)
+        ordem = filtros.ordenacao(request, self.ORDENAVEIS, "-margem")
+        limite, offset = filtros.paginacao(request)
+        resultado = queries.pedidos(clausula, ordem, limite, offset)
+        return self.responder({**resultado, "limite": limite, "offset": offset})
+
+
+class PedidoView(BaseBI):
+    """Um pedido faturado: cabecalho, totais e itens.
+
+    O 404 e proposital para o pedido fora do escopo: distinguir "nao existe" de
+    "existe mas nao e seu" ja seria vazamento de informacao.
+    """
+
+    def get(self, request: Request, chave: str) -> Response:
+        escopo, clausula = self.contexto(request)
+        dados = queries.pedido(clausula, filtros.so_escopo(escopo), chave)
+        if dados is None:
+            raise NotFound("Pedido nao encontrado no periodo ou fora do seu escopo.")
+        return self.responder(dados)
 
 
 class FiltrosView(BaseBI):

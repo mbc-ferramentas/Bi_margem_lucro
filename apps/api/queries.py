@@ -451,3 +451,276 @@ def opcoes(faceta) -> dict[str, Any]:
             "competencia", "mv_margem_item", faceta("competencia")
         ),
     }
+
+
+# --------------------------------------------------------------------------- #
+# Pedidos faturados (SD2) — o drill-down de armazem > pedido > item
+# --------------------------------------------------------------------------- #
+#
+# E a unica leitura do BI que sai do agregado e chega no documento: quem ve uma
+# margem estranha num armazem precisa responder "qual pedido causou isso?" sem ir
+# ao Protheus. Le `mv_margem_item` direto porque as agregadas guardam apenas
+# `count(DISTINCT num_pedido)` — numero, nao identidade.
+#
+# `LIMPAS` **nao** entra no WHERE daqui, ao contrario dos KPIs: a lista e de
+# faturamento, e linha sem custo ou com outlier continua sendo receita. O corte de
+# qualidade aparece como contagem (`itens_fora_do_kpi`) e como flag no item, para
+# que o total do pedido bata com a nota fiscal.
+
+# Venda de balcao nao tem pedido: `num_pedido` e NULL e `numero_pdv` identifica o
+# terminal ('2'), nao a venda. O documento dela e a **nota fiscal** — as 555 linhas
+# de balcao saem em 350 notas, e e esse o numero de vendas que de fato aconteceu.
+# A serie entra na chave porque o numero sozinho nao e unico ('1' na venda com
+# pedido, '2' no balcao). A tela rotula como Balcao/PDV para ninguem ler a chave
+# como um pedido do Protheus.
+CHAVE_PEDIDO = "COALESCE(num_pedido, 'NF-' || serie_nf || '-' || nota_fiscal)"
+PREFIXO_NOTA = "NF-"
+
+
+def _condicao_chave(chave: str) -> tuple[str, list]:
+    """Traduz a chave publicada de volta para as colunas de origem."""
+    if chave.startswith(PREFIXO_NOTA):
+        serie, _, numero = chave[len(PREFIXO_NOTA) :].partition("-")
+        return (
+            "(num_pedido IS NULL AND serie_nf = %s AND nota_fiscal = %s)",
+            [serie, numero],
+        )
+    return "num_pedido = %s", [chave]
+
+
+def pedidos(clausula, ordem: str, limite: int, offset: int) -> dict[str, Any]:
+    """Uma linha por pedido faturado, dentro do recorte da clausula."""
+    where = clausula.where()
+    total = _um(
+        f"SELECT count(*) AS total FROM (SELECT {CHAVE_PEDIDO} AS chave "
+        f"FROM mv_margem_item {where} GROUP BY 1) t",
+        clausula.parametros,
+    )
+    linhas = _linhas(
+        f"""
+        SELECT {CHAVE_PEDIDO}                       AS chave,
+               CASE WHEN min(num_pedido) IS NULL THEN 'pdv' ELSE 'pedido' END
+                                                    AS origem,
+               min(emissao)                         AS emissao,
+               min(competencia)                     AS competencia,
+               -- Cliente, canal e vendedor sao constantes dentro do pedido (vem
+               -- do SC5); o min() so escolhe um valor de um conjunto de iguais.
+               min(cod_cliente)                     AS cod_cliente,
+               min(nome_cliente)                    AS nome_cliente,
+               min(canal)                           AS canal,
+               min(vendedor_codigo)                 AS vendedor_codigo,
+               min(vendedor_nome)                   AS vendedor_nome,
+               min(armazem)                         AS armazem,
+               min(armazem_rotulo)                  AS armazem_rotulo,
+               -- Nota fiscal: pedido e nota nao andam colados — 256 pedidos do
+               -- baseline saem em mais de uma nota. A tela mostra o numero quando
+               -- so ha uma e a contagem quando ha varias; escolher uma delas para
+               -- representar o pedido mentiria sobre qual documento faturou o que.
+               min(nota_fiscal)                     AS nota_fiscal,
+               min(serie_nf)                        AS serie_nf,
+               count(DISTINCT (nota_fiscal, serie_nf)) AS notas,
+               -- Um pedido pode sair por mais de um armazem: a tela precisa
+               -- avisar em vez de rotular o pedido inteiro pelo primeiro.
+               count(DISTINCT armazem)              AS armazens,
+               count(*)                             AS itens,
+               sum(quantidade)                      AS quantidade,
+               sum(receita_bruta)                   AS receita,
+               sum(desconto)                        AS desconto,
+               sum(receita_liquida)                 AS receita_liquida,
+               sum(custo_total)                     AS custo,
+               sum(margem_bruta)                    AS margem,
+               sum(margem_liquida)                  AS margem_liquida,
+               CASE WHEN sum(receita_bruta) <> 0
+                    THEN round(sum(margem_bruta) / sum(receita_bruta), 6) END
+                                                    AS margem_pct,
+               count(*) FILTER (WHERE NOT ({LIMPAS})) AS itens_fora_do_kpi
+        FROM mv_margem_item
+        {where}
+        GROUP BY 1
+        ORDER BY {ordem}
+        LIMIT %s OFFSET %s
+        """,
+        [*clausula.parametros, limite, offset],
+    )
+    return {
+        "total": total.get("total", 0),
+        "pedidos": linhas,
+        "resumo": pedidos_resumo(clausula),
+    }
+
+
+def pedidos_resumo(clausula) -> dict[str, Any]:
+    """Totais do conjunto filtrado inteiro — nao da pagina.
+
+    Mesma regra de `carteira_resumo`: um resumo que muda ao virar a pagina nao e
+    resumo.
+    """
+    linha = _um(
+        f"""
+        SELECT count(DISTINCT {CHAVE_PEDIDO})       AS pedidos,
+               count(DISTINCT (nota_fiscal, serie_nf)) AS notas,
+               count(*)                             AS itens,
+               count(DISTINCT sku)                  AS skus,
+               sum(receita_bruta)                   AS receita,
+               sum(desconto)                        AS desconto,
+               sum(receita_liquida)                 AS receita_liquida,
+               sum(custo_total)                     AS custo,
+               -- Base do percentual: so o que entra no KPI. Dividir a margem
+               -- parcial pela receita cheia subestimaria a margem.
+               sum(margem_bruta) FILTER (WHERE {LIMPAS})  AS margem,
+               sum(receita_bruta) FILTER (WHERE {LIMPAS}) AS base_margem,
+               count(*) FILTER (WHERE NOT ({LIMPAS}))     AS itens_fora_do_kpi
+        FROM mv_margem_item
+        {clausula.where()}
+        """,
+        clausula.parametros,
+    )
+
+    margem = linha.get("margem") or Decimal(0)
+    receita = linha.get("receita") or Decimal(0)
+    # Receita dentro do indicador: e ela — nao a faturada — que reconcilia com a
+    # tela `Por armazem`, porque as agregadas ja nascem cortadas por LIMPAS. Sem
+    # expor as duas, o usuario que clica no olho ve um total maior e acha que uma
+    # das telas esta errada.
+    receita_no_kpi = linha.get("base_margem") or Decimal(0)
+    quantidade_pedidos = linha.get("pedidos") or 0
+
+    return {
+        "pedidos": quantidade_pedidos,
+        "notas": linha.get("notas") or 0,
+        "itens": linha.get("itens") or 0,
+        "skus": linha.get("skus") or 0,
+        "receita": receita,
+        "desconto": linha.get("desconto") or Decimal(0),
+        "receita_liquida": linha.get("receita_liquida") or Decimal(0),
+        "custo": linha.get("custo") or Decimal(0),
+        "margem": margem,
+        "receita_no_kpi": receita_no_kpi,
+        "margem_pct": _pct(margem, receita_no_kpi),
+        "ticket_medio": (
+            (receita / quantidade_pedidos).quantize(Decimal("0.01"))
+            if quantidade_pedidos
+            else None
+        ),
+        "itens_fora_do_kpi": linha.get("itens_fora_do_kpi") or 0,
+    }
+
+
+def pedido(clausula, escopo_puro, chave: str) -> dict[str, Any] | None:
+    """Cabecalho, totais e itens de um pedido. `None` quando nada casa.
+
+    O escopo do usuario vem dentro da clausula, entao um vendedor que adivinhe o
+    numero de um pedido de colega cai no `None` — e a view responde 404, nunca o
+    conteudo.
+
+    `escopo_puro` e a mesma clausula **sem** os filtros de tela: e o que permite
+    dizer quantas linhas do pedido ficaram de fora do recorte atual, em vez de
+    deixar o total do detalhe divergir da lista sem explicacao.
+    """
+    condicao, valores = _condicao_chave(chave)
+    itens = _linhas(
+        f"""
+        SELECT id,
+               num_pedido,
+               numero_pdv,
+               emissao,
+               competencia,
+               cod_cliente,
+               nome_cliente,
+               canal,
+               vendedor_codigo,
+               vendedor_nome,
+               nota_fiscal,
+               serie_nf,
+               sku,
+               descricao,
+               grupo_codigo,
+               grupo_rotulo,
+               grupo_reclassificado,
+               armazem,
+               armazem_rotulo,
+               tes,
+               tes_receita,
+               quantidade,
+               vlr_unitario,
+               receita_bruta,
+               desconto,
+               receita_liquida,
+               custo_unitario_ref,
+               origem_custo,
+               custo_total,
+               margem_bruta,
+               margem_liquida,
+               margem_pct,
+               sem_custo,
+               outlier_custo
+        FROM mv_margem_item
+        {clausula.where(condicao)}
+        ORDER BY sku
+        """,
+        [*clausula.parametros, *valores],
+    )
+    if not itens:
+        return None
+
+    def soma(campo: str) -> Decimal:
+        return sum((i[campo] or Decimal(0) for i in itens), Decimal(0))
+
+    # Linhas aptas a compor percentual (ver LIMPAS). Uma linha sem custo tem margem
+    # NULL: somada como zero ela fingiria prejuizo, entao ela fica fora da base.
+    aptas = [
+        i
+        for i in itens
+        if not i["sem_custo"] and not i["outlier_custo"] and i["tes_receita"]
+    ]
+
+    def soma_apta(campo: str) -> Decimal:
+        return sum((i[campo] or Decimal(0) for i in aptas), Decimal(0))
+
+    total_no_escopo = _um(
+        f"SELECT count(*) AS total FROM mv_margem_item "
+        f"{escopo_puro.where(condicao)}",
+        [*escopo_puro.parametros, *valores],
+    ).get("total", 0)
+
+    primeiro = itens[0]
+    return {
+        "pedido": {
+            "chave": chave,
+            "origem": "pdv" if chave.startswith(PREFIXO_NOTA) else "pedido",
+            "num_pedido": primeiro["num_pedido"],
+            "numero_pdv": primeiro["numero_pdv"],
+            "emissao": min(i["emissao"] for i in itens),
+            "competencia": min(i["competencia"] for i in itens),
+            "cod_cliente": primeiro["cod_cliente"],
+            "nome_cliente": primeiro["nome_cliente"],
+            "canal": primeiro["canal"],
+            "vendedor_codigo": primeiro["vendedor_codigo"],
+            "vendedor_nome": primeiro["vendedor_nome"],
+            "armazens": sorted({i["armazem"] for i in itens if i["armazem"]}),
+            # Uma linha por nota do pedido, ordenada: e o que responde "esta
+            # margem saiu em qual documento?" sem abrir item por item.
+            "notas": [
+                {"nota_fiscal": numero, "serie_nf": serie}
+                for numero, serie in sorted(
+                    {(i["nota_fiscal"], i["serie_nf"]) for i in itens}
+                )
+            ],
+            "itens": len(itens),
+            "quantidade": soma("quantidade"),
+            "receita": soma("receita_bruta"),
+            "desconto": soma("desconto"),
+            "receita_liquida": soma("receita_liquida"),
+            "custo": soma("custo_total"),
+            "margem": soma("margem_bruta"),
+            "margem_pct": _pct(soma_apta("margem_bruta"), soma_apta("receita_bruta")),
+            "margem_liquida": soma("margem_liquida"),
+            "margem_liquida_pct": _pct(
+                soma_apta("margem_liquida"), soma_apta("receita_liquida")
+            ),
+            "itens_fora_do_kpi": len(itens) - len(aptas),
+            # Um pedido pode ter itens em outro armazem ou outra competencia.
+            "linhas_fora_do_recorte": max(total_no_escopo - len(itens), 0),
+        },
+        "itens": itens,
+    }

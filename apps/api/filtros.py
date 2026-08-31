@@ -112,6 +112,19 @@ def montar(
     return c
 
 
+def so_escopo(escopo: Escopo) -> Clausula:
+    """Clausula com o escopo do usuario e nada mais.
+
+    Serve para medir quanto de um documento ficou **fora** do recorte da tela sem
+    abrir mao do RBAC: o filtro de periodo ou de armazem pode sair, o escopo do
+    vendedor nunca.
+    """
+    c = Clausula()
+    if escopo.restrito:
+        c.e(escopo.condicao, *escopo.parametros)
+    return c
+
+
 def facetas(request, escopo: Escopo, coluna_data: str = "competencia"):
     """Fabrica de clausulas para as listas de opcoes.
 

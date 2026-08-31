@@ -248,6 +248,133 @@ def test_carteira(gerente):
     } <= set(corpo["itens"][0])
 
 
+def test_pedidos(gerente):
+    """Espelha `pedidosSchema` — o drill-down de `Por armazem`."""
+    corpo = gerente.get("/api/v1/margem/pedidos?armazem=02&limite=5").json()
+    assert CHAVES_ESCOPO <= set(corpo["escopo"])
+    assert {"total", "limite", "offset", "resumo", "pedidos"} <= set(corpo)
+    assert {
+        "pedidos",
+        "itens",
+        "skus",
+        "notas",
+        "receita",
+        "desconto",
+        "receita_liquida",
+        "custo",
+        "margem",
+        # `receita_no_kpi` e o que reconcilia com a tela `Por armazem`: sem ele o
+        # usuario ve dois totais diferentes e nenhuma explicacao.
+        "receita_no_kpi",
+        "margem_pct",
+        "ticket_medio",
+        "itens_fora_do_kpi",
+    } <= set(corpo["resumo"])
+    assert {
+        "chave",
+        "origem",
+        "emissao",
+        "competencia",
+        "cod_cliente",
+        "nome_cliente",
+        "canal",
+        "vendedor_codigo",
+        "vendedor_nome",
+        "armazem",
+        "armazem_rotulo",
+        "nota_fiscal",
+        "serie_nf",
+        "notas",
+        "armazens",
+        "itens",
+        "quantidade",
+        "receita",
+        "desconto",
+        "receita_liquida",
+        "custo",
+        "margem",
+        "margem_liquida",
+        "margem_pct",
+        "itens_fora_do_kpi",
+    } <= set(corpo["pedidos"][0])
+    # `origem` e um enum no Zod: um valor novo derruba a tela em runtime.
+    assert all(p["origem"] in ("pedido", "pdv") for p in corpo["pedidos"])
+
+
+def test_pedido(gerente):
+    """Espelha `pedidoSchema` — cabecalho, totais e itens."""
+    chave = gerente.get("/api/v1/margem/pedidos?armazem=02&limite=1").json()[
+        "pedidos"
+    ][0]["chave"]
+    corpo = gerente.get(f"/api/v1/margem/pedidos/{chave}?armazem=02").json()
+    assert CHAVES_ESCOPO <= set(corpo["escopo"])
+    assert {
+        "chave",
+        "origem",
+        "num_pedido",
+        "numero_pdv",
+        "emissao",
+        "competencia",
+        "cod_cliente",
+        "nome_cliente",
+        "canal",
+        "vendedor_codigo",
+        "vendedor_nome",
+        "armazens",
+        "notas",
+        "itens",
+        "quantidade",
+        "receita",
+        "desconto",
+        "receita_liquida",
+        "custo",
+        "margem",
+        "margem_pct",
+        "margem_liquida",
+        "margem_liquida_pct",
+        "itens_fora_do_kpi",
+        "linhas_fora_do_recorte",
+    } <= set(corpo["pedido"])
+    assert isinstance(corpo["pedido"]["armazens"], list)
+    assert all(
+        {"nota_fiscal", "serie_nf"} == set(n) for n in corpo["pedido"]["notas"]
+    )
+    item = corpo["itens"][0]
+    assert {
+        "id",
+        "nota_fiscal",
+        "serie_nf",
+        "sku",
+        "descricao",
+        "grupo_codigo",
+        "grupo_rotulo",
+        "grupo_reclassificado",
+        "armazem",
+        "armazem_rotulo",
+        "tes",
+        "tes_receita",
+        "quantidade",
+        "vlr_unitario",
+        "receita_bruta",
+        "desconto",
+        "receita_liquida",
+        "custo_unitario_ref",
+        "origem_custo",
+        "custo_total",
+        "margem_bruta",
+        "margem_liquida",
+        "margem_pct",
+        "sem_custo",
+        "outlier_custo",
+    } <= set(item)
+    # Enum no Zod, igual a `origem`: um degrau novo na cascata de custo (Regra 3)
+    # precisa passar por aqui antes de chegar na tela.
+    assert all(
+        i["origem_custo"] in (None, "saida", "medio", "ultima_compra", "outro_armazem")
+        for i in corpo["itens"]
+    )
+
+
 def test_carteira_filtros(gerente):
     """Espelha `carteiraFiltrosSchema` — lista propria, nao a de `/filtros`."""
     opcoes = gerente.get("/api/v1/carteira/filtros").json()["opcoes"]

@@ -68,3 +68,10 @@ export function dataCurta(iso: string): string {
   const [ano, mes, dia] = iso.split("-");
   return `${dia}/${mes}/${ano.slice(2)}`;
 }
+
+/** Nota fiscal como "1234/1": numero e serie juntos, porque o numero sozinho nao
+ *  e unico — a serie 1 e a venda com pedido e a 2 e o balcao. */
+export function rotuloNota(numero: string | null, serie: string | null): string | null {
+  if (!numero) return null;
+  return serie ? `${numero}/${serie}` : numero;
+}

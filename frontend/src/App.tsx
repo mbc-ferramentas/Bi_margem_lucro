@@ -7,6 +7,8 @@ import { CadastroUsuario } from "./paginas/CadastroUsuario";
 import { Canais } from "./paginas/Canais";
 import { Carteira } from "./paginas/Carteira";
 import { Login } from "./paginas/Login";
+import { PedidoDetalhe } from "./paginas/PedidoDetalhe";
+import { Pedidos } from "./paginas/Pedidos";
 import { Skus } from "./paginas/Skus";
 import { Uploads } from "./paginas/Uploads";
 import { Usuarios } from "./paginas/Usuarios";
@@ -25,6 +27,12 @@ export function App() {
         <Route element={<Layout />}>
           <Route index element={<VisaoGeral />} />
           <Route path="armazens" element={<Armazens />} />
+          {/* Drill-down de Por armazem: nao entra no menu, so se chega por ela. */}
+          <Route path="armazens/:armazem/pedidos" element={<Pedidos />} />
+          <Route
+            path="armazens/:armazem/pedidos/:chave"
+            element={<PedidoDetalhe />}
+          />
           <Route path="vendedores" element={<Vendedores />} />
           <Route path="skus" element={<Skus />} />
           <Route path="canais" element={<Canais />} />

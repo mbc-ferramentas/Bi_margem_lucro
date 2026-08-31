@@ -10,15 +10,18 @@
  */
 
 import type { EChartsOption } from "echarts";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { Link } from "react-router-dom";
 
 import { useArmazens } from "../api/hooks";
-import type { Filtros, LinhaArmazem } from "../api/tipos";
+import type { LinhaArmazem } from "../api/tipos";
 import { BarraFiltros } from "../componentes/Filtros";
 import { Grafico, baseDoTema, corDaSerie } from "../componentes/Grafico";
+import { IconeOlho } from "../componentes/Icones";
 import { Erro, Vazio } from "../componentes/Layout";
 import { SeletorTema } from "../componentes/SeletorTema";
 import { SkeletonTabela } from "../componentes/Skeleton";
+import { escreverFiltros, useFiltrosUrl } from "../filtrosUrl";
 import { inteiro, moeda, moedaCurta, numeroBruto, percentual } from "../formato";
 import { useTema } from "../tema";
 
@@ -69,7 +72,10 @@ function pct(margem: number, receita: number): string {
 }
 
 export function Armazens() {
-  const [filtros, setFiltros] = useState<Filtros>({});
+  // Filtros na URL e nao em estado: e o que faz o drill-down voltar para a tela
+  // exatamente como ela estava (ver `filtrosUrl.ts`).
+  const [filtros, setFiltros] = useFiltrosUrl();
+  const consulta = escreverFiltros(filtros);
   const { data, isPending, isError, error } = useArmazens(filtros, "-margem");
   const linhas = data?.armazens ?? [];
   const blocos = useMemo(() => aninhar(linhas), [linhas]);
@@ -132,7 +138,7 @@ export function Armazens() {
       <BarraFiltros valor={filtros} aoMudar={setFiltros} />
 
       {isError && <Erro mensagem={(error as Error).message} />}
-      {isPending && <SkeletonTabela linhas={10} colunas={6} />}
+      {isPending && <SkeletonTabela linhas={10} colunas={7} />}
 
       {data && blocos.length === 0 && (
         <Vazio mensagem="Nenhuma venda para os filtros selecionados." />
@@ -168,11 +174,12 @@ export function Armazens() {
                     <th className="num">Margem</th>
                     <th className="num">Margem %</th>
                     <th className="num">Linhas</th>
+                    <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {blocos.map((bloco) => (
-                    <Fragmento key={bloco.codigo} bloco={bloco} />
+                    <Fragmento key={bloco.codigo} bloco={bloco} consulta={consulta} />
                   ))}
                 </tbody>
               </table>
@@ -184,8 +191,14 @@ export function Armazens() {
   );
 }
 
-/** Um armazém: a linha de total, seguida de uma linha por grupo. */
-function Fragmento({ bloco }: { bloco: Bloco }) {
+/** Um armazém: a linha de total, seguida de uma linha por grupo.
+ *
+ *  A ação de visualizar mora na linha do armazém, não na do grupo: o drill-down é
+ *  para o pedido faturado, e pedido é do armazém — o mesmo pedido pode carregar
+ *  itens de vários grupos. `consulta` leva os filtros da tela junto, para a lista
+ *  abrir com o mesmo recorte que produziu o número clicado.
+ */
+function Fragmento({ bloco, consulta }: { bloco: Bloco; consulta: string }) {
   return (
     <>
       <tr>
@@ -208,6 +221,16 @@ function Fragmento({ bloco }: { bloco: Bloco }) {
         <td className="num" style={{ fontWeight: 600 }}>
           {inteiro(bloco.linhas)}
         </td>
+        <td className="acoes">
+          <Link
+            className="botao-alt acao-visualizar"
+            to={`/armazens/${bloco.codigo}/pedidos${consulta ? `?${consulta}` : ""}`}
+            aria-label={`Visualizar pedidos faturados de ${bloco.rotulo}`}
+          >
+            <IconeOlho />
+            Visualizar
+          </Link>
+        </td>
       </tr>
       {bloco.grupos.map((grupo) => (
         <tr key={`${bloco.codigo}-${grupo.grupo_codigo}`}>
@@ -221,6 +244,7 @@ function Fragmento({ bloco }: { bloco: Bloco }) {
           </td>
           <td className="num">{percentual(grupo.margem_pct)}</td>
           <td className="num">{inteiro(grupo.linhas)}</td>
+          <td />
         </tr>
       ))}
     </>
