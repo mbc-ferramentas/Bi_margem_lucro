@@ -80,10 +80,13 @@ Alterar `ParamOutlier`, `MapaCanal`, `MapaGrupo`, `MapaArmazem`, `MapaTES` ou
   (`filtros.facetas`): cada dimensão é recortada pelas outras, nunca por si mesma.
 - **Grupo (Regra 4):** reclassificação manual → grupo do `SD2` → cadastro do `SB2` →
   `Sem grupo`. O código cru fica em `grupo_codigo_origem`; o `grupo_codigo` publicado já é o
-  **consolidado** por `MapaGrupo.agrupa_em` (0129 soma em 0128, 0150 em 0057), porque o filtro
-  da API casa por código. Só existem três baldes na tela: `Ecommerce`, `Agricola` e
-  `Sem grupo` — este último nunca é somado nos outros em silêncio. Grupo novo do Protheus se
-  resolve pelo Admin + `refresh_views`, sem migration.
+  **consolidado** por `MapaGrupo.agrupa_em` (0150 soma em 0057), porque o filtro da API casa
+  por código. Cada grupo cadastrado é um **marcador próprio** na tela e o filtro aceita vários
+  ao mesmo tempo (`?grupo=0128,0129`); `Sem grupo` é a sentinela do vazio e nunca é somada nos
+  outros em silêncio. Grupo novo do Protheus se resolve pelo Admin + `refresh_views`, sem
+  migration — a migration `0013` só semeia os rótulos que o negócio já nomeou (despesas, EPI,
+  ativo imobilizado, consumo interno) e devolve identidade própria ao 0129 (fabricação própria,
+  antes somado dentro do Ecommerce por engano).
 - **TES (`D2_TES`):** todo TES nasce em `MapaTES` como venda; desmarcar `gera_receita` tira a
   linha do KPI **sem** tirá-la do faturamento.
 - **Fora do KPI:** `sem_custo`, `outlier_custo` (limite em `ParamOutlier`, padrão −100%) e TES
