@@ -113,6 +113,14 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  /* Numa tabela longa o menu saia da tela e o usuario tinha que voltar ao topo
+     so para trocar de pagina. Sem o align-self o item de grid estica ate a
+     altura do conteudo e o sticky nunca gruda — a caixa ja seria a pagina toda. */
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .marca {
@@ -128,6 +136,22 @@ body {
   font-size: 11px;
   color: var(--lateral-texto-suave);
   letter-spacing: 0;
+}
+
+.nav-grupo + .nav-grupo {
+  margin-top: 14px;
+}
+
+.nav-grupo-titulo {
+  margin: 0;
+  padding: 0 10px 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  /* Rotulo de secao, nao alvo de clique: contraste abaixo do dos itens para nao
+     competir com eles. */
+  color: color-mix(in oklab, var(--lateral-texto-suave) 70%, transparent);
 }
 
 .nav-item {
@@ -706,6 +730,18 @@ th.acoes {
     background: linear-gradient(to right, var(--lateral-topo), var(--lateral-base));
     border-right: none;
     border-bottom: 1px solid var(--lateral-borda);
+    /* Faixa horizontal rolavel: sticky com altura de viewport brigaria com ela. */
+    position: static;
+    height: auto;
+    overflow-y: visible;
+  }
+  /* Os grupos deixam de ser caixa e os itens voltam a ser filhos diretos da
+     faixa; os titulos nao cabem na horizontal. */
+  .nav-grupo {
+    display: contents;
+  }
+  .nav-grupo-titulo {
+    display: none;
   }
   .marca,
   .rodape-lateral {

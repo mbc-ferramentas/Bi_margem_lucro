@@ -4,18 +4,41 @@ import { ErroApi, tokens } from "../api/cliente";
 import { useEu } from "../api/hooks";
 import { Barra } from "./Skeleton";
 
-const PAGINAS = [
-  { para: "/", rotulo: "Visão geral", fim: true },
-  // Armazem antes das demais quebras: e a dimensao de fora da hierarquia.
-  { para: "/armazens", rotulo: "Por armazém" },
-  { para: "/vendedores", rotulo: "Por vendedor" },
-  { para: "/skus", rotulo: "Por SKU" },
-  { para: "/canais", rotulo: "Por canal" },
-  { para: "/carteira", rotulo: "Carteira em aberto" },
-  // Esconder o item nao e a protecao: a API recusa quem nao e admin. Aqui e so
-  // para nao oferecer uma tela que o usuario receberia 403 ao usar.
-  { para: "/uploads", rotulo: "Uploads", somenteAdmin: true },
-  { para: "/usuarios", rotulo: "Usuários", somenteAdmin: true },
+type ItemMenu = { para: string; rotulo: string; fim?: boolean };
+
+type GrupoMenu = { titulo: string; somenteAdmin?: boolean; itens: ItemMenu[] };
+
+/** O menu e agrupado por natureza: analisar margem, acompanhar carteira e
+ *  administrar o sistema sao tarefas de momentos diferentes. Numa lista plana
+ *  "Uploads" ficava na mesma sequencia visual de "Por SKU". */
+const GRUPOS: GrupoMenu[] = [
+  {
+    titulo: "Análise",
+    itens: [
+      { para: "/", rotulo: "Visão geral", fim: true },
+      // Armazem antes das demais quebras: e a dimensao de fora da hierarquia.
+      { para: "/armazens", rotulo: "Por armazém" },
+      { para: "/vendedores", rotulo: "Por vendedor" },
+      { para: "/skus", rotulo: "Por SKU" },
+      { para: "/canais", rotulo: "Por canal" },
+    ],
+  },
+  {
+    titulo: "Operação",
+    itens: [{ para: "/carteira", rotulo: "Carteira em aberto" }],
+  },
+  {
+    // Esconder o bloco nao e a protecao: a API recusa quem nao e admin. Aqui e
+    // so para nao oferecer telas que o usuario receberia 403 ao usar. O flag
+    // mora no grupo, e nao no item, porque as duas telas restritas sao
+    // exatamente este bloco — assim nunca sobra um titulo sem itens embaixo.
+    titulo: "Administração",
+    somenteAdmin: true,
+    itens: [
+      { para: "/uploads", rotulo: "Uploads" },
+      { para: "/usuarios", rotulo: "Usuários" },
+    ],
+  },
 ];
 
 /** Moldura fixa da aplicacao: existe igual nos tres estados (carregando, erro e
@@ -55,9 +78,16 @@ export function Layout() {
           <div role="status" aria-live="polite" aria-busy="true">
             <span style={{ position: "absolute", left: "-9999px" }}>Carregando</span>
             <div aria-hidden="true">
-              {PAGINAS.filter((p) => !p.somenteAdmin).map((p) => (
-                <div key={p.para} className="nav-item">
-                  <Barra largura="70%" altura="11px" />
+              {/* Os titulos nao dependem de /auth/eu: entram como texto mesmo, e
+                  so os itens esperam em barra. */}
+              {GRUPOS.filter((g) => !g.somenteAdmin).map((g) => (
+                <div key={g.titulo} className="nav-grupo">
+                  <h2 className="nav-grupo-titulo">{g.titulo}</h2>
+                  {g.itens.map((p) => (
+                    <div key={p.para} className="nav-item">
+                      <Barra largura="70%" altura="11px" />
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
@@ -98,16 +128,21 @@ export function Layout() {
   }
 
   const ehAdmin = eu.perfis.includes("admin");
-  const paginas = PAGINAS.filter((p) => !p.somenteAdmin || ehAdmin);
+  const grupos = GRUPOS.filter((g) => !g.somenteAdmin || ehAdmin);
 
   return (
     <Moldura
       menu={
         <>
-          {paginas.map((p) => (
-            <NavLink key={p.para} to={p.para} end={p.fim} className="nav-item">
-              {p.rotulo}
-            </NavLink>
+          {grupos.map((g) => (
+            <div key={g.titulo} className="nav-grupo">
+              <h2 className="nav-grupo-titulo">{g.titulo}</h2>
+              {g.itens.map((p) => (
+                <NavLink key={p.para} to={p.para} end={p.fim} className="nav-item">
+                  {p.rotulo}
+                </NavLink>
+              ))}
+            </div>
           ))}
 
           <div className="rodape-lateral">
