@@ -25,9 +25,16 @@ import { BarraFiltros } from "../componentes/Filtros";
 import { IconeOlho } from "../componentes/Icones";
 import { Erro, Vazio } from "../componentes/Layout";
 import { Paginacao } from "../componentes/Paginacao";
-import { SeletorTema } from "../componentes/SeletorTema";
 import { SkeletonTabela, SkeletonTiles } from "../componentes/Skeleton";
-import { escreverFiltros, useFiltrosUrl } from "../filtrosUrl";
+import {
+  Abas,
+  Badge,
+  BarraComposicao,
+  CabecalhoPagina,
+  CartaoKpi,
+  PainelInsight,
+} from "../componentes/Visual";
+import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
 import { dataCurta, inteiro, moeda, numeroBruto, percentual, rotuloNota } from "../formato";
 
 const COLUNAS = [
@@ -45,27 +52,17 @@ const COLUNAS = [
   { chave: null, rotulo: "Ações", num: false },
 ] as const;
 
-function Tile({ rotulo, valor, apoio }: { rotulo: string; valor: string; apoio?: string }) {
-  return (
-    <div className="cartao tile">
-      <div className="rotulo">{rotulo}</div>
-      <div className="valor">{valor}</div>
-      {apoio && <div className="apoio">{apoio}</div>}
-    </div>
-  );
-}
-
 function Resumo({ resumo }: { resumo: ResumoPedidos }) {
   return (
-    <div className="grade-tiles">
-      <Tile
+    <div className="grade-kpis">
+      <CartaoKpi
         rotulo="Receita faturada"
         valor={moeda(resumo.receita)}
         apoio={`${inteiro(resumo.itens)} itens · ${inteiro(
           resumo.pedidos,
         )} pedidos · ${inteiro(resumo.notas)} notas`}
       />
-      <Tile
+      <CartaoKpi
         rotulo="Receita no indicador"
         valor={moeda(resumo.receita_no_kpi)}
         apoio={
@@ -74,12 +71,13 @@ function Resumo({ resumo }: { resumo: ResumoPedidos }) {
             : "Todos os itens entram no KPI"
         }
       />
-      <Tile
+      <CartaoKpi
         rotulo="Margem bruta"
         valor={moeda(resumo.margem)}
         apoio={`${percentual(resumo.margem_pct)} sobre a receita no indicador`}
+        tom={numeroBruto(resumo.margem) < 0 ? "critico" : "bom"}
       />
-      <Tile
+      <CartaoKpi
         rotulo="Ticket médio"
         valor={moeda(resumo.ticket_medio)}
         apoio={`${inteiro(resumo.skus)} SKUs distintos`}
@@ -95,6 +93,7 @@ export function Pedidos() {
   const { armazem = "", vendedor = "" } = useParams();
   const porArmazem = Boolean(armazem);
   const [filtros, setFiltros] = useFiltrosUrl();
+  const [aba, setAba] = useAbaUrl(["gerencial", "detalhamento"] as const, "gerencial");
   const [ordenar, setOrdenar] = useState("-margem");
   const [offset, setOffset] = useState(0);
   const [itensPorPagina, setItensPorPagina] = useState(25);
@@ -123,23 +122,19 @@ export function Pedidos() {
 
   return (
     <>
-      <div className="cabecalho">
-        <div>
+      <CabecalhoPagina
+        titulo={`Pedidos faturados — ${rotulo}`}
+        descricao="Acompanhe o faturamento realizado, a cobertura do indicador de margem e os pedidos que exigem revisão."
+        voltar={
           <Link
             className="voltar"
             to={`/${porArmazem ? "armazens" : "vendedores"}${consulta ? `?${consulta}` : ""}`}
           >
             ← Voltar para {porArmazem ? "Por armazém" : "Por vendedor"}
           </Link>
-          <h1>Pedidos faturados — {rotulo}</h1>
-          <p className="subtitulo">
-            Cada linha é um pedido que já virou nota fiscal (SD2). Clique num pedido
-            para ver os itens, o custo de cada um e por que a margem ficou nesse
-            patamar.
-          </p>
-        </div>
-        <SeletorTema />
-      </div>
+        }
+        contexto={<><Badge tom="info">Faturado</Badge><Badge>{porArmazem ? "Recorte por armazém" : "Recorte por vendedor"}</Badge></>}
+      />
 
       <BarraFiltros
         valor={filtros}
@@ -165,17 +160,72 @@ export function Pedidos() {
       )}
 
       {data && data.total > 0 && (
-        <div className="cartao">
+        <>
           <Resumo resumo={data.resumo} />
 
-          <p className="nota">
-            A receita faturada inclui linhas que ficam fora do KPI de margem (sem
-            custo confiável, outlier de custo ou tipo de saída que não é venda).
-            Elas continuam sendo faturamento e por isso continuam aqui — é a
-            &ldquo;receita no indicador&rdquo; que fecha com a tela Por armazém.
-          </p>
+          <Abas
+            valor={aba}
+            aoMudar={setAba}
+            opcoes={[
+              { valor: "gerencial", rotulo: "Visão gerencial" },
+              { valor: "detalhamento", rotulo: "Detalhamento", contador: data.total },
+            ]}
+          />
 
-          <div className="rolagem">
+          {aba === "gerencial" && (
+            <div className="cartao">
+              <div className="secao-topo">
+                <div>
+                  <h2>Qualidade do faturamento</h2>
+                  <p className="nota">Indicadores calculados sobre todos os pedidos do recorte, não apenas sobre a página atual.</p>
+                </div>
+              </div>
+
+              <BarraComposicao
+                valor={numeroBruto(data.resumo.receita)
+                  ? numeroBruto(data.resumo.receita_no_kpi) / numeroBruto(data.resumo.receita)
+                  : 0}
+                rotulo="Receita coberta pelo KPI de margem"
+                detalhe={percentual(
+                  numeroBruto(data.resumo.receita)
+                    ? numeroBruto(data.resumo.receita_no_kpi) / numeroBruto(data.resumo.receita)
+                    : null,
+                )}
+                tom="bom"
+              />
+
+              <div className="grade-insights">
+                <PainelInsight
+                  titulo="Volume faturado"
+                  valor={inteiro(data.resumo.pedidos)}
+                  texto={`${inteiro(data.resumo.notas)} notas fiscais emitidas`}
+                />
+                <PainelInsight
+                  titulo="Diversidade"
+                  valor={inteiro(data.resumo.skus)}
+                  texto={`${inteiro(data.resumo.itens)} itens faturados`}
+                />
+                <PainelInsight
+                  titulo="Fora do indicador"
+                  valor={inteiro(data.resumo.itens_fora_do_kpi)}
+                  texto="Itens com custo não confiável, outlier ou saída que não é venda"
+                  tom={data.resumo.itens_fora_do_kpi ? "atencao" : "bom"}
+                />
+              </div>
+
+              <div className="aviso" role="note">
+                <span className="icone" aria-hidden="true">i</span>
+                <span>A receita faturada inclui todas as linhas da nota. A receita no indicador exclui itens sem custo confiável, outliers e tipos de saída que não representam venda.</span>
+              </div>
+            </div>
+          )}
+
+          {aba === "detalhamento" && (
+          <div className="cartao">
+            <div className="secao-topo">
+              <div><h2>Pedidos faturados</h2><p className="nota">Ordene as colunas ou abra um pedido para auditar sua composição.</p></div>
+            </div>
+            <div className="rolagem">
             <table>
               <thead>
                 <tr>
@@ -185,6 +235,11 @@ export function Pedidos() {
                       className={c.num ? "num" : undefined}
                       onClick={() => ordenarPor(c.chave)}
                       style={{ cursor: c.chave ? "pointer" : "default" }}
+                      aria-sort={
+                        !c.chave || ordenar.replace("-", "") !== c.chave
+                          ? "none"
+                          : ordenar.startsWith("-") ? "descending" : "ascending"
+                      }
                     >
                       {c.rotulo}
                       {c.chave &&
@@ -197,11 +252,11 @@ export function Pedidos() {
               <tbody>
                 {data.pedidos.map((pedido) => (
                   <tr key={pedido.chave}>
-                    <td style={{ fontVariantNumeric: "tabular-nums" }}>
-                      {pedido.origem === "pdv" ? "Balcão/PDV" : pedido.chave}
+                    <td className="tabela-identidade" style={{ fontVariantNumeric: "tabular-nums" }}>
+                      <strong>{pedido.origem === "pdv" ? "Balcão/PDV" : pedido.chave}</strong>
                       {pedido.armazens > 1 && (
                         <span
-                          className="marcador"
+                          className="badge"
                           title="Este pedido também sai por outro armazém"
                         >
                           {pedido.armazens} armazéns
@@ -212,7 +267,7 @@ export function Pedidos() {
                           junto com a coluna seria esconder o motivo. */}
                       {pedido.itens_fora_do_kpi > 0 && (
                         <span
-                          className="marcador alerta"
+                          className="badge badge-atencao"
                           title={`${pedido.itens_fora_do_kpi} itens somam receita mas ficam fora do KPI de margem`}
                         >
                           {pedido.itens_fora_do_kpi} fora do KPI
@@ -255,7 +310,7 @@ export function Pedidos() {
                         aria-label={`Visualizar detalhes do pedido ${pedido.chave}`}
                       >
                         <IconeOlho />
-                        Visualizar
+                        Ver pedido
                       </Link>
                     </td>
                   </tr>
@@ -274,7 +329,9 @@ export function Pedidos() {
               setItensPorPagina(quantidade);
             }}
           />
-        </div>
+          </div>
+          )}
+        </>
       )}
     </>
   );

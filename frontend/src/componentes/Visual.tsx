@@ -161,10 +161,12 @@ export function BarraComposicao({
   valor,
   rotulo,
   detalhe,
+  tom = "critico",
 }: {
   valor: number;
   rotulo: string;
   detalhe: string;
+  tom?: "info" | "bom" | "atencao" | "critico";
 }) {
   const limitado = Math.max(0, Math.min(1, Number.isFinite(valor) ? valor : 0));
   return (
@@ -173,7 +175,7 @@ export function BarraComposicao({
         <span>{rotulo}</span>
         <strong>{detalhe}</strong>
       </div>
-      <div className="composicao-trilho" role="progressbar" aria-label={rotulo} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(limitado * 100)}>
+      <div className={`composicao-trilho composicao-${tom}`} role="progressbar" aria-label={rotulo} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(limitado * 100)}>
         <span style={{ width: `${limitado * 100}%` }} />
       </div>
     </div>
