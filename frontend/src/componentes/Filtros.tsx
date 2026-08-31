@@ -2,6 +2,7 @@ import { useOpcoes } from "../api/hooks";
 import type { Filtros } from "../api/tipos";
 import { competencia } from "../formato";
 import { SeletorGrupos } from "./SeletorGrupos";
+import { ChipsFiltros } from "./Visual";
 
 type Props = {
   valor: Filtros;
@@ -37,7 +38,7 @@ export function BarraFiltros({ valor, aoMudar, ocultarCanal, ocultarArmazem }: P
   const fim = valor.competencia_fim ?? "";
 
   return (
-    <div className="filtros">
+    <><div className="filtros">
       <div className="campo campo-periodo">
         <span className="rotulo-grupo">Período</span>
         <div className="intervalo" role="group" aria-label="Período">
@@ -107,13 +108,6 @@ export function BarraFiltros({ valor, aoMudar, ocultarCanal, ocultarArmazem }: P
         idPrefixo="f"
       />
 
-      {/* Array vazio e truthy em JS: sem o teste de length o botao Limpar
-          apareceria assim que o usuario desmarcasse o ultimo grupo. */}
-      {Object.values(valor).some((v) => (Array.isArray(v) ? v.length > 0 : Boolean(v))) && (
-        <button className="botao-alt" onClick={() => aoMudar({})}>
-          Limpar
-        </button>
-      )}
-    </div>
+    </div><ChipsFiltros valor={valor} aoMudar={aoMudar} /></>
   );
 }

@@ -59,10 +59,35 @@ export function useFiltrosUrl(): [Filtros, (f: Filtros) => void] {
       // `replace`: mudar de filtro nao e navegacao. Sem isso o botao de voltar
       // do browser percorreria cada select que o usuario tocou antes de sair
       // da tela.
-      setParams(escreverFiltros(novos), { replace: true });
+      const seguintes = new URLSearchParams(params);
+      for (const chave of [...SIMPLES, "grupo", "situacao"]) seguintes.delete(chave);
+      const filtrosSerializados = new URLSearchParams(escreverFiltros(novos));
+      filtrosSerializados.forEach((valor, chave) => seguintes.set(chave, valor));
+      setParams(seguintes, { replace: true });
     },
-    [setParams],
+    [params, setParams],
   );
 
   return [filtros, definir];
+}
+
+/** Estado de interface compartilhavel sem misturar `aba` aos filtros da API. */
+export function useAbaUrl<T extends string>(
+  validas: readonly T[],
+  padrao: T,
+): [T, (aba: T) => void] {
+  const [params, setParams] = useSearchParams();
+  const bruta = params.get("aba");
+  const aba = validas.includes(bruta as T) ? (bruta as T) : padrao;
+
+  const definir = useCallback(
+    (nova: T) => {
+      const seguintes = new URLSearchParams(params);
+      if (nova === padrao) seguintes.delete("aba");
+      else seguintes.set("aba", nova);
+      setParams(seguintes, { replace: true });
+    },
+    [padrao, params, setParams],
+  );
+  return [aba, definir];
 }

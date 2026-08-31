@@ -9,9 +9,9 @@ import { Grafico, baseDoTema, corDaSerie } from "../componentes/Grafico";
 import { IconeOlho } from "../componentes/Icones";
 import { Erro, Vazio } from "../componentes/Layout";
 import { Paginacao } from "../componentes/Paginacao";
-import { SeletorTema } from "../componentes/SeletorTema";
 import { SkeletonTabela } from "../componentes/Skeleton";
-import { escreverFiltros, useFiltrosUrl } from "../filtrosUrl";
+import { Abas, CabecalhoPagina, CartaoKpi, PainelInsight } from "../componentes/Visual";
+import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
 import { inteiro, moeda, moedaCurta, numeroBruto, percentual } from "../formato";
 import { useTema } from "../tema";
 
@@ -32,10 +32,19 @@ export function Vendedores() {
   const [ordenar, setOrdenar] = useState("-margem");
   const [offset, setOffset] = useState(0);
   const [itensPorPagina, setItensPorPagina] = useState(25);
+  const [aba, setAba] = useAbaUrl(["gerencial", "detalhamento"] as const, "gerencial");
+  const [metrica, setMetrica] = useState<"margem" | "margem_pct" | "receita">("margem");
 
   const { data, isPending, isError, error } = useVendedores(filtros, ordenar);
   const linhas = data?.vendedores ?? [];
   const consulta = escreverFiltros(filtros);
+  const totais = useMemo(() => {
+    const receita = linhas.reduce((s, v) => s + numeroBruto(v.receita), 0);
+    const margem = linhas.reduce((s, v) => s + numeroBruto(v.margem), 0);
+    const negativos = linhas.filter((v) => numeroBruto(v.margem) < 0).length;
+    const lider = [...linhas].sort((a, b) => numeroBruto(b.margem) - numeroBruto(a.margem))[0];
+    return { receita, margem, margemPct: receita ? margem / receita : null, negativos, lider };
+  }, [linhas]);
 
   // Ver a nota em VisaoGeral: `resolvido` entra nas deps porque baseDoTema() e
   // corDaSerie() leem as variaveis CSS no momento do calculo.
@@ -44,7 +53,7 @@ export function Vendedores() {
   const opcao = useMemo<EChartsOption>(() => {
     const base = baseDoTema();
     const top = [...linhas]
-      .sort((a, b) => numeroBruto(b.margem) - numeroBruto(a.margem))
+      .sort((a, b) => numeroBruto(b[metrica]) - numeroBruto(a[metrica]))
       .slice(0, 10)
       .reverse();
 
@@ -55,12 +64,12 @@ export function Vendedores() {
       tooltip: {
         ...base.tooltip,
         trigger: "item",
-        valueFormatter: (v) => moeda(v as number),
+        valueFormatter: (v) => metrica === "margem_pct" ? percentual(v as number) : moeda(v as number),
       },
       xAxis: {
         ...base.xAxis,
         type: "value",
-        axisLabel: { ...base.xAxis.axisLabel, formatter: (v: number) => moedaCurta(v) },
+        axisLabel: { ...base.xAxis.axisLabel, formatter: (v: number) => metrica === "margem_pct" ? percentual(v) : moedaCurta(v) },
         splitLine: { lineStyle: { color: "var(--grid)" } },
       },
       yAxis: {
@@ -78,16 +87,16 @@ export function Vendedores() {
           label: {
             show: true,
             position: "right" as const,
-            formatter: (p: { dataIndex: number }) =>
-              percentual(top[p.dataIndex].margem_pct),
+            formatter: (p: { dataIndex: number }) => metrica === "margem_pct" ? moeda(top[p.dataIndex].margem) : percentual(top[p.dataIndex].margem_pct),
             color: "var(--text-secondary)",
             fontSize: 11,
           },
-          data: top.map((v) => numeroBruto(v.margem)),
+          markLine: metrica === "margem_pct" ? { silent: true, symbol: "none", lineStyle: { color: "var(--axis)", type: "dashed" }, data: [{ xAxis: totais.margemPct ?? 0, name: "Média" }] } : undefined,
+          data: top.map((v) => numeroBruto(v[metrica])),
         },
       ],
     };
-  }, [linhas, resolvido]);
+  }, [linhas, metrica, resolvido, totais.margemPct]);
 
   function ordenarPor(chave: string | null) {
     if (!chave) return;
@@ -102,16 +111,7 @@ export function Vendedores() {
 
   return (
     <>
-      <div className="cabecalho">
-        <div>
-          <h1>Por vendedor</h1>
-          <p className="subtitulo">
-            Margem bruta. Ranking restrito à venda interna — o canal Marketplace é
-            operado pelo integrador Lexos e não tem vendedor pessoa física.
-          </p>
-        </div>
-        <SeletorTema />
-      </div>
+      <CabecalhoPagina titulo="Por vendedor" descricao="Compare desempenho, identifique concentração de margem e encontre vendedores que precisam de atenção." />
 
       <BarraFiltros valor={filtros} aoMudar={mudarFiltros} ocultarCanal />
 
@@ -124,20 +124,28 @@ export function Vendedores() {
 
       {linhas.length > 0 && (
         <>
-          <div className="cartao">
-            <h2>Margem por vendedor</h2>
-            <p className="nota">
-              Dez maiores por margem absoluta. O rótulo à direita é a margem
-              percentual.
-            </p>
-            <Grafico
-              opcao={opcao}
-              altura={Math.max(220, Math.min(linhas.length, 10) * 34)}
-              rotuloAcessivel="Margem bruta por vendedor, dez maiores."
-            />
+          <div className="grade-kpis">
+            <CartaoKpi rotulo="Receita total" valor={moeda(totais.receita)} apoio={`${inteiro(linhas.length)} vendedores ativos`} />
+            <CartaoKpi rotulo="Margem total" valor={moeda(totais.margem)} apoio="Margem bruta no recorte" tom={totais.margem < 0 ? "critico" : "bom"} />
+            <CartaoKpi rotulo="Margem ponderada" valor={percentual(totais.margemPct)} apoio="Margem total sobre receita total" />
+            <CartaoKpi rotulo="Margem negativa" valor={inteiro(totais.negativos)} apoio={totais.negativos ? "Vendedores para revisar" : "Nenhuma ocorrência"} tom={totais.negativos ? "critico" : "bom"} />
           </div>
 
-          <div className="cartao" style={{ marginTop: 14 }}>
+          <Abas valor={aba} aoMudar={setAba} opcoes={[{ valor: "gerencial", rotulo: "Visão gerencial" }, { valor: "detalhamento", rotulo: "Detalhamento", contador: linhas.length }]} />
+
+          {aba === "gerencial" && <>
+            <div className="grade-insights">
+              <PainelInsight titulo="Líder de margem" valor={totais.lider?.vendedor_nome ?? totais.lider?.vendedor_codigo ?? "—"} texto={totais.lider ? `${moeda(totais.lider.margem)} de margem bruta` : "Sem dados"} tom="bom" />
+              <PainelInsight titulo="Concentração do líder" valor={percentual(totais.margem ? numeroBruto(totais.lider?.margem) / totais.margem : null)} texto="Participação na margem total" />
+              <PainelInsight titulo="Pontos de atenção" valor={inteiro(totais.negativos)} texto="Vendedores com margem abaixo de zero" tom={totais.negativos ? "critico" : "bom"} />
+            </div>
+            <div className="cartao">
+              <div className="secao-topo"><div><h2>Ranking de vendedores</h2><p className="nota">Dez maiores na métrica selecionada.</p></div><div className="segmented" aria-label="Métrica do ranking">{([['margem','Margem R$'],['margem_pct','Margem %'],['receita','Receita']] as const).map(([valor, rotulo]) => <button key={valor} aria-pressed={metrica === valor} onClick={() => setMetrica(valor)}>{rotulo}</button>)}</div></div>
+              <Grafico opcao={opcao} altura={Math.max(240, Math.min(linhas.length, 10) * 36)} rotuloAcessivel="Ranking dos dez vendedores na métrica selecionada." />
+            </div>
+          </>}
+
+          {aba === "detalhamento" && <div className="cartao">
             <h2>Detalhamento</h2>
             <p className="nota">Clique no cabeçalho para ordenar.</p>
             <div className="rolagem">
@@ -167,9 +175,9 @@ export function Vendedores() {
                   </tr>
                 </thead>
                 <tbody>
-                  {linhas.slice(offset, offset + itensPorPagina).map((v) => (
+                  {linhas.slice(offset, offset + itensPorPagina).map((v, indice) => (
                     <tr key={v.vendedor_codigo ?? v.vendedor_nome}>
-                      <td>{v.vendedor_nome ?? v.vendedor_codigo}</td>
+                      <td className="tabela-identidade"><strong>{inteiro(offset + indice + 1)}.</strong> {v.vendedor_nome ?? v.vendedor_codigo}</td>
                       <td className="num">{moeda(v.receita)}</td>
                       <td className={numeroBruto(v.margem) < 0 ? "num negativo" : "num"}>
                         {moeda(v.margem)}
@@ -190,7 +198,7 @@ export function Vendedores() {
                             }`}
                           >
                             <IconeOlho />
-                            Visualizar
+                            Ver pedidos
                           </Link>
                         )}
                       </td>
@@ -201,6 +209,7 @@ export function Vendedores() {
             </div>
             <Paginacao total={linhas.length} offset={offset} itensPorPagina={itensPorPagina} aoMudarOffset={setOffset} aoMudarItensPorPagina={(quantidade) => { setOffset(0); setItensPorPagina(quantidade); }} />
           </div>
+          }
         </>
       )}
     </>

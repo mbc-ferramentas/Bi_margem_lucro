@@ -9,14 +9,15 @@
  *  desconto à parte: `Vlr.Total` continua sendo quantidade × unitário.
  */
 
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { usePedido } from "../api/hooks";
 import type { ItemPedido } from "../api/tipos";
 import { AvisoMarketplace, Erro } from "../componentes/Layout";
-import { SeletorTema } from "../componentes/SeletorTema";
 import { SkeletonTabela } from "../componentes/Skeleton";
-import { escreverFiltros, useFiltrosUrl } from "../filtrosUrl";
+import { Abas, Badge, CabecalhoPagina, CartaoKpi } from "../componentes/Visual";
+import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
 import {
   competencia,
   dataCurta,
@@ -62,6 +63,8 @@ export function PedidoDetalhe() {
   const porSku = Boolean(sku);
   const porArmazem = Boolean(armazem);
   const [filtros] = useFiltrosUrl();
+  const [aba, setAba] = useAbaUrl(["informacoes", "itens"] as const, "informacoes");
+  const [filtroItens, setFiltroItens] = useState<"todos" | "fora_kpi" | "negativos" | "sem_custo">("todos");
   const consulta = escreverFiltros(filtros);
   // Vindo do SKU o destino é a própria tela do item, não uma lista de pedidos.
   const base = porSku
@@ -79,27 +82,21 @@ export function PedidoDetalhe() {
   });
 
   const cabecalho = data?.pedido;
+  const itensVisiveis = data?.itens.filter((item) => {
+    if (filtroItens === "fora_kpi") return motivosForaDoKpi(item).length > 0;
+    if (filtroItens === "negativos") return !item.sem_custo && numeroBruto(item.margem_bruta) < 0;
+    if (filtroItens === "sem_custo") return item.sem_custo;
+    return true;
+  }) ?? [];
 
   return (
     <>
-      <div className="cabecalho">
-        <div>
-          <Link className="voltar" to={voltar}>
-            {porSku ? "← Voltar para o SKU" : "← Voltar para os pedidos"}
-          </Link>
-          <h1>
-            {cabecalho?.origem === "pdv"
-              ? "Venda de balcão (PDV)"
-              : `Pedido ${cabecalho?.num_pedido ?? chave}`}
-          </h1>
-          <p className="subtitulo">
-            {cabecalho?.origem === "pdv"
-              ? "O export de balcão não traz número de documento: cada linha é uma venda própria."
-              : "Itens faturados do pedido, com o custo que produziu cada margem."}
-          </p>
-        </div>
-        <SeletorTema />
-      </div>
+      <CabecalhoPagina
+        titulo={cabecalho?.origem === "pdv" ? "Venda de balcão (PDV)" : `Pedido ${cabecalho?.num_pedido ?? chave}`}
+        descricao={cabecalho?.origem === "pdv" ? "Venda individual do balcão com composição de receita, custo e margem." : "Resumo financeiro e rastreabilidade dos itens faturados."}
+        voltar={<Link className="voltar" to={voltar}>{porSku ? "← Voltar para o SKU" : "← Voltar para os pedidos"}</Link>}
+        contexto={cabecalho && <><Badge tom="info">{cabecalho.origem === "pdv" ? "PDV" : "Pedido faturado"}</Badge>{cabecalho.canal.toLowerCase().includes("marketplace") && <Badge tom="atencao">Marketplace</Badge>}</>}
+      />
 
       {isError && <Erro mensagem={(error as Error).message} />}
       {isPending && <SkeletonTabela linhas={6} colunas={13} />}
@@ -110,8 +107,28 @@ export function PedidoDetalhe() {
             <AvisoMarketplace texto={data.escopo.aviso_marketplace} />
           )}
 
-          <div className="cartao">
-            <h2>Pedido</h2>
+          <div className="grade-kpis">
+            <CartaoKpi rotulo="Receita líquida" valor={moeda(cabecalho.receita_liquida)} apoio={`${moeda(cabecalho.desconto)} em descontos`} />
+            <CartaoKpi rotulo="Custo" valor={moeda(cabecalho.custo)} apoio="Custo considerado no pedido" />
+            <CartaoKpi rotulo="Margem bruta" valor={moeda(cabecalho.margem)} apoio={percentual(cabecalho.margem_pct)} tom={numeroBruto(cabecalho.margem) < 0 ? "critico" : "bom"} />
+            <CartaoKpi rotulo="Itens fora do KPI" valor={inteiro(cabecalho.itens_fora_do_kpi)} apoio={`de ${inteiro(cabecalho.itens)} itens`} tom={cabecalho.itens_fora_do_kpi ? "atencao" : "bom"} />
+          </div>
+
+          <div className="cartao" style={{ marginBottom: 14 }}>
+            <h2>Formação da margem após desconto</h2>
+            <div className="formula-financeira">
+              <div className="formula-item"><span>Receita bruta</span><strong>{moeda(cabecalho.receita)}</strong></div><span className="formula-operador">−</span>
+              <div className="formula-item"><span>Desconto</span><strong>{moeda(cabecalho.desconto)}</strong></div><span className="formula-operador">−</span>
+              <div className="formula-item"><span>Custo</span><strong>{moeda(cabecalho.custo)}</strong></div><span className="formula-operador">=</span>
+              <div className="formula-item"><span>Margem líquida</span><strong>{moeda(cabecalho.margem_liquida)}</strong></div>
+            </div>
+            <p className="nota">A margem bruta antes do desconto é {moeda(cabecalho.margem)}. Após o desconto, a margem líquida é {moeda(cabecalho.margem_liquida)} ({percentual(cabecalho.margem_liquida_pct)}).</p>
+          </div>
+
+          <Abas valor={aba} aoMudar={setAba} opcoes={[{ valor: "informacoes", rotulo: "Informações" }, { valor: "itens", rotulo: "Itens", contador: data.itens.length }]} />
+
+          {aba === "informacoes" && <div className="cartao">
+            <h2>Informações comerciais</h2>
             <div className="grade-leitura">
               <Campo
                 rotulo="Cliente"
@@ -127,42 +144,13 @@ export function PedidoDetalhe() {
                 rotulo="Armazém"
                 valor={cabecalho.armazens.length ? cabecalho.armazens.join(", ") : "—"}
               />
-              <Campo
-                rotulo={cabecalho.notas.length > 1 ? "Notas fiscais" : "Nota fiscal"}
-                valor={
-                  cabecalho.notas.length
-                    ? cabecalho.notas
-                        .map((n) => rotuloNota(n.nota_fiscal, n.serie_nf))
-                        .join(", ")
-                    : "—"
-                }
-              />
-              <Campo
-                rotulo="Emissão"
-                valor={cabecalho.emissao ? dataCurta(cabecalho.emissao) : "—"}
-              />
-              <Campo
-                rotulo="Competência"
-                valor={cabecalho.competencia ? competencia(cabecalho.competencia) : "—"}
-              />
             </div>
 
-            <h2 style={{ marginTop: 18 }}>Totais</h2>
+            <h2 style={{ marginTop: 18 }}>Informações fiscais</h2>
             <div className="grade-leitura">
-              <Campo rotulo="Receita cheia" valor={moeda(cabecalho.receita)} />
-              <Campo rotulo="Desconto" valor={moeda(cabecalho.desconto)} />
-              <Campo rotulo="Receita líquida" valor={moeda(cabecalho.receita_liquida)} />
-              <Campo rotulo="Custo" valor={moeda(cabecalho.custo)} />
-              <Campo
-                rotulo="Margem bruta"
-                valor={`${moeda(cabecalho.margem)} · ${percentual(cabecalho.margem_pct)}`}
-              />
-              <Campo
-                rotulo="Margem líquida"
-                valor={`${moeda(cabecalho.margem_liquida)} · ${percentual(
-                  cabecalho.margem_liquida_pct,
-                )}`}
-              />
+              <Campo rotulo={cabecalho.notas.length > 1 ? "Notas fiscais" : "Nota fiscal"} valor={cabecalho.notas.length ? cabecalho.notas.map((n) => rotuloNota(n.nota_fiscal, n.serie_nf)).join(", ") : "—"} />
+              <Campo rotulo="Emissão" valor={cabecalho.emissao ? dataCurta(cabecalho.emissao) : "—"} />
+              <Campo rotulo="Competência" valor={cabecalho.competencia ? competencia(cabecalho.competencia) : "—"} />
             </div>
 
             {cabecalho.itens_fora_do_kpi > 0 && (
@@ -179,10 +167,10 @@ export function PedidoDetalhe() {
                 competência). Os totais aqui são só do recorte que você está vendo.
               </p>
             )}
-          </div>
+          </div>}
 
-          <div className="cartao" style={{ marginTop: 14 }}>
-            <h2>Itens</h2>
+          {aba === "itens" && <div className="cartao">
+            <div className="secao-topo"><div><h2>Itens faturados</h2><p className="nota">Os filtros abaixo não alteram os totais do pedido.</p></div><div className="segmented" aria-label="Filtrar itens">{([['todos','Todos'],['fora_kpi','Fora do KPI'],['negativos','Margem negativa'],['sem_custo','Sem custo']] as const).map(([valor, rotulo]) => <button key={valor} aria-pressed={filtroItens === valor} onClick={() => setFiltroItens(valor)}>{rotulo}</button>)}</div></div>
             <div className="rolagem">
               <table>
                 <thead>
@@ -203,18 +191,18 @@ export function PedidoDetalhe() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.itens.map((item) => {
+                  {itensVisiveis.map((item) => {
                     const motivos = motivosForaDoKpi(item);
                     return (
                       <tr key={item.id}>
-                        <td style={{ fontVariantNumeric: "tabular-nums" }}>
+                        <td className="tabela-identidade" style={{ fontVariantNumeric: "tabular-nums" }}>
                           {rotuloNota(item.nota_fiscal, item.serie_nf) ?? "—"}
                         </td>
                         <td style={{ fontVariantNumeric: "tabular-nums" }}>
                           {item.sku}
                           {motivos.length > 0 && (
                             <span
-                              className="marcador alerta"
+                              className="badge badge-atencao"
                               title="Soma na receita, fora do KPI de margem"
                             >
                               {motivos.join(" · ")}
@@ -234,7 +222,7 @@ export function PedidoDetalhe() {
                         <td>
                           {item.grupo_rotulo ?? item.grupo_codigo ?? "—"}
                           {item.grupo_reclassificado && (
-                            <span className="marcador" title="Grupo definido por reclassificação manual">
+                            <span className="badge" title="Grupo definido por reclassificação manual">
                               reclassificado
                             </span>
                           )}
@@ -270,7 +258,7 @@ export function PedidoDetalhe() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </div>}
         </>
       )}
     </>

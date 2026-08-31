@@ -11,15 +11,16 @@
  *  esses avisos o usuario conclui que o BI perdeu vendedor.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useCarteira, useOpcoesCarteira } from "../api/hooks";
 import type { Filtros, ResumoCarteira } from "../api/tipos";
 import { Erro, Vazio } from "../componentes/Layout";
 import { Paginacao } from "../componentes/Paginacao";
 import { SeletorGrupos } from "../componentes/SeletorGrupos";
-import { SeletorTema } from "../componentes/SeletorTema";
 import { SkeletonTabela, SkeletonTiles } from "../componentes/Skeleton";
+import { Abas, BarraComposicao, CabecalhoPagina, CartaoKpi, ChipsFiltros, PainelInsight } from "../componentes/Visual";
+import { useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
 import { dataCurta, inteiro, moeda, numeroBruto, percentual } from "../formato";
 
 const COLUNAS = [
@@ -37,28 +38,18 @@ const COLUNAS = [
   { chave: "margem_pct", rotulo: "Margem %", num: true },
 ] as const;
 
-function Tile({ rotulo, valor, apoio }: { rotulo: string; valor: string; apoio?: string }) {
-  return (
-    <div className="cartao tile">
-      <div className="rotulo">{rotulo}</div>
-      <div className="valor">{valor}</div>
-      {apoio && <div className="apoio">{apoio}</div>}
-    </div>
-  );
-}
-
-function Resumo({ resumo }: { resumo: ResumoCarteira }) {
+function Resumo({ resumo, verAtrasados }: { resumo: ResumoCarteira; verAtrasados: () => void }) {
   const atrasoPct =
     resumo.itens > 0 ? resumo.itens_atrasados / resumo.itens : null;
 
   return (
-    <div className="grade-tiles">
-      <Tile
+    <div className="grade-kpis">
+      <CartaoKpi
         rotulo="Valor em aberto"
         valor={moeda(resumo.valor_aberto)}
         apoio={`${inteiro(resumo.itens)} itens em ${inteiro(resumo.pedidos)} pedidos`}
       />
-      <Tile
+      <CartaoKpi
         rotulo="Custo previsto"
         valor={moeda(resumo.custo_previsto)}
         apoio={
@@ -67,28 +58,32 @@ function Resumo({ resumo }: { resumo: ResumoCarteira }) {
             : "Todos os itens com custo"
         }
       />
-      <Tile
+      <CartaoKpi
         rotulo="Margem prevista"
         valor={moeda(resumo.margem_prevista)}
         apoio={`${percentual(resumo.margem_prevista_pct)} sobre os itens com custo`}
       />
-      <Tile
+      <CartaoKpi
         rotulo="Entrega vencida"
         valor={moeda(resumo.valor_atrasado)}
         apoio={`${inteiro(resumo.itens_atrasados)} itens${
           atrasoPct === null ? "" : ` · ${percentual(atrasoPct)} da carteira`
         }`}
+        tom={resumo.itens_atrasados ? "critico" : "bom"}
+        aoClicar={verAtrasados}
       />
     </div>
   );
 }
 
 export function Carteira() {
-  const [filtros, setFiltros] = useState<Filtros>({});
-  const [busca, setBusca] = useState("");
+  const [filtros, setFiltros] = useFiltrosUrl();
+  const [aba, setAba] = useAbaUrl(["gerencial", "itens"] as const, "gerencial");
+  const [busca, setBusca] = useState(filtros.busca ?? "");
   const [ordenar, setOrdenar] = useState("-valor");
   const [offset, setOffset] = useState(0);
   const [itensPorPagina, setItensPorPagina] = useState(25);
+  useEffect(() => setBusca(filtros.busca ?? ""), [filtros.busca]);
 
   // Cascata armazem > grupo: as opcoes vem recortadas pelos filtros ativos.
   const opcoes = useOpcoesCarteira(filtros).data?.opcoes;
@@ -107,14 +102,14 @@ export function Carteira() {
 
   function mudarFiltro(chave: keyof Filtros, valor: string) {
     setOffset(0);
-    setFiltros((atual) => ({ ...atual, [chave]: valor || undefined }));
+    setFiltros({ ...filtros, [chave]: valor || undefined });
   }
 
   // Trocar de armazem pode deixar o grupo escolhido fora do recorte novo — manter
   // o antigo devolveria tela vazia sem explicar por que.
   function mudarArmazem(valor: string) {
     setOffset(0);
-    setFiltros((atual) => ({ ...atual, armazem: valor || undefined, grupo: [] }));
+    setFiltros({ ...filtros, armazem: valor || undefined, grupo: [] });
   }
 
   // A busca so entra na query ao enviar: a cada tecla dispararia uma consulta
@@ -122,7 +117,7 @@ export function Carteira() {
   function enviarBusca(evento: React.FormEvent) {
     evento.preventDefault();
     setOffset(0);
-    setFiltros((atual) => ({ ...atual, busca: busca.trim() || undefined }));
+    setFiltros({ ...filtros, busca: busca.trim() || undefined });
   }
 
   const total = data?.total ?? 0;
@@ -130,16 +125,7 @@ export function Carteira() {
 
   return (
     <>
-      <div className="cabecalho">
-        <div>
-          <h1>Carteira em aberto</h1>
-          <p className="subtitulo">
-            Pedidos de venda ainda não faturados, ou entregues apenas em parte. Os
-            valores são só a parte que falta sair.
-          </p>
-        </div>
-        <SeletorTema />
-      </div>
+      <CabecalhoPagina titulo="Carteira em aberto" descricao="Acompanhe valor pendente, risco de atraso e margem prevista do que ainda falta entregar." />
 
       <div className="filtros">
         <div className="campo">
@@ -209,7 +195,7 @@ export function Carteira() {
           valor={filtros.grupo}
           aoMudar={(grupos) => {
             setOffset(0);
-            setFiltros((atual) => ({ ...atual, grupo: grupos }));
+            setFiltros({ ...filtros, grupo: grupos });
           }}
           idPrefixo="c"
         />
@@ -226,19 +212,8 @@ export function Carteira() {
           />
         </form>
 
-        {(Object.values(filtros).some(Boolean) || busca) && (
-          <button
-            className="botao-alt"
-            onClick={() => {
-              setFiltros({});
-              setBusca("");
-              setOffset(0);
-            }}
-          >
-            Limpar
-          </button>
-        )}
       </div>
+      <ChipsFiltros valor={filtros} aoMudar={(novos) => { setOffset(0); setFiltros(novos); }} />
 
       {isError && <Erro mensagem={(error as Error).message} />}
       {isPending && (
@@ -248,13 +223,28 @@ export function Carteira() {
         </>
       )}
 
-      {resumo && <Resumo resumo={resumo} />}
+      {resumo && <Resumo resumo={resumo} verAtrasados={() => { setOffset(0); setFiltros({ ...filtros, situacao: "atrasados" }); setAba("itens"); }} />}
 
-      {data && data.itens.length === 0 && (
+      {data && <Abas valor={aba} aoMudar={setAba} opcoes={[{ valor: "gerencial", rotulo: "Visão gerencial" }, { valor: "itens", rotulo: "Itens em aberto", contador: total }]} />}
+
+      {data && data.itens.length === 0 && aba === "itens" && (
         <Vazio mensagem="Nenhum item em aberto para os filtros selecionados." />
       )}
 
-      {data && data.itens.length > 0 && resumo && (
+      {data && resumo && aba === "gerencial" && (
+        <div className="cartao">
+          <div className="secao-topo"><div><h2>Saúde da carteira</h2><p className="nota">Foto de {resumo.dt_foto ? dataCurta(resumo.dt_foto) : "—"}. Indicadores calculados sobre toda a carteira filtrada.</p></div></div>
+          <BarraComposicao valor={numeroBruto(resumo.valor_aberto) ? numeroBruto(resumo.valor_atrasado) / numeroBruto(resumo.valor_aberto) : 0} rotulo="Valor com entrega vencida" detalhe={`${percentual(numeroBruto(resumo.valor_aberto) ? numeroBruto(resumo.valor_atrasado) / numeroBruto(resumo.valor_aberto) : null)} da carteira`} />
+          <div className="grade-insights">
+            <PainelInsight titulo="Itens atrasados" valor={inteiro(resumo.itens_atrasados)} texto={`${percentual(resumo.itens ? resumo.itens_atrasados / resumo.itens : null)} dos itens em aberto`} tom={resumo.itens_atrasados ? "critico" : "bom"} />
+            <PainelInsight titulo="Qualidade do custo" valor={inteiro(resumo.itens_sem_custo)} texto="Itens sem custo de referência" tom={resumo.itens_sem_custo ? "atencao" : "bom"} />
+            <PainelInsight titulo="Cobertura cadastral" valor={inteiro(resumo.itens_sem_cadastro)} texto="Itens sem cliente ou vendedor no SC5" tom={resumo.itens_sem_cadastro ? "atencao" : "bom"} />
+          </div>
+          <p className="nota">Entregas previstas de {resumo.entrega_min ? dataCurta(resumo.entrega_min) : "—"} a {resumo.entrega_max ? dataCurta(resumo.entrega_max) : "—"}. A margem é prevista; o custo definitivo só existe após o faturamento.</p>
+        </div>
+      )}
+
+      {data && data.itens.length > 0 && resumo && aba === "itens" && (
         <div className="cartao">
           <div className="cabecalho">
             <div>
@@ -272,6 +262,7 @@ export function Carteira() {
                 </p>
               )}
             </div>
+            <div className="segmented" aria-label="Situação da entrega"><button aria-pressed={!filtros.situacao} onClick={() => mudarFiltro("situacao", "")}>Todos</button><button aria-pressed={filtros.situacao === "atrasados"} onClick={() => mudarFiltro("situacao", "atrasados")}>Vencidos</button><button aria-pressed={filtros.situacao === "a_vencer"} onClick={() => mudarFiltro("situacao", "a_vencer")}>A vencer</button></div>
           </div>
 
           <div className="rolagem">
@@ -296,8 +287,8 @@ export function Carteira() {
               <tbody>
                 {data.itens.map((item) => (
                   <tr key={item.id}>
-                    <td style={{ fontVariantNumeric: "tabular-nums" }}>
-                      {item.num_pedido}
+                    <td className="tabela-identidade" style={{ fontVariantNumeric: "tabular-nums" }}>
+                      <strong>{item.num_pedido}</strong>
                     </td>
                     <td style={{ fontVariantNumeric: "tabular-nums" }}>{item.sku}</td>
                     <td
@@ -322,8 +313,8 @@ export function Carteira() {
                     </td>
                     <td>{item.vendedor_nome ?? "—"}</td>
                     <td>{item.armazem_rotulo ?? item.armazem ?? "—"}</td>
-                    <td className={item.atrasado ? "negativo" : undefined}>
-                      {item.dt_entrega ? dataCurta(item.dt_entrega) : "—"}
+                    <td>
+                      {item.atrasado ? <span className="badge badge-critico">Vencido{item.dias_em_aberto !== null ? ` há ${inteiro(item.dias_em_aberto)} dias` : ""}</span> : (item.dt_entrega ? dataCurta(item.dt_entrega) : "—")}
                     </td>
                     <td className="num">{inteiro(item.dias_em_aberto)}</td>
                     <td className="num">{inteiro(item.qtd_aberta)}</td>

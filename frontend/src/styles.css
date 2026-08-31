@@ -26,8 +26,8 @@
   --status-critical: #d03b3b;
   --delta-good: #006300;
 
-  --raio: 8px;
-  --sombra: 0 1px 2px rgba(11, 11, 11, 0.04);
+  --raio: 12px;
+  --sombra: 0 1px 2px rgba(11, 11, 11, 0.04), 0 8px 24px rgba(11, 11, 11, 0.025);
   --fonte: system-ui, -apple-system, "Segoe UI", sans-serif;
 
   /* Painel lateral: azul fixo nos dois temas, como no Bi_controle_financeiro e
@@ -197,6 +197,7 @@ body {
 .conteudo {
   padding: 24px 28px 48px;
   max-width: 1400px;
+  width: 100%;
 }
 
 .cabecalho {
@@ -256,6 +257,10 @@ h1 {
   margin: 2px 0 20px;
 }
 
+.cabecalho-pagina { margin-bottom: 18px; }
+.cabecalho-pagina .subtitulo { max-width: 780px; margin-bottom: 0; }
+.contexto-pagina { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+
 /* ------------------------------------------------------------- superficie -- */
 
 .cartao {
@@ -265,6 +270,82 @@ h1 {
   padding: 16px 18px;
   box-shadow: var(--sombra);
 }
+
+.grade-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.kpi {
+  min-height: 112px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+}
+.kpi::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--axis); }
+.kpi-bom::before { background: var(--status-good); }
+.kpi-atencao::before { background: var(--status-warning); }
+.kpi-critico::before { background: var(--status-critical); }
+.kpi-rotulo { color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.kpi-valor { display: block; margin-top: 8px; font-size: clamp(21px, 2vw, 28px); line-height: 1.05; letter-spacing: -.025em; font-variant-numeric: tabular-nums; }
+.kpi-apoio { display: block; margin-top: auto; padding-top: 8px; color: var(--text-muted); font-size: 11.5px; }
+.kpi-acao { width: 100%; cursor: pointer; color: var(--text-primary); }
+.kpi-acao:hover { border-color: color-mix(in oklab, var(--series-1) 45%, var(--border)); transform: translateY(-1px); }
+
+.abas { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--border); margin: 4px 0 14px; }
+.abas button { border: 0; border-radius: 8px 8px 0 0; background: transparent; color: var(--text-secondary); padding: 10px 14px; white-space: nowrap; position: relative; }
+.abas button:hover { color: var(--text-primary); background: color-mix(in oklab, var(--text-primary) 4%, transparent); }
+.abas button[aria-selected="true"] { color: var(--text-primary); font-weight: 600; }
+.abas button[aria-selected="true"]::after { content: ""; position: absolute; height: 2px; border-radius: 2px; background: var(--series-1); left: 10px; right: 10px; bottom: 0; }
+.aba-contador { margin-left: 7px; padding: 1px 6px; border-radius: 999px; background: color-mix(in oklab, var(--text-primary) 7%, transparent); font-size: 10px; }
+
+.badge { display: inline-flex; align-items: center; width: fit-content; padding: 2px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 600; line-height: 1.5; color: var(--text-secondary); background: color-mix(in oklab, var(--text-primary) 7%, transparent); }
+.badge-info { color: var(--series-1); background: color-mix(in oklab, var(--series-1) 12%, transparent); }
+.badge-bom { color: var(--delta-good); background: color-mix(in oklab, var(--status-good) 12%, transparent); }
+.badge-atencao { color: var(--text-primary); background: color-mix(in oklab, var(--status-warning) 18%, transparent); }
+.badge-critico { color: var(--status-critical); background: color-mix(in oklab, var(--status-critical) 12%, transparent); }
+
+.grade-insights { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin: 14px 0; }
+.painel-insight { display: flex; flex-direction: column; gap: 3px; border: 1px solid var(--border); border-left: 3px solid var(--axis); border-radius: 9px; padding: 11px 13px; color: var(--text-secondary); background: var(--surface-1); font-size: 12px; }
+.painel-insight strong { color: var(--text-primary); font-size: 16px; }
+.insight-titulo { color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; font-size: 10.5px; }
+.insight-bom { border-left-color: var(--status-good); }
+.insight-atencao { border-left-color: var(--status-warning); }
+.insight-critico { border-left-color: var(--status-critical); }
+
+.composicao { padding: 14px 0; }
+.composicao-legenda { display: flex; justify-content: space-between; gap: 12px; color: var(--text-secondary); font-size: 12px; margin-bottom: 7px; }
+.composicao-legenda strong { color: var(--text-primary); }
+.composicao-trilho { height: 10px; background: color-mix(in oklab, var(--text-primary) 7%, transparent); border-radius: 999px; overflow: hidden; }
+.composicao-trilho span { display: block; height: 100%; background: var(--status-critical); border-radius: inherit; }
+
+.segmented { display: inline-flex; padding: 2px; gap: 2px; border: 1px solid var(--border); border-radius: 8px; background: var(--plane); }
+.segmented button { border: 0; padding: 5px 9px; background: transparent; color: var(--text-secondary); }
+.segmented button[aria-pressed="true"] { background: var(--surface-1); color: var(--text-primary); box-shadow: var(--sombra); }
+
+.secao-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.secao-topo h2 { margin: 0; }
+.formula-financeira { display: grid; grid-template-columns: repeat(7, auto); align-items: center; gap: 10px; margin: 4px 0 18px; }
+.formula-operador { color: var(--text-muted); font-size: 20px; text-align: center; }
+.formula-item { min-width: 130px; padding: 13px; border-radius: 9px; background: var(--plane); }
+.formula-item span { display: block; color: var(--text-secondary); font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; }
+.formula-item strong { display: block; margin-top: 4px; font-size: 17px; font-variant-numeric: tabular-nums; }
+
+.armazem-bloco { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface-1); }
+.armazem-bloco + .armazem-bloco { margin-top: 9px; }
+.armazem-resumo { width: 100%; border: 0; border-radius: 0; padding: 12px 14px; display: grid; grid-template-columns: minmax(180px, 1.5fr) repeat(4, minmax(100px, 1fr)) auto; align-items: center; gap: 14px; text-align: left; background: transparent; }
+.armazem-resumo[aria-expanded="true"] { background: color-mix(in oklab, var(--series-1) 5%, transparent); }
+.armazem-resumo strong, .armazem-resumo span { display: block; }
+.armazem-metrica { text-align: right; font-variant-numeric: tabular-nums; }
+.armazem-metrica small { display: block; color: var(--text-muted); font-size: 10px; text-transform: uppercase; }
+.armazem-conteudo { padding: 0 14px 12px; }
+
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
 
 .cartao h2 {
   font-size: 13.5px;
@@ -488,6 +569,15 @@ th {
   cursor: pointer;
   user-select: none;
 }
+
+.filtros-ativos { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: -8px 0 18px; color: var(--text-muted); font-size: 11px; }
+.filtros-ativos button { display: inline-flex; gap: 4px; align-items: center; border-color: var(--border); border-radius: 999px; padding: 3px 8px; background: var(--surface-1); color: var(--text-secondary); font-size: 11px; }
+.filtros-ativos button:hover { border-color: var(--series-1); color: var(--text-primary); }
+.filtros-ativos .limpar-chips { border-color: transparent; background: transparent; color: var(--series-1); }
+
+th[aria-sort="ascending"], th[aria-sort="descending"] { color: var(--text-primary); background: color-mix(in oklab, var(--series-1) 6%, transparent); }
+.tabela-identidade { position: sticky; left: 0; z-index: 1; background: var(--surface-1); }
+thead .tabela-identidade { z-index: 2; }
 
 td.num,
 th.num {
@@ -750,6 +840,10 @@ th.acoes {
   .conteudo {
     padding: 18px 16px 40px;
   }
+  .grade-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .formula-financeira { grid-template-columns: 1fr; }
+  .formula-operador { transform: rotate(90deg); height: 18px; }
+  .armazem-resumo { grid-template-columns: 1fr 1fr; }
   /* Sem a barra lateral o cabecalho ja disputa espaco com o titulo: os icones
      sozinhos continuam distinguindo as tres opcoes. */
   .seletor-tema button span {
@@ -758,4 +852,10 @@ th.acoes {
   .seletor-tema button {
     padding: 6px 8px;
   }
+}
+
+@media (max-width: 480px) {
+  .grade-kpis { grid-template-columns: 1fr; }
+  .kpi { min-height: 100px; }
+  .composicao-legenda { flex-direction: column; gap: 2px; }
 }

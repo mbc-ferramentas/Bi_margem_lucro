@@ -10,7 +10,7 @@
  */
 
 import type { EChartsOption } from "echarts";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { useArmazens } from "../api/hooks";
@@ -19,9 +19,9 @@ import { BarraFiltros } from "../componentes/Filtros";
 import { Grafico, baseDoTema, corDaSerie } from "../componentes/Grafico";
 import { IconeOlho } from "../componentes/Icones";
 import { Erro, Vazio } from "../componentes/Layout";
-import { SeletorTema } from "../componentes/SeletorTema";
 import { SkeletonTabela } from "../componentes/Skeleton";
-import { escreverFiltros, useFiltrosUrl } from "../filtrosUrl";
+import { Abas, CabecalhoPagina, CartaoKpi } from "../componentes/Visual";
+import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
 import { inteiro, moeda, moedaCurta, numeroBruto, percentual } from "../formato";
 import { useTema } from "../tema";
 
@@ -79,6 +79,13 @@ export function Armazens() {
   const { data, isPending, isError, error } = useArmazens(filtros, "-margem");
   const linhas = data?.armazens ?? [];
   const blocos = useMemo(() => aninhar(linhas), [linhas]);
+  const [aba, setAba] = useAbaUrl(["gerencial", "detalhamento"] as const, "gerencial");
+  const [modoGrafico, setModoGrafico] = useState<"valor" | "participacao">("valor");
+  const totais = useMemo(() => {
+    const receita = blocos.reduce((s, b) => s + b.receita, 0);
+    const margem = blocos.reduce((s, b) => s + b.margem, 0);
+    return { receita, margem, margemPct: receita ? margem / receita : null, lider: blocos[0], participacaoLider: margem ? (blocos[0]?.margem ?? 0) / margem : null };
+  }, [blocos]);
 
   // Ver a nota em VisaoGeral: `resolvido` entra nas deps porque baseDoTema() e
   // corDaSerie() leem as variaveis CSS no momento do calculo.
@@ -93,12 +100,13 @@ export function Armazens() {
     return {
       ...base,
       grid: { ...base.grid, left: 8, right: 24 },
-      tooltip: { ...base.tooltip, valueFormatter: (v) => moeda(v as number) },
+      tooltip: { ...base.tooltip, valueFormatter: (v) => modoGrafico === "participacao" ? percentual(Number(v) / 100) : moeda(v as number) },
       legend: { ...base.legend, show: grupos.length > 1 },
       xAxis: {
         ...base.xAxis,
         type: "value",
-        axisLabel: { ...base.xAxis.axisLabel, formatter: (v: number) => moedaCurta(v) },
+        max: modoGrafico === "participacao" ? 100 : undefined,
+        axisLabel: { ...base.xAxis.axisLabel, formatter: (v: number) => modoGrafico === "participacao" ? `${v}%` : moedaCurta(v) },
         splitLine: { lineStyle: { color: "var(--grid)" } },
       },
       yAxis: {
@@ -113,27 +121,17 @@ export function Armazens() {
         stack: "margem",
         barMaxWidth: 18,
         itemStyle: { color: corDaSerie(indice) },
-        data: ordenados.map((bloco) =>
-          numeroBruto(
-            bloco.grupos.find((g) => (g.grupo_rotulo ?? "—") === grupo)?.margem ?? 0,
-          ),
-        ),
+        data: ordenados.map((bloco) => {
+          const valor = numeroBruto(bloco.grupos.find((g) => (g.grupo_rotulo ?? "—") === grupo)?.margem ?? 0);
+          return modoGrafico === "participacao" && bloco.margem ? (valor / bloco.margem) * 100 : valor;
+        }),
       })),
     };
-  }, [blocos, linhas, resolvido]);
+  }, [blocos, linhas, modoGrafico, resolvido]);
 
   return (
     <>
-      <div className="cabecalho">
-        <div>
-          <h1>Por armazém</h1>
-          <p className="subtitulo">
-            Margem bruta por armazém, aberta em grupo. O mesmo grupo vende por mais
-            de um armazém — é o armazém que organiza a leitura.
-          </p>
-        </div>
-        <SeletorTema />
-      </div>
+      <CabecalhoPagina titulo="Por armazém" descricao="Entenda onde a margem é gerada e como cada grupo participa do resultado de cada operação." />
 
       <BarraFiltros valor={filtros} aoMudar={setFiltros} />
 
@@ -146,45 +144,27 @@ export function Armazens() {
 
       {blocos.length > 0 && (
         <>
-          <div className="cartao">
-            <h2>Margem por armazém</h2>
-            <p className="nota">
-              Empilhado por grupo. A diferença de escala entre os armazéns é real:
-              filtre um armazém para comparar os menores entre si.
-            </p>
-            <Grafico
-              opcao={opcao}
-              altura={Math.max(220, blocos.length * 44)}
-              rotuloAcessivel="Margem bruta por armazém, empilhada por grupo."
-            />
+          <div className="grade-kpis">
+            <CartaoKpi rotulo="Receita total" valor={moeda(totais.receita)} apoio={`${inteiro(blocos.length)} armazéns no recorte`} />
+            <CartaoKpi rotulo="Margem total" valor={moeda(totais.margem)} apoio="Margem bruta consolidada" tom={totais.margem < 0 ? "critico" : "bom"} />
+            <CartaoKpi rotulo="Margem ponderada" valor={percentual(totais.margemPct)} apoio="Margem total sobre receita total" />
+            <CartaoKpi rotulo="Maior contribuição" valor={totais.lider?.rotulo ?? "—"} apoio={`${percentual(totais.participacaoLider)} da margem total`} />
           </div>
 
-          <div className="cartao" style={{ marginTop: 14 }}>
-            <h2>Detalhamento</h2>
-            <p className="nota">
-              Cada armazém traz seus grupos abaixo. Os totais são do armazém inteiro.
-            </p>
-            <div className="rolagem">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Armazém / grupo</th>
-                    <th className="num">Receita</th>
-                    <th className="num">Custo</th>
-                    <th className="num">Margem</th>
-                    <th className="num">Margem %</th>
-                    <th className="num">Linhas</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {blocos.map((bloco) => (
-                    <Fragmento key={bloco.codigo} bloco={bloco} consulta={consulta} />
-                  ))}
-                </tbody>
-              </table>
+          <Abas valor={aba} aoMudar={setAba} opcoes={[{ valor: "gerencial", rotulo: "Visão gerencial" }, { valor: "detalhamento", rotulo: "Detalhamento", contador: blocos.length }]} />
+
+          {aba === "gerencial" && <div className="cartao">
+            <div className="secao-topo"><div><h2>Composição da margem</h2><p className="nota">Empilhada por grupo; a escala absoluta preserva a diferença real entre armazéns.</p></div><div className="segmented" aria-label="Escala do gráfico"><button aria-pressed={modoGrafico === "valor"} onClick={() => setModoGrafico("valor")}>Valor absoluto</button><button aria-pressed={modoGrafico === "participacao"} onClick={() => setModoGrafico("participacao")}>Participação %</button></div></div>
+            <Grafico opcao={opcao} altura={Math.max(240, blocos.length * 46)} rotuloAcessivel="Margem por armazém, empilhada por grupo." />
+          </div>}
+
+          {aba === "detalhamento" && <div className="cartao">
+            <h2>Armazéns e grupos</h2>
+            <p className="nota">Expanda um armazém para consultar a composição por grupo.</p>
+            <div>
+              {blocos.map((bloco, indice) => <Fragmento key={bloco.codigo} bloco={bloco} consulta={consulta} abertoInicial={indice === 0} />)}
             </div>
-          </div>
+          </div>}
         </>
       )}
     </>
@@ -198,55 +178,24 @@ export function Armazens() {
  *  itens de vários grupos. `consulta` leva os filtros da tela junto, para a lista
  *  abrir com o mesmo recorte que produziu o número clicado.
  */
-function Fragmento({ bloco, consulta }: { bloco: Bloco; consulta: string }) {
+function Fragmento({ bloco, consulta, abertoInicial }: { bloco: Bloco; consulta: string; abertoInicial: boolean }) {
+  const [aberto, setAberto] = useState(abertoInicial);
   return (
-    <>
-      <tr>
-        <td style={{ fontWeight: 600 }}>{bloco.rotulo}</td>
-        <td className="num" style={{ fontWeight: 600 }}>
-          {moeda(bloco.receita)}
-        </td>
-        <td className="num" style={{ fontWeight: 600 }}>
-          {moeda(bloco.custo)}
-        </td>
-        <td
-          className={bloco.margem < 0 ? "num negativo" : "num"}
-          style={{ fontWeight: 600 }}
-        >
-          {moeda(bloco.margem)}
-        </td>
-        <td className="num" style={{ fontWeight: 600 }}>
-          {pct(bloco.margem, bloco.receita)}
-        </td>
-        <td className="num" style={{ fontWeight: 600 }}>
-          {inteiro(bloco.linhas)}
-        </td>
-        <td className="acoes">
-          <Link
-            className="botao-alt acao-visualizar"
-            to={`/armazens/${bloco.codigo}/pedidos${consulta ? `?${consulta}` : ""}`}
-            aria-label={`Visualizar pedidos faturados de ${bloco.rotulo}`}
-          >
-            <IconeOlho />
-            Visualizar
-          </Link>
-        </td>
-      </tr>
-      {bloco.grupos.map((grupo) => (
-        <tr key={`${bloco.codigo}-${grupo.grupo_codigo}`}>
-          <td style={{ paddingLeft: 26, color: "var(--text-secondary)" }}>
-            {grupo.grupo_rotulo ?? grupo.grupo_codigo ?? "—"}
-          </td>
-          <td className="num">{moeda(grupo.receita)}</td>
-          <td className="num">{moeda(grupo.custo)}</td>
-          <td className={numeroBruto(grupo.margem) < 0 ? "num negativo" : "num"}>
-            {moeda(grupo.margem)}
-          </td>
-          <td className="num">{percentual(grupo.margem_pct)}</td>
-          <td className="num">{inteiro(grupo.linhas)}</td>
-          <td />
-        </tr>
-      ))}
-    </>
+    <section className="armazem-bloco">
+      <button className="armazem-resumo" type="button" aria-expanded={aberto} onClick={() => setAberto((v) => !v)}>
+        <strong>{aberto ? "▾" : "▸"} {bloco.rotulo}</strong>
+        <span className="armazem-metrica"><small>Receita</small>{moeda(bloco.receita)}</span>
+        <span className="armazem-metrica"><small>Custo</small>{moeda(bloco.custo)}</span>
+        <span className={bloco.margem < 0 ? "armazem-metrica negativo" : "armazem-metrica"}><small>Margem</small>{moeda(bloco.margem)}</span>
+        <span className="armazem-metrica"><small>Margem %</small>{pct(bloco.margem, bloco.receita)}</span>
+        <span>{inteiro(bloco.grupos.length)} grupos</span>
+      </button>
+      {aberto && <div className="armazem-conteudo">
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}><Link className="acao-visualizar" to={`/armazens/${bloco.codigo}/pedidos${consulta ? `?${consulta}` : ""}`}><IconeOlho /> Ver pedidos</Link></div>
+        <div className="rolagem"><table><thead><tr><th>Grupo</th><th className="num">Receita</th><th className="num">Custo</th><th className="num">Margem</th><th className="num">Margem %</th><th className="num">Linhas</th></tr></thead><tbody>
+          {bloco.grupos.map((grupo) => <tr key={`${bloco.codigo}-${grupo.grupo_codigo}`}><td className="tabela-identidade">{grupo.grupo_rotulo ?? grupo.grupo_codigo ?? "—"}</td><td className="num">{moeda(grupo.receita)}</td><td className="num">{moeda(grupo.custo)}</td><td className={numeroBruto(grupo.margem) < 0 ? "num negativo" : "num"}>{moeda(grupo.margem)}</td><td className="num">{percentual(grupo.margem_pct)}</td><td className="num">{inteiro(grupo.linhas)}</td></tr>)}
+        </tbody></table></div>
+      </div>}
+    </section>
   );
 }
