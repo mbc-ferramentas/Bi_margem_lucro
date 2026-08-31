@@ -53,13 +53,14 @@ O ORM **não** é usado para consulta de BI: `queries.py` monta SQL parametrizad
 materialized views. Os models existem para cadastro/configuração, não para leitura de fatos.
 
 ### Migrations SQL
-As views vivem em migrations (`0003_views_margem`, `0005_escopo_nas_agregadas`,
-`0010_sc6_carteira`). Mudar uma view = **nova migration** que dropa e recria; nunca editar
+As views vivem em migrations (`0008_layout_08_2026`, `0011_grupos_consolidados`,
+`0012_armazem` — a definição vigente é sempre a da migration mais recente que recria a view). Mudar uma view = **nova migration** que dropa e recria; nunca editar
 migration já aplicada.
 
 ### Refresh das views
-Alterar `ParamOutlier`, `MapaCanal`, `MapaGrupo`, `MapaTES` ou `ReclassificacaoSKU` no Admin
-não muda nada nas telas até rodar `python manage.py refresh_views`.
+Alterar `ParamOutlier`, `MapaCanal`, `MapaGrupo`, `MapaArmazem`, `MapaTES` ou
+`ReclassificacaoSKU` no Admin não muda nada nas telas até rodar
+`python manage.py refresh_views`.
 
 ## Regras de negócio que não se deduzem do código
 
@@ -71,8 +72,18 @@ não muda nada nas telas até rodar `python manage.py refresh_views`.
   expõe receita cheia e líquida lado a lado, e a tela mostra as duas margens.
 - **Canal ≠ vendedor (Regra 1):** o código 72 é o integrador Lexos (Amazon, Magalu, Shopee,
   ML), não uma pessoa. Vira canal e nunca entra em ranking de vendedor.
+- **Armazém > grupo:** a hierarquia da análise. O mesmo grupo vende por vários armazéns
+  (Ecommerce sai por 4 deles), então grupo sozinho não organiza nada. O código é padronizado
+  em **2 dígitos** no ETL (`01`, `02`) — o Protheus manda `1`, `2`; sem isso o próprio
+  `ORDER BY` põe `13` antes de `2`. `MapaArmazem` dá o rótulo; armazém sem cadastro aparece
+  como `20 - sem cadastro`, nunca some da tela. As listas de filtro vêm em **cascata**
+  (`filtros.facetas`): cada dimensão é recortada pelas outras, nunca por si mesma.
 - **Grupo (Regra 4):** reclassificação manual → grupo do `SD2` → cadastro do `SB2` →
-  `(sem classificação)`.
+  `Sem grupo`. O código cru fica em `grupo_codigo_origem`; o `grupo_codigo` publicado já é o
+  **consolidado** por `MapaGrupo.agrupa_em` (0129 soma em 0128, 0150 em 0057), porque o filtro
+  da API casa por código. Só existem três baldes na tela: `Ecommerce`, `Agricola` e
+  `Sem grupo` — este último nunca é somado nos outros em silêncio. Grupo novo do Protheus se
+  resolve pelo Admin + `refresh_views`, sem migration.
 - **TES (`D2_TES`):** todo TES nasce em `MapaTES` como venda; desmarcar `gera_receita` tira a
   linha do KPI **sem** tirá-la do faturamento.
 - **Fora do KPI:** `sem_custo`, `outlier_custo` (limite em `ParamOutlier`, padrão −100%) e TES
