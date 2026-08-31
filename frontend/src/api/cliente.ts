@@ -53,7 +53,13 @@ async function renovar(): Promise<boolean> {
 export function paraQuery(filtros: Filtros = {}): string {
   const busca = new URLSearchParams();
   for (const [chave, valor] of Object.entries(filtros)) {
-    if (valor) busca.set(chave, valor);
+    // Dimensao multi-valor (grupo) vai separada por virgula: `_lista` na API ja
+    // quebra tanto isso quanto `?chave=a&chave=b`, e a virgula encurta a URL.
+    if (Array.isArray(valor)) {
+      if (valor.length) busca.set(chave, valor.join(","));
+    } else if (valor) {
+      busca.set(chave, valor);
+    }
   }
   const texto = busca.toString();
   return texto ? `?${texto}` : "";

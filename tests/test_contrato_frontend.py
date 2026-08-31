@@ -127,8 +127,38 @@ def test_filtros(gerente):
         "competencias",
     } <= set(opcoes)
     assert {"codigo", "conta_como_venda"} <= set(opcoes["tes"][0])
-    assert {"codigo", "rotulo"} <= set(opcoes["grupos"][0])
+    # `sem_movimento` marca o grupo que so existe no cadastro (espelha
+    # `filtrosSchema.opcoes.grupos` em tipos.ts).
+    assert {"codigo", "rotulo", "sem_movimento"} <= set(opcoes["grupos"][0])
+
+    # `Filtros.grupo` e `string[]` em tipos.ts: o marcador da tela manda os
+    # codigos separados por virgula, e a API precisa aceitar mais de um.
+    codigos = [g["codigo"] for g in opcoes["grupos"]][:2]
+    assert gerente.get(f"/api/v1/kpis?grupo={','.join(codigos)}").status_code == 200
+    # Armazem tambem e {codigo, rotulo}: a tela mostra o nome, filtra pelo codigo.
+    assert {"codigo", "rotulo"} <= set(opcoes["armazens"][0])
     assert {"codigo", "nome"} <= set(opcoes["vendedores"][0])
+
+
+def test_armazens(gerente):
+    """Espelha `armazensSchema` — uma linha por par armazem x grupo."""
+    linhas = gerente.get("/api/v1/margem/armazem").json()["armazens"]
+    assert {
+        "armazem",
+        "armazem_rotulo",
+        "grupo_codigo",
+        "grupo_rotulo",
+        "receita",
+        "receita_liquida",
+        "desconto",
+        "custo",
+        "margem",
+        "margem_liquida",
+        "margem_pct",
+        "pedidos",
+        "linhas",
+        "quantidade",
+    } <= set(linhas[0])
 
 
 def test_eu(gerente):
@@ -196,6 +226,7 @@ def test_carteira(gerente):
         "descricao",
         "grupo",
         "armazem",
+        "armazem_rotulo",
         "canal",
         "vendedor_codigo",
         "vendedor_nome",
@@ -221,5 +252,6 @@ def test_carteira_filtros(gerente):
     """Espelha `carteiraFiltrosSchema` — lista propria, nao a de `/filtros`."""
     opcoes = gerente.get("/api/v1/carteira/filtros").json()["opcoes"]
     assert {"canais", "grupos", "armazens", "vendedores"} == set(opcoes)
-    assert all({"codigo", "rotulo"} <= set(g) for g in opcoes["grupos"])
+    assert all({"codigo", "rotulo", "sem_movimento"} <= set(g) for g in opcoes["grupos"])
+    assert all({"codigo", "rotulo"} <= set(a) for a in opcoes["armazens"])
     assert all({"codigo", "nome"} <= set(v) for v in opcoes["vendedores"])

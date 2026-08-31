@@ -90,6 +90,21 @@ def test_atraso_e_idade_calculados(carga):
     ) == 0
 
 
+def test_grupos_consolidados(carga):
+    """A carteira publica os mesmos grupos da margem, nao os codigos crus."""
+    from apps.core.models import MapaGrupo
+
+    assert escalar(
+        "SELECT count(*) FROM mv_carteira_aberta WHERE grupo_codigo = '0150'"
+    ) == 0
+    rotulos = {
+        linha["grupo_rotulo"]
+        for linha in consulta("SELECT DISTINCT grupo_rotulo FROM mv_carteira_aberta")
+    }
+    cadastro = set(MapaGrupo.objects.values_list("rotulo", flat=True))
+    assert rotulos <= cadastro | {"Sem grupo"}
+
+
 # --------------------------------------------------------------------------- #
 # API — /api/v1/carteira
 # --------------------------------------------------------------------------- #

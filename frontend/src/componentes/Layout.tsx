@@ -6,6 +6,8 @@ import { Barra } from "./Skeleton";
 
 const PAGINAS = [
   { para: "/", rotulo: "Visão geral", fim: true },
+  // Armazem antes das demais quebras: e a dimensao de fora da hierarquia.
+  { para: "/armazens", rotulo: "Por armazém" },
   { para: "/vendedores", rotulo: "Por vendedor" },
   { para: "/skus", rotulo: "Por SKU" },
   { para: "/canais", rotulo: "Por canal" },

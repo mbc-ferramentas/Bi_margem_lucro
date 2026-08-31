@@ -6,6 +6,7 @@ from django.core.exceptions import PermissionDenied
 
 from .models import (
     ExecucaoCarga,
+    MapaArmazem,
     MapaCanal,
     MapaGrupo,
     MapaTES,
@@ -69,7 +70,23 @@ class ParamOutlierAdmin(admin.ModelAdmin):
 
 @admin.register(MapaGrupo)
 class MapaGrupoAdmin(admin.ModelAdmin):
+    list_display = ("codigo", "rotulo", "agrupa_em", "ativo")
+    list_editable = ("rotulo", "ativo")
+    list_filter = ("ativo", "agrupa_em")
+    search_fields = ("codigo", "rotulo")
+    autocomplete_fields = ("agrupa_em",)
+
+
+@admin.register(MapaArmazem)
+class MapaArmazemAdmin(admin.ModelAdmin):
+    """Nomes dos armazens.
+
+    Editar aqui nao muda tela nenhuma ate rodar `refresh_views` — o rotulo vive
+    nas materialized views.
+    """
+
     list_display = ("codigo", "rotulo", "ativo")
+    list_editable = ("rotulo", "ativo")
     list_filter = ("ativo",)
     search_fields = ("codigo", "rotulo")
 

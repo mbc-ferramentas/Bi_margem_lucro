@@ -12,6 +12,7 @@ from datetime import date, datetime
 from rest_framework.exceptions import ValidationError
 
 from apps.api.permissions import Escopo
+from apps.core.models import ARMAZEM_SEM_CODIGO, GRUPO_SEM_CLASSIFICACAO
 
 
 @dataclass
@@ -50,28 +51,58 @@ def _lista(params, chave: str) -> list[str]:
     return valores
 
 
-def montar(request, escopo: Escopo, coluna_data: str = "competencia") -> Clausula:
-    """Clausula comum a todos os endpoints, ja com o escopo do usuario."""
+# Dimensao -> (chave da query string, coluna da view, sentinela do vazio).
+# A sentinela e o valor que a lista de opcoes devolve para a linha sem valor
+# preenchido; sem o ramo de IS NULL o filtro por ela nunca casaria nada.
+DIMENSOES = (
+    ("canal", "canal", None),
+    ("armazem", "armazem", ARMAZEM_SEM_CODIGO),
+    ("grupo", "grupo_codigo", GRUPO_SEM_CLASSIFICACAO),
+    ("vendedor", "vendedor_codigo", None),
+)
+
+
+def montar(
+    request,
+    escopo: Escopo,
+    coluna_data: str = "competencia",
+    ignorar: frozenset[str] = frozenset(),
+) -> Clausula:
+    """Clausula comum a todos os endpoints, ja com o escopo do usuario.
+
+    `ignorar` deixa de fora as dimensoes nomeadas ('competencia', 'canal',
+    'armazem', 'grupo', 'vendedor'). E o que sustenta a cascata dos filtros: cada
+    lista de opcoes e recortada por todos os filtros **menos o dela propria** —
+    senao escolher um armazem travaria o proprio select de armazem no valor
+    escolhido. O escopo do usuario nunca e ignoravel.
+    """
     c = Clausula()
     params = request.query_params
 
+    periodo = "competencia" not in ignorar
     inicio = _data(params.get("competencia_inicio"), "competencia_inicio")
     fim = _data(params.get("competencia_fim"), "competencia_fim")
     if inicio and fim and inicio > fim:
         raise ValidationError("competencia_inicio nao pode ser maior que competencia_fim.")
-    if inicio:
+    if inicio and periodo:
         c.e(f"{coluna_data} >= %s", inicio)
-    if fim:
+    if fim and periodo:
         c.e(f"{coluna_data} <= %s", fim)
 
-    for chave, coluna in (
-        ("canal", "canal"),
-        ("grupo", "grupo_codigo"),
-        ("armazem", "armazem"),
-        ("vendedor", "vendedor_codigo"),
-    ):
+    for chave, coluna, sentinela in DIMENSOES:
+        if chave in ignorar:
+            continue
         valores = _lista(params, chave)
-        if valores:
+        if not valores:
+            continue
+        # A sentinela ('Sem grupo', 'Sem armazem') e o codigo que a lista de
+        # opcoes devolve para a linha vazia. As agregadas guardam essa string,
+        # mas em mv_margem_item e mv_carteira_aberta a coluna e NULL — e
+        # NULL = ANY(...) nunca casa. O OR cobre as duas formas; sem ele o
+        # filtro zeraria 11% da receita no caso do grupo.
+        if sentinela and sentinela in valores:
+            c.e(f"({coluna} IS NULL OR {coluna} = ANY(%s))", valores)
+        else:
             c.e(f"{coluna} = ANY(%s)", valores)
 
     # Escopo do usuario por ultimo: e a condicao que nao pode ser esquecida.
@@ -79,6 +110,25 @@ def montar(request, escopo: Escopo, coluna_data: str = "competencia") -> Clausul
         c.e(escopo.condicao, *escopo.parametros)
 
     return c
+
+
+def facetas(request, escopo: Escopo, coluna_data: str = "competencia"):
+    """Fabrica de clausulas para as listas de opcoes.
+
+    `facetas(...)("grupo")` devolve a clausula com tudo aplicado menos o filtro
+    de grupo — a lista de grupos precisa continuar mostrando as alternativas ao
+    grupo ja escolhido. Passe `None` para a clausula completa.
+    """
+
+    def para(dimensao: str | None) -> Clausula:
+        return montar(
+            request,
+            escopo,
+            coluna_data,
+            ignorar=frozenset([dimensao]) if dimensao else frozenset(),
+        )
+
+    return para
 
 
 def carteira(request, clausula: Clausula) -> Clausula:

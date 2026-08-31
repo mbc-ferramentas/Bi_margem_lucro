@@ -13,6 +13,7 @@ urlpatterns = [
     path("margem/serie", views.SerieView.as_view(), name="serie"),
     path("margem/vendedor", views.VendedorView.as_view(), name="vendedor"),
     path("margem/sku", views.SkuView.as_view(), name="sku"),
+    path("margem/armazem", views.ArmazemView.as_view(), name="armazem"),
     path("carteira", views.CarteiraView.as_view(), name="carteira"),
     path("carteira/filtros", views.CarteiraFiltrosView.as_view(), name="carteira-filtros"),
     path("filtros", views.FiltrosView.as_view(), name="filtros"),

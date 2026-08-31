@@ -229,3 +229,87 @@ def test_filtro_por_competencia_funciona(carga):
 
     assert dentro.json()["kpis"]["linhas"] > 0
     assert fora.json()["kpis"]["linhas"] == 0
+
+
+def test_filtro_por_grupo_particiona_o_kpi(carga):
+    """Os grupos oferecidos na tela particionam o KPI — inclusive 'Sem grupo',
+    que e NULL na view."""
+    c = cliente(cria_usuario("ger8", "gerente"))
+    total = c.get("/api/v1/kpis").json()["kpis"]["linhas"]
+
+    # So os que tem linha: a lista tambem oferece grupo cadastrado sem movimento,
+    # e somar esses nao mudaria o total.
+    codigos = [
+        g["codigo"]
+        for g in c.get("/api/v1/filtros").json()["opcoes"]["grupos"]
+        if not g["sem_movimento"]
+    ]
+    por_grupo = {
+        g: c.get(f"/api/v1/kpis?grupo={g}").json()["kpis"]["linhas"] for g in codigos
+    }
+    assert all(n > 0 for n in por_grupo.values())
+    assert sum(por_grupo.values()) == total
+
+    # 0150 continua consolidado em 0057: filtrar por ele nao devolve nada.
+    assert c.get("/api/v1/kpis?grupo=0150").json()["kpis"]["linhas"] == 0
+
+
+def test_filtro_de_grupo_aceita_varios_codigos(carga):
+    """O marcador da tela manda `?grupo=a,b`: o recorte e a soma dos dois."""
+    c = cliente(cria_usuario("ger8b", "gerente"))
+
+    def linhas(q):
+        return c.get(f"/api/v1/kpis?grupo={q}").json()["kpis"]["linhas"]
+
+    assert linhas("0128,0057") == linhas("0128") + linhas("0057")
+    # A sentinela do vazio (NULL na view) tem que somar junto com os demais.
+    assert linhas("0128,Sem grupo") == linhas("0128") + linhas("Sem grupo")
+
+
+def test_filtro_por_armazem_nao_quebra_o_ranking(carga):
+    """Regressao: mv_margem_vendedor nao tinha armazem e o endpoint dava 500."""
+    c = cliente(cria_usuario("ger9", "gerente"))
+    resposta = c.get("/api/v1/margem/vendedor?armazem=02")
+    assert resposta.status_code == 200
+    assert len(resposta.json()["vendedores"]) > 0
+
+
+def test_opcoes_em_cascata_de_armazem_para_grupo(carga):
+    """Escolher o armazem reduz os grupos, mas nao a lista de armazens."""
+    c = cliente(cria_usuario("ger10", "gerente"))
+    tudo = c.get("/api/v1/filtros").json()["opcoes"]
+
+    def com_linha(opcoes):
+        return [g["codigo"] for g in opcoes["grupos"] if not g["sem_movimento"]]
+
+    assert com_linha(tudo) == ["0057", "0128", "0129", "Sem grupo"]
+
+    # O armazem 11 (Devolucao Marketplace) so tem Ecommerce.
+    recorte = c.get("/api/v1/filtros?armazem=11").json()["opcoes"]
+    assert com_linha(recorte) == ["0128"]
+    # O cadastro continua listado, apagado: e por ele que se confere a
+    # classificacao de um grupo que ainda nao apareceu no export.
+    assert len(recorte["grupos"]) > 1
+    # A propria dimensao nao se filtra: senao o usuario ficaria preso na escolha.
+    assert len(recorte["armazens"]) == len(tudo["armazens"])
+
+
+def test_armazem_traz_o_rotulo_de_negocio(carga):
+    c = cliente(cria_usuario("ger11", "gerente"))
+    armazens = {
+        a["codigo"]: a["rotulo"]
+        for a in c.get("/api/v1/filtros").json()["opcoes"]["armazens"]
+    }
+    assert armazens["02"] == "Barracao 02"
+    assert armazens["20"] == "20 - sem cadastro"
+
+
+def test_leitura_por_armazem_bate_com_o_kpi(carga):
+    """A quebra armazem > grupo nao pode criar nem sumir com margem."""
+    c = cliente(cria_usuario("ger12", "gerente"))
+    linhas = c.get("/api/v1/margem/armazem").json()["armazens"]
+    total = c.get("/api/v1/kpis").json()["kpis"]
+
+    soma = sum(Decimal(linha["margem"]) for linha in linhas)
+    assert soma == Decimal(total["margem_bruta"])
+    assert sum(linha["linhas"] for linha in linhas) == total["linhas"]

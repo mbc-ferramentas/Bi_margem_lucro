@@ -90,7 +90,7 @@ def test_decimal_com_virgula_vira_decimal(dados):
     sb2 = dados["SB2"]
     assert sb2.schema["vlr_ult_compra"] == pl.Decimal(18, 4)
     # SKU 9: 'ESTICADOR MOLA REBOQUE' com V. Ult. Comp = 65,52
-    linha = sb2.filter((pl.col("produto") == "9") & (pl.col("armazem") == "2"))
+    linha = sb2.filter((pl.col("produto") == "9") & (pl.col("armazem") == "02"))
     assert linha["vlr_ult_compra"].item() == Decimal("65.52")
 
 
@@ -100,6 +100,15 @@ def test_grupo_recebe_zeros_a_esquerda(dados):
         # O CSV traz '57' e '128'; o negocio usa '0057' e '0128'.
         assert "0057" in grupos and "0128" in grupos, arquivo
         assert "57" not in grupos and "128" not in grupos, arquivo
+
+
+def test_armazem_recebe_zeros_a_esquerda(dados):
+    for arquivo in ("SB2", "SD2", "SD1", "SC6"):
+        armazens = set(dados[arquivo]["armazem"].drop_nulls().unique().to_list())
+        # O CSV traz '1' e '2'; o negocio usa '01' e '02'. Sem o padding o proprio
+        # ORDER BY do SQL coloca '13' antes de '2'.
+        assert "01" in armazens or "02" in armazens, arquivo
+        assert not any(len(a) < 2 for a in armazens), (arquivo, sorted(armazens))
 
 
 def test_produto_preserva_zeros_a_esquerda(dados):

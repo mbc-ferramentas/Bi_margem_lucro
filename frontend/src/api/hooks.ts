@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { buscar, enviar, escrever, paraQuery } from "./cliente";
 import {
+  armazensSchema,
   carteiraFiltrosSchema,
   carteiraSchema,
   detalheSchema,
@@ -56,6 +57,17 @@ export function useVendedores(f: Filtros, ordenar: string) {
   });
 }
 
+export function useArmazens(f: Filtros, ordenar: string) {
+  return useQuery({
+    queryKey: ["armazens", f, ordenar],
+    queryFn: () =>
+      buscar(
+        `/margem/armazem${paraQuery({ ...f, ordenar } as Filtros)}`,
+        armazensSchema,
+      ),
+  });
+}
+
 export function useSkus(f: Filtros, ordenar: string, offset: number, limite: number) {
   return useQuery({
     queryKey: ["skus", f, ordenar, offset, limite],
@@ -95,18 +107,21 @@ export function useCarteira(
 
 /** Filtros proprios da carteira: os valores diferem dos da margem, porque a
  *  carteira tem pedidos fora da janela do SD2. */
-export function useOpcoesCarteira() {
+export function useOpcoesCarteira(f: Filtros = {}) {
   return useQuery({
-    queryKey: ["carteira-filtros"],
-    queryFn: () => buscar("/carteira/filtros", carteiraFiltrosSchema),
+    queryKey: ["carteira-filtros", f],
+    queryFn: () => buscar(`/carteira/filtros${paraQuery(f)}`, carteiraFiltrosSchema),
     staleTime: 5 * 60 * 1000,
   });
 }
 
-export function useOpcoes() {
+/** As opcoes sao recortadas pelos filtros ativos (cascata armazem > grupo), por
+ *  isso os filtros entram na chave: sem eles a lista ficaria congelada na
+ *  primeira consulta e o select de grupo nunca reagiria ao armazem. */
+export function useOpcoes(f: Filtros = {}) {
   return useQuery({
-    queryKey: ["filtros"],
-    queryFn: () => buscar("/filtros", filtrosSchema),
+    queryKey: ["filtros", f],
+    queryFn: () => buscar(`/filtros${paraQuery(f)}`, filtrosSchema),
     staleTime: 5 * 60 * 1000,
   });
 }

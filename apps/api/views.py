@@ -130,12 +130,39 @@ class SkuView(BaseBI):
         return self.responder({**resultado, "limite": limite, "offset": offset})
 
 
+class ArmazemView(BaseBI):
+    """Margem por armazem, aberta em grupo.
+
+    A leitura principal do BI: o mesmo grupo aparece em varios armazens, entao
+    armazem e a dimensao de fora e grupo a de dentro.
+    """
+
+    ORDENAVEIS = {
+        "margem": "sum(margem)",
+        "margem_pct": "CASE WHEN sum(receita) <> 0 THEN sum(margem)/sum(receita) END",
+        "receita": "sum(receita)",
+        "quantidade": "sum(quantidade)",
+        "armazem": "armazem",
+    }
+
+    def get(self, request: Request) -> Response:
+        _, clausula = self.contexto(request)
+        # Empate por armazem mantem os grupos do mesmo armazem juntos na tabela.
+        ordem = filtros.ordenacao(request, self.ORDENAVEIS, "-margem")
+        return self.responder({"armazens": queries.por_armazem(clausula, ordem)})
+
+
 class FiltrosView(BaseBI):
-    """Opcoes disponiveis para os filtros, restritas ao escopo do usuario."""
+    """Opcoes disponiveis para os filtros, restritas ao escopo do usuario.
+
+    Aceita os proprios filtros na query string: cada lista sai recortada pelas
+    demais dimensoes (ver `filtros.facetas`), que e a cascata armazem > grupo.
+    """
 
     def get(self, request: Request) -> Response:
         escopo = escopo_de(request.user)
-        return self.responder({"opcoes": queries.opcoes(escopo)})
+        faceta = filtros.facetas(request, escopo, self.coluna_data)
+        return self.responder({"opcoes": queries.opcoes(faceta)})
 
 
 class CarteiraView(BaseBI):
@@ -190,9 +217,12 @@ class CarteiraFiltrosView(BaseBI):
     oferecer um vendedor sem item em aberto so produziria tela vazia.
     """
 
+    coluna_data = "dt_entrega"
+
     def get(self, request: Request) -> Response:
         escopo = escopo_de(request.user)
-        return self.responder({"opcoes": queries.carteira_opcoes(escopo)})
+        faceta = filtros.facetas(request, escopo, self.coluna_data)
+        return self.responder({"opcoes": queries.carteira_opcoes(faceta)})
 
 class EuView(APIView):
     """Identidade e perfil do usuario autenticado."""

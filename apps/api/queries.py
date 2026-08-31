@@ -15,6 +15,8 @@ from typing import Any
 
 from django.db import connection
 
+from apps.core.models import ARMAZEM_SEM_CODIGO, GRUPO_SEM_CLASSIFICACAO
+
 # Linhas aptas a compor indicador. Fora daqui: sem custo confiavel (margem
 # indeterminada), outlier de custo (erro de cadastro, ver Regra 2) e tipos de saida
 # que o negocio marcou como nao-venda em `MapaTES` (remessa, bonificacao).
@@ -35,6 +37,79 @@ def _linhas(sql: str, params: list) -> list[dict[str, Any]]:
 def _um(sql: str, params: list) -> dict[str, Any]:
     resultado = _linhas(sql, params)
     return resultado[0] if resultado else {}
+
+
+def _valores(coluna: str, view: str, clausula) -> list:
+    """Lista simples de valores distintos de uma coluna."""
+    return [
+        linha[coluna]
+        for linha in _linhas(
+            f"SELECT DISTINCT {coluna} FROM {view} {clausula.where()} ORDER BY 1",
+            clausula.parametros,
+        )
+    ]
+
+
+def _dimensao(coluna: str, rotulo: str, view: str, clausula, sentinela: str) -> list[dict]:
+    """Opcoes de uma dimensao com codigo e rotulo de negocio.
+
+    O COALESCE no codigo devolve a sentinela para a linha vazia; e o mesmo valor
+    que `filtros.DIMENSOES` reconhece de volta e traduz em `IS NULL`.
+    """
+    return _linhas(
+        f"""
+        SELECT COALESCE({coluna}, '{sentinela}') AS codigo,
+               max({rotulo}) AS rotulo
+        FROM {view} {clausula.where()}
+        GROUP BY 1 ORDER BY 1
+        """,
+        clausula.parametros,
+    )
+
+
+def _grupos(view: str, clausula) -> list[dict]:
+    """Opcoes de grupo: o que tem movimento no recorte **mais** o cadastro.
+
+    As demais dimensoes listam so o que existe no fato. Grupo nao: o cadastro de
+    `MapaGrupo` e a classificacao que o negocio mantem a mao, e um grupo recem
+    nomeado que ainda nao apareceu no export sumiria da tela justamente no
+    momento em que se quer conferir se ele foi classificado.
+
+    `sem_movimento` diz qual e qual — a tela apaga esses, para ninguem marcar um
+    grupo e concluir que o BI zerou. Grupo consolidado (`agrupa_em`) nunca entra:
+    o codigo publicado e o do grupo final, e filtrar pelo consolidado nao casa
+    nada.
+    """
+    return _linhas(
+        f"""
+        WITH com_movimento AS (
+            SELECT COALESCE(grupo_codigo, '{GRUPO_SEM_CLASSIFICACAO}') AS codigo,
+                   max(grupo_rotulo) AS rotulo
+            FROM {view} {clausula.where()}
+            GROUP BY 1
+        )
+        SELECT codigo, rotulo, FALSE AS sem_movimento FROM com_movimento
+        UNION ALL
+        SELECT g.codigo, g.rotulo, TRUE
+        FROM core_mapagrupo g
+        WHERE g.ativo
+          AND g.agrupa_em_id IS NULL
+          AND g.codigo NOT IN (SELECT codigo FROM com_movimento)
+        ORDER BY 1
+        """,
+        clausula.parametros,
+    )
+
+
+def _vendedores(view: str, clausula) -> list[dict]:
+    return _linhas(
+        f"""
+        SELECT DISTINCT vendedor_codigo AS codigo, vendedor_nome AS nome
+        FROM {view} {clausula.where('vendedor_codigo IS NOT NULL')}
+        ORDER BY 2
+        """,
+        clausula.parametros,
+    )
 
 
 def _pct(margem, receita) -> Decimal | None:
@@ -142,6 +217,41 @@ def por_vendedor(clausula, ordem: str) -> list[dict[str, Any]]:
         FROM mv_margem_vendedor
         {clausula.where()}
         GROUP BY 1, 2, 3
+        ORDER BY {ordem}
+        """,
+        clausula.parametros,
+    )
+
+
+def por_armazem(clausula, ordem: str) -> list[dict[str, Any]]:
+    """Leitura principal do BI: armazem por fora, grupo por dentro.
+
+    O mesmo grupo aparece em varios armazens, entao grupo sozinho nao organiza a
+    analise. Le `mv_margem_diaria`, que ja tem as duas dimensoes e ja aplica o
+    corte de linhas aptas. Devolve linhas planas (um par armazem x grupo por
+    linha) — aninhar e trabalho da tela, e assim o mesmo payload serve tabela e
+    grafico empilhado.
+    """
+    return _linhas(
+        f"""
+        SELECT armazem,
+               max(armazem_rotulo)   AS armazem_rotulo,
+               grupo_codigo,
+               max(grupo_rotulo)     AS grupo_rotulo,
+               sum(receita)          AS receita,
+               sum(receita_liquida)  AS receita_liquida,
+               sum(desconto)         AS desconto,
+               sum(custo)            AS custo,
+               sum(margem)           AS margem,
+               sum(margem_liquida)   AS margem_liquida,
+               CASE WHEN sum(receita) <> 0
+                    THEN round(sum(margem) / sum(receita), 6) END AS margem_pct,
+               sum(pedidos)::bigint  AS pedidos,
+               sum(linhas)::bigint   AS linhas,
+               sum(quantidade)       AS quantidade
+        FROM mv_margem_diaria
+        {clausula.where()}
+        GROUP BY armazem, grupo_codigo
         ORDER BY {ordem}
         """,
         clausula.parametros,
@@ -264,6 +374,7 @@ def carteira(clausula, ordem: str, limite: int, offset: int) -> dict[str, Any]:
                descricao,
                grupo_rotulo    AS grupo,
                armazem,
+               armazem_rotulo,
                canal,
                vendedor_codigo,
                vendedor_nome,
@@ -292,106 +403,51 @@ def carteira(clausula, ordem: str, limite: int, offset: int) -> dict[str, Any]:
     return {"total": total.get("total", 0), "itens": itens}
 
 
-def carteira_opcoes(escopo) -> dict[str, Any]:
+def carteira_opcoes(faceta) -> dict[str, Any]:
     """Filtros da carteira.
 
     Lista propria porque os valores diferem dos da margem: a carteira tem pedidos
     fora da janela do SD2, e oferecer um vendedor que nao tem item em aberto so
-    produz tela vazia.
+    produz tela vazia. A cascata e a mesma de `opcoes`.
     """
-    where = f"WHERE {escopo.condicao}" if escopo.restrito else ""
-    p = escopo.parametros
     return {
-        "canais": [
-            linha["canal"]
-            for linha in _linhas(
-                f"SELECT DISTINCT canal FROM mv_carteira_aberta {where} ORDER BY 1", p
-            )
-        ],
-        "grupos": _linhas(
-            f"""
-            SELECT COALESCE(grupo_codigo, '(sem classificacao)') AS codigo,
-                   max(grupo_rotulo) AS rotulo
-            FROM mv_carteira_aberta {where}
-            GROUP BY 1 ORDER BY 1
-            """,
-            p,
+        "canais": _valores("canal", "mv_carteira_aberta", faceta("canal")),
+        "armazens": _dimensao(
+            "armazem", "armazem_rotulo", "mv_carteira_aberta", faceta("armazem"),
+            ARMAZEM_SEM_CODIGO,
         ),
-        "armazens": [
-            linha["armazem"]
-            for linha in _linhas(
-                f"SELECT DISTINCT armazem FROM mv_carteira_aberta {where} ORDER BY 1", p
-            )
-        ],
-        "vendedores": _linhas(
-            f"""
-            SELECT DISTINCT vendedor_codigo AS codigo, vendedor_nome AS nome
-            FROM mv_carteira_aberta
-            WHERE vendedor_codigo IS NOT NULL
-            {'AND ' + escopo.condicao if escopo.restrito else ''}
-            ORDER BY 2
-            """,
-            p,
-        ),
+        "grupos": _grupos("mv_carteira_aberta", faceta("grupo")),
+        "vendedores": _vendedores("mv_carteira_aberta", faceta("vendedor")),
     }
 
 
-def opcoes(escopo) -> dict[str, Any]:
+def opcoes(faceta) -> dict[str, Any]:
     """Valores disponiveis para os filtros, ja restritos ao escopo do usuario.
 
     Um vendedor nao pode sequer enxergar a lista de colegas na caixa de filtro.
+
+    `faceta` vem de `filtros.facetas`: cada lista e recortada pelos demais
+    filtros, mas nao pelo seu proprio. E o que faz a hierarquia armazem > grupo
+    funcionar na tela — escolher o armazem 11 deixa so os grupos que existem
+    nele — sem prender o usuario na primeira escolha.
     """
-
-    def where(*extras: str) -> str:
-        condicoes = ([escopo.condicao] if escopo.restrito else []) + list(extras)
-        return f"WHERE {' AND '.join(condicoes)}" if condicoes else ""
-
-    p = escopo.parametros
-
     return {
-        "canais": [
-            linha["canal"]
-            for linha in _linhas(
-                f"SELECT DISTINCT canal FROM mv_margem_item {where()} ORDER BY 1", p
-            )
-        ],
-        "grupos": _linhas(
-            f"""
-            SELECT COALESCE(grupo_codigo, '(sem classificacao)') AS codigo,
-                   max(grupo_rotulo) AS rotulo
-            FROM mv_margem_item {where()}
-            GROUP BY 1 ORDER BY 1
-            """,
-            p,
+        "canais": _valores("canal", "mv_margem_item", faceta("canal")),
+        "armazens": _dimensao(
+            "armazem", "armazem_rotulo", "mv_margem_item", faceta("armazem"),
+            ARMAZEM_SEM_CODIGO,
         ),
-        "armazens": [
-            linha["armazem"]
-            for linha in _linhas(
-                f"SELECT DISTINCT armazem FROM mv_margem_item {where()} ORDER BY 1", p
-            )
-        ],
-        "vendedores": _linhas(
-            f"""
-            SELECT DISTINCT vendedor_codigo AS codigo, vendedor_nome AS nome
-            FROM mv_margem_item
-            {where('vendedor_codigo IS NOT NULL')}
-            ORDER BY 2
-            """,
-            p,
-        ),
+        "grupos": _grupos("mv_margem_item", faceta("grupo")),
+        "vendedores": _vendedores("mv_margem_item", faceta("vendedor")),
         "tes": _linhas(
             f"""
             SELECT tes AS codigo, bool_and(tes_receita) AS conta_como_venda
-            FROM mv_margem_item {where('tes IS NOT NULL')}
+            FROM mv_margem_item {faceta(None).where('tes IS NOT NULL')}
             GROUP BY 1 ORDER BY 1
             """,
-            p,
+            faceta(None).parametros,
         ),
-        "competencias": [
-            linha["competencia"]
-            for linha in _linhas(
-                f"SELECT DISTINCT competencia FROM mv_margem_item {where()} ORDER BY 1",
-                p,
-            )
-        ],
+        "competencias": _valores(
+            "competencia", "mv_margem_item", faceta("competencia")
+        ),
     }

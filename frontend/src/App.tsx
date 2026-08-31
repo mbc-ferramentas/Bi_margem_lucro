@@ -2,6 +2,7 @@ import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 
 import { tokens } from "./api/cliente";
 import { Layout } from "./componentes/Layout";
+import { Armazens } from "./paginas/Armazens";
 import { CadastroUsuario } from "./paginas/CadastroUsuario";
 import { Canais } from "./paginas/Canais";
 import { Carteira } from "./paginas/Carteira";
@@ -23,6 +24,7 @@ export function App() {
       <Route element={<Protegido />}>
         <Route element={<Layout />}>
           <Route index element={<VisaoGeral />} />
+          <Route path="armazens" element={<Armazens />} />
           <Route path="vendedores" element={<Vendedores />} />
           <Route path="skus" element={<Skus />} />
           <Route path="canais" element={<Canais />} />

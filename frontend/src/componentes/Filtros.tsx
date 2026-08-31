@@ -1,6 +1,7 @@
 import { useOpcoes } from "../api/hooks";
 import type { Filtros } from "../api/tipos";
 import { competencia } from "../formato";
+import { SeletorGrupos } from "./SeletorGrupos";
 
 type Props = {
   valor: Filtros;
@@ -11,7 +12,9 @@ type Props = {
 };
 
 export function BarraFiltros({ valor, aoMudar, ocultarCanal }: Props) {
-  const { data } = useOpcoes();
+  // As opcoes vem recortadas pelos filtros ativos: escolher um armazem reduz a
+  // lista de grupos aos que existem nele. Por isso o proprio `valor` entra aqui.
+  const { data } = useOpcoes(valor);
   const opcoes = data?.opcoes;
 
   function definir(chave: keyof Filtros) {
@@ -19,30 +22,50 @@ export function BarraFiltros({ valor, aoMudar, ocultarCanal }: Props) {
       aoMudar({ ...valor, [chave]: evento.target.value || undefined });
   }
 
+  // Trocar de armazem pode deixar o grupo escolhido fora do recorte novo. Manter
+  // o grupo antigo devolveria tela vazia sem explicar por que.
+  function definirArmazem(evento: React.ChangeEvent<HTMLSelectElement>) {
+    aoMudar({ ...valor, armazem: evento.target.value || undefined, grupo: [] });
+  }
+
+  // As competencias sao AAAA-MM zero-padded: comparar como string ja ordena por
+  // data, o que basta para bloquear um intervalo invertido antes do 400 da API.
+  const inicio = valor.competencia_inicio ?? "";
+  const fim = valor.competencia_fim ?? "";
+
   return (
     <div className="filtros">
-      <div className="campo">
-        <label htmlFor="f-inicio">Competência inicial</label>
-        <select id="f-inicio" value={valor.competencia_inicio ?? ""} onChange={definir("competencia_inicio")}>
-          <option value="">Todas</option>
-          {opcoes?.competencias.map((c) => (
-            <option key={c} value={c.slice(0, 7)}>
-              {competencia(c)}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="campo">
-        <label htmlFor="f-fim">Competência final</label>
-        <select id="f-fim" value={valor.competencia_fim ?? ""} onChange={definir("competencia_fim")}>
-          <option value="">Todas</option>
-          {opcoes?.competencias.map((c) => (
-            <option key={c} value={c.slice(0, 7)}>
-              {competencia(c)}
-            </option>
-          ))}
-        </select>
+      <div className="campo campo-periodo">
+        <span className="rotulo-grupo">Período</span>
+        <div className="intervalo" role="group" aria-label="Período">
+          <select
+            id="f-inicio"
+            aria-label="Competência inicial"
+            value={inicio}
+            onChange={definir("competencia_inicio")}
+          >
+            <option value="">Início</option>
+            {opcoes?.competencias.map((c) => (
+              <option key={c} value={c.slice(0, 7)} disabled={!!fim && c.slice(0, 7) > fim}>
+                {competencia(c)}
+              </option>
+            ))}
+          </select>
+          <span className="ate">até</span>
+          <select
+            id="f-fim"
+            aria-label="Competência final"
+            value={fim}
+            onChange={definir("competencia_fim")}
+          >
+            <option value="">Fim</option>
+            {opcoes?.competencias.map((c) => (
+              <option key={c} value={c.slice(0, 7)} disabled={!!inicio && c.slice(0, 7) < inicio}>
+                {competencia(c)}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {!ocultarCanal && (
@@ -59,31 +82,29 @@ export function BarraFiltros({ valor, aoMudar, ocultarCanal }: Props) {
         </div>
       )}
 
-      <div className="campo">
-        <label htmlFor="f-grupo">Grupo</label>
-        <select id="f-grupo" value={valor.grupo ?? ""} onChange={definir("grupo")}>
-          <option value="">Todos</option>
-          {opcoes?.grupos.map((g) => (
-            <option key={g.codigo} value={g.codigo}>
-              {g.rotulo ?? g.codigo}
-            </option>
-          ))}
-        </select>
-      </div>
-
+      {/* Armazem antes de grupo: a ordem na barra e a hierarquia da analise. */}
       <div className="campo">
         <label htmlFor="f-armazem">Armazém</label>
-        <select id="f-armazem" value={valor.armazem ?? ""} onChange={definir("armazem")}>
+        <select id="f-armazem" value={valor.armazem ?? ""} onChange={definirArmazem}>
           <option value="">Todos</option>
-          {opcoes?.armazens.filter(Boolean).map((a) => (
-            <option key={a} value={a!}>
-              {a}
+          {opcoes?.armazens.map((a) => (
+            <option key={a.codigo} value={a.codigo}>
+              {a.rotulo ?? a.codigo}
             </option>
           ))}
         </select>
       </div>
 
-      {Object.values(valor).some(Boolean) && (
+      <SeletorGrupos
+        opcoes={opcoes?.grupos}
+        valor={valor.grupo}
+        aoMudar={(grupos) => aoMudar({ ...valor, grupo: grupos })}
+        idPrefixo="f"
+      />
+
+      {/* Array vazio e truthy em JS: sem o teste de length o botao Limpar
+          apareceria assim que o usuario desmarcasse o ultimo grupo. */}
+      {Object.values(valor).some((v) => (Array.isArray(v) ? v.length > 0 : Boolean(v))) && (
         <button className="botao-alt" onClick={() => aoMudar({})}>
           Limpar
         </button>

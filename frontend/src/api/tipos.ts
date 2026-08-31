@@ -82,6 +82,30 @@ export const vendedoresSchema = z.object({
 });
 export type Vendedor = z.infer<typeof vendedoresSchema>["vendedores"][number];
 
+/** Armazem > grupo: uma linha por par, o aninhamento e da tela. */
+export const armazensSchema = z.object({
+  armazens: z.array(
+    z.object({
+      armazem: z.string().nullable(),
+      armazem_rotulo: z.string().nullable(),
+      grupo_codigo: z.string().nullable(),
+      grupo_rotulo: z.string().nullable(),
+      receita: dinheiro,
+      receita_liquida: dinheiro,
+      desconto: dinheiro,
+      custo: dinheiro,
+      margem: dinheiro,
+      margem_liquida: dinheiro,
+      margem_pct: numero,
+      pedidos: contagem,
+      linhas: contagem,
+      quantidade: numero,
+    }),
+  ),
+  escopo: escopoSchema,
+});
+export type LinhaArmazem = z.infer<typeof armazensSchema>["armazens"][number];
+
 export const skusSchema = z.object({
   total: z.number(),
   limite: z.number(),
@@ -108,8 +132,18 @@ export type ItemSku = z.infer<typeof skusSchema>["itens"][number];
 export const filtrosSchema = z.object({
   opcoes: z.object({
     canais: z.array(z.string()),
-    grupos: z.array(z.object({ codigo: z.string(), rotulo: z.string().nullable() })),
-    armazens: z.array(z.string().nullable()),
+    /** Armazem e a dimensao de fora da hierarquia: a lista de grupos ja vem
+     *  recortada pelo armazem selecionado. */
+    armazens: z.array(z.object({ codigo: z.string(), rotulo: z.string().nullable() })),
+    /** Grupo lista tambem o que so existe no cadastro: `sem_movimento` marca o
+     *  grupo classificado que nao tem linha no recorte atual. */
+    grupos: z.array(
+      z.object({
+        codigo: z.string(),
+        rotulo: z.string().nullable(),
+        sem_movimento: z.boolean(),
+      }),
+    ),
     vendedores: z.array(
       z.object({ codigo: z.string(), nome: z.string().nullable() }),
     ),
@@ -160,6 +194,7 @@ export const carteiraSchema = z.object({
       descricao: z.string().nullable(),
       grupo: z.string().nullable(),
       armazem: z.string().nullable(),
+      armazem_rotulo: z.string().nullable(),
       canal: z.string(),
       vendedor_codigo: z.string().nullable(),
       vendedor_nome: z.string().nullable(),
@@ -190,8 +225,14 @@ export type ResumoCarteira = Carteira["resumo"];
 export const carteiraFiltrosSchema = z.object({
   opcoes: z.object({
     canais: z.array(z.string()),
-    grupos: z.array(z.object({ codigo: z.string(), rotulo: z.string().nullable() })),
-    armazens: z.array(z.string().nullable()),
+    armazens: z.array(z.object({ codigo: z.string(), rotulo: z.string().nullable() })),
+    grupos: z.array(
+      z.object({
+        codigo: z.string(),
+        rotulo: z.string().nullable(),
+        sem_movimento: z.boolean(),
+      }),
+    ),
     vendedores: z.array(
       z.object({ codigo: z.string(), nome: z.string().nullable() }),
     ),
@@ -231,7 +272,9 @@ export type Filtros = {
   competencia_inicio?: string;
   competencia_fim?: string;
   canal?: string;
-  grupo?: string;
+  /** Multi-selecao: o filtro de grupo e um marcador, nao um select. Vazio =
+   *  todos. A API aceita `?grupo=A,B` desde sempre (apps/api/filtros.py). */
+  grupo?: string[];
   armazem?: string;
   vendedor?: string;
   /** Exclusivos da carteira. */

@@ -110,11 +110,13 @@ def ler(spec: ArquivoProtheus, caminho: Path) -> pl.DataFrame:
     if spec.datas:
         df = df.with_columns([_para_data(c) for c in spec.datas if c in df.columns])
 
-    # O CSV traz o grupo sem zeros a esquerda ('57', '128'); o negocio usa '0057'/'0128'.
-    # Vale para o grupo do cadastro (SB2/SD1) e para o da linha faturada (SD2).
-    for coluna in ("grupo", "grupo_doc"):
+    # O CSV traz os codigos sem zeros a esquerda ('57', '128', '2'); o negocio usa
+    # '0057'/'0128' e '02'. Vale para o grupo do cadastro (SB2/SD1), o da linha
+    # faturada (SD2) e o armazem (SB2/SD2/SD1/SC6 — o SC5 nao tem armazem).
+    # Sem o padding do armazem o proprio `ORDER BY armazem` ordena '13' antes de '2'.
+    for coluna, largura in (("grupo", 4), ("grupo_doc", 4), ("armazem", 2)):
         if coluna in df.columns:
-            df = df.with_columns(pl.col(coluna).str.zfill(4).alias(coluna))
+            df = df.with_columns(pl.col(coluna).str.zfill(largura).alias(coluna))
 
     # Competencia: chave de particao da carga (substituicao do mes inteiro).
     if spec.coluna_competencia and spec.coluna_competencia in df.columns:

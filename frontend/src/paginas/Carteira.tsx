@@ -17,6 +17,7 @@ import { useCarteira, useOpcoesCarteira } from "../api/hooks";
 import type { Filtros, ResumoCarteira } from "../api/tipos";
 import { Erro, Vazio } from "../componentes/Layout";
 import { Paginacao } from "../componentes/Paginacao";
+import { SeletorGrupos } from "../componentes/SeletorGrupos";
 import { SeletorTema } from "../componentes/SeletorTema";
 import { SkeletonTabela, SkeletonTiles } from "../componentes/Skeleton";
 import { dataCurta, inteiro, moeda, numeroBruto, percentual } from "../formato";
@@ -27,6 +28,7 @@ const COLUNAS = [
   { chave: null, rotulo: "Descrição", num: false },
   { chave: null, rotulo: "Cliente", num: false },
   { chave: null, rotulo: "Vendedor", num: false },
+  { chave: null, rotulo: "Armazém", num: false },
   { chave: "entrega", rotulo: "Entrega", num: false },
   { chave: "dias", rotulo: "Dias", num: true },
   { chave: "quantidade", rotulo: "Qtd aberta", num: true },
@@ -88,7 +90,8 @@ export function Carteira() {
   const [offset, setOffset] = useState(0);
   const [itensPorPagina, setItensPorPagina] = useState(25);
 
-  const opcoes = useOpcoesCarteira().data?.opcoes;
+  // Cascata armazem > grupo: as opcoes vem recortadas pelos filtros ativos.
+  const opcoes = useOpcoesCarteira(filtros).data?.opcoes;
   const { data, isPending, isError, error } = useCarteira(
     filtros,
     ordenar,
@@ -105,6 +108,13 @@ export function Carteira() {
   function mudarFiltro(chave: keyof Filtros, valor: string) {
     setOffset(0);
     setFiltros((atual) => ({ ...atual, [chave]: valor || undefined }));
+  }
+
+  // Trocar de armazem pode deixar o grupo escolhido fora do recorte novo — manter
+  // o antigo devolveria tela vazia sem explicar por que.
+  function mudarArmazem(valor: string) {
+    setOffset(0);
+    setFiltros((atual) => ({ ...atual, armazem: valor || undefined, grupo: [] }));
   }
 
   // A busca so entra na query ao enviar: a cada tecla dispararia uma consulta
@@ -177,37 +187,33 @@ export function Carteira() {
           </select>
         </div>
 
-        <div className="campo">
-          <label htmlFor="c-grupo">Grupo</label>
-          <select
-            id="c-grupo"
-            value={filtros.grupo ?? ""}
-            onChange={(e) => mudarFiltro("grupo", e.target.value)}
-          >
-            <option value="">Todos</option>
-            {opcoes?.grupos.map((g) => (
-              <option key={g.codigo} value={g.codigo}>
-                {g.rotulo ?? g.codigo}
-              </option>
-            ))}
-          </select>
-        </div>
-
+        {/* Armazem antes de grupo: a ordem na barra e a hierarquia da analise. */}
         <div className="campo">
           <label htmlFor="c-armazem">Armazém</label>
           <select
             id="c-armazem"
             value={filtros.armazem ?? ""}
-            onChange={(e) => mudarFiltro("armazem", e.target.value)}
+            onChange={(e) => mudarArmazem(e.target.value)}
           >
             <option value="">Todos</option>
-            {opcoes?.armazens.filter(Boolean).map((a) => (
-              <option key={a} value={a!}>
-                {a}
+            {opcoes?.armazens.map((a) => (
+              <option key={a.codigo} value={a.codigo}>
+                {a.rotulo ?? a.codigo}
               </option>
             ))}
           </select>
         </div>
+
+        <SeletorGrupos
+          opcoes={opcoes?.grupos}
+          valor={filtros.grupo}
+          aoMudar={(grupos) => {
+            setOffset(0);
+            setFiltros((atual) => ({ ...atual, grupo: grupos }));
+          }}
+          idPrefixo="c"
+        />
+
 
         <form className="campo" onSubmit={enviarBusca}>
           <label htmlFor="c-busca">Pedido, SKU ou descrição</label>
@@ -238,7 +244,7 @@ export function Carteira() {
       {isPending && (
         <>
           <SkeletonTiles quantidade={4} />
-          <SkeletonTabela linhas={12} colunas={11} />
+          <SkeletonTabela linhas={12} colunas={12} />
         </>
       )}
 
@@ -315,6 +321,7 @@ export function Carteira() {
                       {item.nome_cliente ?? "—"}
                     </td>
                     <td>{item.vendedor_nome ?? "—"}</td>
+                    <td>{item.armazem_rotulo ?? item.armazem ?? "—"}</td>
                     <td className={item.atrasado ? "negativo" : undefined}>
                       {item.dt_entrega ? dataCurta(item.dt_entrega) : "—"}
                     </td>

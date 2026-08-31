@@ -171,7 +171,7 @@ def test_nota_com_multiplos_pedidos_nao_duplica_receita(carga):
 
 
 # --------------------------------------------------------------------------- #
-# Regra 4 — grupo sem classificacao
+# Regra 4 — grupo sem classificacao e consolidacao de grupos
 # --------------------------------------------------------------------------- #
 
 def test_sem_classificacao_visivel(carga):
@@ -186,8 +186,77 @@ def test_sem_classificacao_visivel(carga):
     # Nunca somado silenciosamente em outro grupo.
     assert escalar(
         "SELECT count(*) FROM mv_margem_item "
-        "WHERE grupo_codigo IS NULL AND grupo_rotulo <> '(sem classificacao)'"
+        "WHERE grupo_codigo IS NULL AND grupo_rotulo <> 'Sem grupo'"
     ) == 0
+
+
+def test_grupo_consolidado_nao_aparece_publicado(carga):
+    """0150 soma em 0057 (core_mapagrupo.agrupa_em) e some da tela.
+
+    0129 **nao** entra aqui: desde a 0013 ele e um grupo proprio
+    ('Fabricacao propria'), nao mais uma cauda do Ecommerce.
+    """
+    assert escalar(
+        "SELECT count(*) FROM mv_margem_item WHERE grupo_codigo = '0150'"
+    ) == 0
+    assert consulta(
+        "SELECT DISTINCT grupo_codigo, grupo_rotulo FROM mv_margem_item "
+        "WHERE grupo_codigo_origem = '0150'"
+    ) == [{"grupo_codigo": "0057", "grupo_rotulo": "Agricola"}]
+
+
+def test_todo_rotulo_publicado_vem_do_cadastro(carga):
+    """Cada grupo e um marcador proprio; nenhum rotulo nasce do SQL.
+
+    Sem 'Sem grupo', que e a sentinela do vazio — e justamente o que o cadastro
+    nao explica.
+    """
+    from apps.core.models import MapaGrupo
+
+    rotulos = {
+        linha["grupo_rotulo"]
+        for linha in consulta(
+            "SELECT DISTINCT grupo_rotulo FROM mv_margem_item "
+            "WHERE grupo_codigo IS NOT NULL"
+        )
+    }
+    assert rotulos <= set(MapaGrupo.objects.values_list("rotulo", flat=True))
+    assert "Fabricação própria" in rotulos
+
+
+def test_grupo_com_identidade_propria_nao_soma_em_outro(carga):
+    """0129 publica o proprio codigo: nada dele cai dentro do Ecommerce."""
+    assert consulta(
+        "SELECT DISTINCT grupo_codigo, grupo_rotulo FROM mv_margem_item "
+        "WHERE grupo_codigo_origem = '0129'"
+    ) == [{"grupo_codigo": "0129", "grupo_rotulo": "Fabricação própria"}]
+
+
+def test_codigo_de_origem_preservado(carga):
+    """Consolidar nao pode apagar o codigo cru — e ele que audita a Regra 4."""
+    assert escalar(
+        "SELECT count(*) FROM mv_margem_item WHERE grupo_codigo_origem = '0129'"
+    ) == 90
+    assert escalar(
+        "SELECT count(*) FROM mv_margem_item WHERE grupo_codigo_origem = '0150'"
+    ) == 33
+
+
+def test_consolidacao_nao_move_receita(carga):
+    """Somar caudas em outro balde nao pode criar nem sumir com faturamento."""
+    assert escalar(
+        "SELECT sum(receita_bruta) FROM mv_margem_item "
+        "WHERE grupo_codigo = '0128'"
+    ) == Decimal("6874527.30")
+    # O que saiu do Ecommerce na 0013 nao evaporou: virou o proprio 0129.
+    assert escalar(
+        "SELECT sum(receita_bruta) FROM mv_margem_item "
+        "WHERE grupo_codigo = '0129'"
+    ) == Decimal("150969.76")
+    assert escalar(
+        "SELECT sum(receita_bruta) FROM mv_margem_item "
+        "WHERE grupo_codigo = '0057'"
+    ) == Decimal("1646693.82")
 
 
 def test_reclassificacao_de_sku_tem_precedencia(carga):
@@ -326,17 +395,17 @@ def test_grupo_da_linha_faturada_vence_o_cadastro_do_sb2(carga):
     """O grupo do SD2 e o do momento da venda; o do SB2 e o cadastro de hoje."""
     divergentes = escalar(
         "SELECT count(*) FROM mv_margem_item m JOIN stg_sd2 d ON d.id = m.id "
-        "WHERE d.grupo_doc IS NOT NULL AND m.grupo_codigo <> d.grupo_doc "
+        "WHERE d.grupo_doc IS NOT NULL AND m.grupo_codigo_origem <> d.grupo_doc "
         "  AND NOT m.grupo_reclassificado"
     )
     assert divergentes == 0
 
 
 def test_grupo_do_sb2_ainda_e_o_fallback(carga):
-    """Linha faturada sem grupo nao vira '(sem classificacao)' se o SB2 souber."""
+    """Linha faturada sem grupo nao vira 'Sem grupo' se o SB2 souber."""
     assert escalar(
         "SELECT count(*) FROM mv_margem_item m JOIN stg_sd2 d ON d.id = m.id "
-        "WHERE d.grupo_doc IS NULL AND m.grupo_codigo IS NOT NULL"
+        "WHERE d.grupo_doc IS NULL AND m.grupo_codigo_origem IS NOT NULL"
     ) > 0
 
 
@@ -355,3 +424,78 @@ def test_sd1_carregado_mas_fora_da_margem(carga):
     assert escalar("SELECT sum(receita_bruta) FROM mv_margem_item") == escalar(
         "SELECT sum(vlr_total) FROM stg_sd2"
     )
+
+
+# --------------------------------------------------------------------------- #
+# Armazem > grupo — a hierarquia da analise
+# --------------------------------------------------------------------------- #
+
+def test_armazem_padronizado_em_dois_digitos(carga):
+    """O CSV manda '1' e '2'; ordenar sem padding coloca '13' antes de '2'."""
+    armazens = [
+        linha["armazem"]
+        for linha in consulta("SELECT DISTINCT armazem FROM mv_margem_item ORDER BY 1")
+    ]
+    assert armazens == ["01", "02", "11", "13", "15", "20"]
+
+
+def test_armazem_recebe_rotulo_do_cadastro(carga):
+    rotulos = {
+        linha["armazem"]: linha["armazem_rotulo"]
+        for linha in consulta(
+            "SELECT DISTINCT armazem, armazem_rotulo FROM mv_margem_item"
+        )
+    }
+    assert rotulos["02"] == "Barracao 02"
+    assert rotulos["13"] == "Full do Mercado Livre"
+    # Armazem que existe no Protheus mas ninguem nomeou continua visivel, com o
+    # codigo cru — sumir da tela seria receita somando sem aparecer em lugar algum.
+    assert rotulos["20"] == "20 - sem cadastro"
+
+
+def test_baseline_por_armazem(carga):
+    """O 02 concentra a operacao, mas o grupo aparece em varios armazens."""
+    por_armazem = {
+        linha["armazem"]: linha["n"]
+        for linha in consulta(
+            "SELECT armazem, count(*) n FROM mv_margem_item GROUP BY 1"
+        )
+    }
+    assert por_armazem == {"01": 1_141, "02": 36_863, "11": 8, "13": 2, "15": 20, "20": 13}
+    assert sum(por_armazem.values()) == 38_047
+
+    # Ecommerce vende por quatro armazens: e por isso que grupo sozinho nao
+    # organiza a analise.
+    assert escalar(
+        "SELECT count(DISTINCT armazem) FROM mv_margem_item "
+        "WHERE grupo_rotulo = 'Ecommerce'"
+    ) == 4
+
+
+def test_vendedor_pode_ser_filtrado_por_armazem(carga):
+    """Regressao: a view nao tinha a coluna e o filtro comum estourava 500."""
+    assert escalar(
+        "SELECT count(*) FROM mv_margem_vendedor WHERE armazem = '02'"
+    ) > 0
+
+
+# --------------------------------------------------------------------------- #
+# Consolidacao de grupos — guarda do cadastro
+# --------------------------------------------------------------------------- #
+
+def test_agrupamento_recusa_cadeia_e_auto_referencia():
+    """A view resolve um salto so; cadeia precisa quebrar no cadastro."""
+    from django.core.exceptions import ValidationError
+
+    from apps.core.models import MapaGrupo
+
+    with pytest.raises(ValidationError):
+        MapaGrupo(codigo="0057", rotulo="Agricola", agrupa_em_id="0057").clean()
+
+    # 0150 ja aponta para 0057: apontar para 0150 criaria 0057 <- 0150 <- novo.
+    with pytest.raises(ValidationError):
+        MapaGrupo(codigo="0999", rotulo="Teste", agrupa_em_id="0150").clean()
+
+    # 0057 ja recebe 0150, entao nao pode virar subgrupo de ninguem.
+    with pytest.raises(ValidationError):
+        MapaGrupo(codigo="0057", rotulo="Agricola", agrupa_em_id="0128").clean()

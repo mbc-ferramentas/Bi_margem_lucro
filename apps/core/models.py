@@ -14,7 +14,14 @@ from django.db import models
 # Nao e uma pessoa: concentra Amazon, Magalu, Shopee e Mercado Livre.
 CODIGO_INTEGRADOR_MARKETPLACE = "72"
 
-GRUPO_SEM_CLASSIFICACAO = "(sem classificacao)"
+GRUPO_SEM_CLASSIFICACAO = "Sem grupo"
+
+# Armazem e a dimensao de fora da hierarquia (armazem > grupo). Dois vazios
+# diferentes: a linha sem armazem preenchido e o armazem que existe no Protheus
+# mas ninguem nomeou ainda — este continua visivel, com o codigo cru, para nao
+# sumir da tela somando receita em silencio.
+ARMAZEM_SEM_CODIGO = "Sem armazem"
+SUFIXO_SEM_CADASTRO = " - sem cadastro"
 
 
 class Usuario(AbstractUser):
@@ -100,15 +107,79 @@ class ParamOutlier(models.Model):
 
 
 class MapaGrupo(models.Model):
-    """Rotulo de negocio para o codigo de grupo do Protheus."""
+    """Rotulo de negocio para o codigo de grupo do Protheus.
+
+    'agrupa_em' consolida caudas: o Protheus separa 0129 (acessorios de
+    e-commerce) de 0128, e o negocio quer os dois no mesmo balde. A fusao mora
+    aqui, e nao no SQL, porque grupo novo do ERP aparece sem aviso — cadastrar
+    e rodar refresh_views resolve, sem migration.
+    """
+
+    codigo = models.CharField("codigo", max_length=10, primary_key=True)
+    rotulo = models.CharField("rotulo", max_length=80)
+    agrupa_em = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="subgrupos",
+        verbose_name="agrupar em",
+        help_text=(
+            "Grupo dentro do qual este deve ser somado no BI. Em branco = grupo "
+            "proprio. Um nivel so: o destino nao pode estar agrupado em outro."
+        ),
+    )
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "grupo"
+        verbose_name_plural = "grupos"
+        ordering = ["codigo"]
+
+    def __str__(self) -> str:
+        return f"{self.codigo} — {self.rotulo}"
+
+    def clean(self) -> None:
+        # A view resolve um unico salto. Sem esta guarda, uma cadeia
+        # A -> B -> C somaria A em B e ninguem perceberia que C foi ignorado.
+        if self.agrupa_em_id is None:
+            return
+        if self.agrupa_em_id == self.codigo:
+            raise ValidationError({"agrupa_em": "Um grupo nao pode agrupar em si mesmo."})
+        destino = MapaGrupo.objects.filter(codigo=self.agrupa_em_id).first()
+        if destino is not None and destino.agrupa_em_id:
+            raise ValidationError(
+                {
+                    "agrupa_em": (
+                        f"{destino.codigo} ja esta agrupado em {destino.agrupa_em_id}; "
+                        "aponte direto para o grupo final."
+                    )
+                }
+            )
+        if self.subgrupos.exists():
+            raise ValidationError(
+                {"agrupa_em": "Outros grupos ja apontam para este; ele precisa ser o grupo final."}
+            )
+
+
+class MapaArmazem(models.Model):
+    """Rotulo de negocio para o codigo de armazem do Protheus.
+
+    O armazem e a dimensao externa da leitura do BI (armazem > grupo): o mesmo
+    grupo aparece em varios armazens, entao grupo sozinho nao organiza a analise.
+
+    Codigo com dois digitos ('01', '02', '13'), padronizado no ETL — o CSV manda
+    '1' e '2'. Armazem sem cadastro aqui continua aparecendo nas telas como
+    '20 - sem cadastro'; nomear e trabalho de Admin, nao de deploy.
+    """
 
     codigo = models.CharField("codigo", max_length=10, primary_key=True)
     rotulo = models.CharField("rotulo", max_length=80)
     ativo = models.BooleanField(default=True)
 
     class Meta:
-        verbose_name = "grupo"
-        verbose_name_plural = "grupos"
+        verbose_name = "armazem"
+        verbose_name_plural = "armazens"
         ordering = ["codigo"]
 
     def __str__(self) -> str:
