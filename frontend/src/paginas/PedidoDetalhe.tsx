@@ -56,20 +56,26 @@ function motivosForaDoKpi(item: ItemPedido): string[] {
 }
 
 export function PedidoDetalhe() {
-  // Chega-se aqui por dois caminhos (armazém ou vendedor). Quem travou o
+  // Chega-se aqui por tres caminhos (armazém, vendedor ou SKU). Quem travou o
   // recorte lá em cima é quem manda no recorte daqui e no destino do Voltar.
-  const { armazem = "", vendedor = "", chave = "" } = useParams();
+  const { armazem = "", vendedor = "", sku = "", chave = "" } = useParams();
+  const porSku = Boolean(sku);
   const porArmazem = Boolean(armazem);
   const [filtros] = useFiltrosUrl();
   const consulta = escreverFiltros(filtros);
-  const base = porArmazem
-    ? `/armazens/${armazem}/pedidos`
-    : `/vendedores/${encodeURIComponent(vendedor)}/pedidos`;
+  // Vindo do SKU o destino é a própria tela do item, não uma lista de pedidos.
+  const base = porSku
+    ? `/skus/${encodeURIComponent(sku)}`
+    : porArmazem
+      ? `/armazens/${armazem}/pedidos`
+      : `/vendedores/${encodeURIComponent(vendedor)}/pedidos`;
   const voltar = `${base}${consulta ? `?${consulta}` : ""}`;
 
+  // `sku` não é dimensão de filtro: o pedido é mostrado inteiro de propósito, e
+  // `linhas_fora_do_recorte` já explica o que o filtro de tela deixou de fora.
   const { data, isPending, isError, error } = usePedido(chave, {
     ...filtros,
-    ...(porArmazem ? { armazem } : { vendedor }),
+    ...(porSku ? {} : porArmazem ? { armazem } : { vendedor }),
   });
 
   const cabecalho = data?.pedido;
@@ -79,7 +85,7 @@ export function PedidoDetalhe() {
       <div className="cabecalho">
         <div>
           <Link className="voltar" to={voltar}>
-            ← Voltar para os pedidos
+            {porSku ? "← Voltar para o SKU" : "← Voltar para os pedidos"}
           </Link>
           <h1>
             {cabecalho?.origem === "pdv"

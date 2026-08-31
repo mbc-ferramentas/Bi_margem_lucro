@@ -21,7 +21,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.api import filtros, queries
-from apps.api.permissions import PodeAdministrar, PodeVerBI, escopo_de, perfis
+from apps.api.permissions import (
+    GRUPO_ADMIN,
+    GRUPO_GERENTE,
+    PodeAdministrar,
+    PodeVerBI,
+    escopo_de,
+    perfis,
+)
 from apps.etl import servicos
 from apps.etl.schemas import ARQUIVOS
 
@@ -128,6 +135,62 @@ class SkuView(BaseBI):
         limite, offset = filtros.paginacao(request)
         resultado = queries.por_sku(clausula, ordem, limite, offset)
         return self.responder({**resultado, "limite": limite, "offset": offset})
+
+
+class SkuDetalheView(BaseBI):
+    """Um SKU aberto em pedidos, notas e vendedores — o drill-down de `Por SKU`.
+
+    Le `mv_margem_item` sem o corte de qualidade: a lista (que vem da agregada)
+    ja exclui linha sem custo e outlier, e e exatamente essa linha que quem abre o
+    detalhe foi procurar. A contagem de itens fora do KPI vai no cabecalho.
+
+    O 404 e proposital para o SKU fora do escopo, pela mesma razao de `PedidoView`.
+    """
+
+    ORDENAVEIS = {
+        "emissao": "min(emissao)",
+        "quantidade": "sum(quantidade)",
+        "receita": "sum(receita_bruta)",
+        "margem": "sum(margem_bruta)",
+        "margem_pct": (
+            "CASE WHEN sum(receita_bruta) <> 0 "
+            "THEN sum(margem_bruta)/sum(receita_bruta) END"
+        ),
+        "cliente": "min(nome_cliente)",
+        "pedido": queries.CHAVE_PEDIDO,
+        "nota": "nota_fiscal",
+    }
+
+    def get(self, request: Request, sku: str) -> Response:
+        escopo, clausula = self.contexto(request)
+        ordem = filtros.ordenacao(request, self.ORDENAVEIS, "-emissao")
+        limite, offset = filtros.paginacao(request)
+        dados = queries.sku_detalhe(
+            clausula, filtros.so_escopo(escopo), sku, ordem, limite, offset
+        )
+        if dados is None:
+            raise NotFound("SKU nao encontrado no periodo ou fora do seu escopo.")
+
+        # Estoque e notas de entrada vem do staging, que nao tem `vendedor_codigo`
+        # — nao ha como aplicar o escopo na clausula base, e filtrar depois em
+        # Python e justamente o que abre vazamento. Por isso o bloco so existe para
+        # quem ja ve a base inteira.
+        visiveis = bool(perfis(request.user) & {GRUPO_ADMIN, GRUPO_GERENTE})
+        suprimentos = (
+            queries.sku_suprimentos(sku)
+            if visiveis
+            else {"estoque": [], "compras": []}
+        )
+
+        return self.responder(
+            {
+                **dados,
+                **suprimentos,
+                "suprimentos_visiveis": visiveis,
+                "limite": limite,
+                "offset": offset,
+            }
+        )
 
 
 class ArmazemView(BaseBI):

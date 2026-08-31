@@ -422,6 +422,66 @@ def test_vendedor_nao_ve_pedido_de_colega(carga, dois_vendedores):
     assert c.get(f"/api/v1/margem/pedidos/{alheio}").status_code == 404
 
 
+def test_sku_inexistente_da_404(carga):
+    c = cliente(cria_usuario("ger_sku1", "gerente"))
+    assert c.get("/api/v1/margem/sku/ZZZZZZ").status_code == 404
+
+
+def test_vendedor_nao_ve_sku_de_colega(carga, dois_vendedores):
+    """Escopo na clausula base: digitar o codigo do item nao abre o detalhe."""
+    meu, outro = dois_vendedores
+    usuario = cria_usuario("vend_sku", "vendedor", codigo_vendedor=meu)
+    c = cliente(usuario)
+
+    alheio = escalar(
+        "SELECT sku FROM mv_margem_item WHERE vendedor_codigo = %s "
+        "AND sku NOT IN (SELECT sku FROM mv_margem_item WHERE vendedor_codigo = %s) "
+        "LIMIT 1",
+        [outro, meu],
+    )
+    assert alheio, "baseline sem SKU exclusivo do colega"
+    assert c.get(f"/api/v1/margem/sku/{alheio}").status_code == 404
+
+
+def test_vendedor_nao_ve_estoque_nem_compras(carga, dois_vendedores):
+    """SB2 e SD1 nao tem vendedor_codigo — sem coluna, sem escopo, sem bloco.
+
+    Devolver estoque e historico de compras a um vendedor seria vazamento por
+    uma porta que a clausula base nao alcanca.
+    """
+    meu, _ = dois_vendedores
+    c = cliente(cria_usuario("vend_sup", "vendedor", codigo_vendedor=meu))
+    sku = c.get("/api/v1/margem/sku?limite=1").json()["itens"][0]["sku"]
+
+    corpo = c.get(f"/api/v1/margem/sku/{sku}").json()
+    assert corpo["suprimentos_visiveis"] is False
+    assert corpo["estoque"] == []
+    assert corpo["compras"] == []
+
+    gerente = cliente(cria_usuario("ger_sku2", "gerente"))
+    assert gerente.get(f"/api/v1/margem/sku/{sku}").json()["suprimentos_visiveis"]
+
+
+def test_ordenacao_desconhecida_de_sku_da_400(carga):
+    c = cliente(cria_usuario("ger_sku3", "gerente"))
+    sku = c.get("/api/v1/margem/sku?limite=1").json()["itens"][0]["sku"]
+    assert c.get(f"/api/v1/margem/sku/{sku}?ordenar=lucro").status_code == 400
+
+
+def test_paginacao_de_sku_respeita_limite_e_offset(carga):
+    c = cliente(cria_usuario("ger_sku4", "gerente"))
+    sku = escalar(
+        "SELECT sku FROM mv_margem_item GROUP BY sku HAVING count(*) > 10 LIMIT 1", []
+    )
+    pagina1 = c.get(f"/api/v1/margem/sku/{sku}?limite=5").json()
+    pagina2 = c.get(f"/api/v1/margem/sku/{sku}?limite=5&offset=5").json()
+
+    assert len(pagina1["pedidos"]) == 5
+    assert pagina1["total"] == pagina2["total"]
+    # O cabecalho e do conjunto inteiro: virar a pagina nao pode mexer nele.
+    assert pagina1["sku"] == pagina2["sku"]
+
+
 def test_ordenacao_desconhecida_de_pedido_da_400(carga):
     c = cliente(cria_usuario("ger_ped5", "gerente"))
     assert c.get("/api/v1/margem/pedidos?ordenar=lucro").status_code == 400

@@ -9,6 +9,7 @@ import { Carteira } from "./paginas/Carteira";
 import { Login } from "./paginas/Login";
 import { PedidoDetalhe } from "./paginas/PedidoDetalhe";
 import { Pedidos } from "./paginas/Pedidos";
+import { SkuDetalhe } from "./paginas/SkuDetalhe";
 import { Skus } from "./paginas/Skus";
 import { Uploads } from "./paginas/Uploads";
 import { Usuarios } from "./paginas/Usuarios";
@@ -41,6 +42,9 @@ export function App() {
             element={<PedidoDetalhe />}
           />
           <Route path="skus" element={<Skus />} />
+          {/* Drill-down de Por SKU: o item, seus pedidos e suas notas. */}
+          <Route path="skus/:sku" element={<SkuDetalhe />} />
+          <Route path="skus/:sku/pedidos/:chave" element={<PedidoDetalhe />} />
           <Route path="canais" element={<Canais />} />
           <Route path="carteira" element={<Carteira />} />
           <Route path="uploads" element={<Uploads />} />

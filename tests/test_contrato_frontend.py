@@ -116,6 +116,122 @@ def test_skus(gerente):
     } <= set(corpo["itens"][0])
 
 
+def test_sku_detalhe(gerente):
+    """Espelha `skuDetalheSchema` — cabecalho, pedidos, vendedores e suprimentos."""
+    sku = gerente.get("/api/v1/margem/sku?limite=1").json()["itens"][0]["sku"]
+    corpo = gerente.get(f"/api/v1/margem/sku/{sku}").json()
+    assert CHAVES_ESCOPO <= set(corpo["escopo"])
+    assert {"total", "limite", "offset", "suprimentos_visiveis"} <= set(corpo)
+    assert {
+        "sku",
+        "descricao",
+        "grupo_codigo",
+        "grupo_rotulo",
+        "grupo_reclassificado",
+        "armazens",
+        "canais",
+        "pedidos",
+        "notas",
+        "linhas",
+        "clientes",
+        "primeira_venda",
+        "ultima_venda",
+        "quantidade",
+        "receita",
+        "desconto",
+        "receita_liquida",
+        "custo",
+        "margem",
+        "margem_liquida",
+        "margem_pct",
+        "margem_liquida_pct",
+        "preco_medio",
+        "custo_medio",
+        "itens_fora_do_kpi",
+        "linhas_fora_do_recorte",
+    } <= set(corpo["sku"])
+    assert isinstance(corpo["sku"]["armazens"], list)
+    assert isinstance(corpo["sku"]["canais"], list)
+
+    pedido = corpo["pedidos"][0]
+    assert {
+        "chave",
+        "origem",
+        "num_pedido",
+        "nota_fiscal",
+        "serie_nf",
+        "emissao",
+        "competencia",
+        "cod_cliente",
+        "nome_cliente",
+        "canal",
+        "vendedor_codigo",
+        "vendedor_nome",
+        "armazem",
+        "armazem_rotulo",
+        "linhas",
+        "quantidade",
+        "vlr_unitario",
+        "receita_bruta",
+        "desconto",
+        "receita_liquida",
+        "custo_unitario_ref",
+        "origem_custo",
+        "custo_total",
+        "margem_bruta",
+        "margem_liquida",
+        "margem_pct",
+        "sem_custo",
+        "outlier_custo",
+        "tes_receita",
+    } <= set(pedido)
+    # Os dois enums do Zod, como em `test_pedido`.
+    assert all(p["origem"] in ("pedido", "pdv") for p in corpo["pedidos"])
+    assert all(
+        p["origem_custo"] in (None, "saida", "medio", "ultima_compra", "outro_armazem")
+        for p in corpo["pedidos"]
+    )
+    assert {
+        "vendedor_codigo",
+        "vendedor_nome",
+        "pedidos",
+        "quantidade",
+        "receita",
+        "margem",
+        "margem_pct",
+    } <= set(corpo["vendedores"][0])
+    assert all(
+        {
+            "armazem",
+            "armazem_rotulo",
+            "saldo_atual",
+            "saldo_disponivel",
+            "custo_unitario",
+            "vlr_ult_compra",
+            "dt_carga",
+        }
+        <= set(e)
+        for e in corpo["estoque"]
+    )
+    # O SD1 pode nao cobrir o item: a lista vazia e resposta legitima, so as
+    # chaves das linhas existentes e que sao contrato.
+    assert all(
+        {
+            "dt_emissao",
+            "documento",
+            "serie",
+            "forn_cliente",
+            "loja",
+            "armazem",
+            "quantidade",
+            "vlr_unitario",
+            "custo_total",
+        }
+        <= set(c)
+        for c in corpo["compras"]
+    )
+
+
 def test_filtros(gerente):
     opcoes = gerente.get("/api/v1/filtros").json()["opcoes"]
     assert {

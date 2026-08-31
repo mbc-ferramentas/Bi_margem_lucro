@@ -13,6 +13,7 @@ urlpatterns = [
     path("margem/serie", views.SerieView.as_view(), name="serie"),
     path("margem/vendedor", views.VendedorView.as_view(), name="vendedor"),
     path("margem/sku", views.SkuView.as_view(), name="sku"),
+    path("margem/sku/<str:sku>", views.SkuDetalheView.as_view(), name="sku-detalhe"),
     path("margem/armazem", views.ArmazemView.as_view(), name="armazem"),
     path("margem/pedidos", views.PedidosView.as_view(), name="pedidos"),
     path("margem/pedidos/<str:chave>", views.PedidoView.as_view(), name="pedido"),

@@ -1,12 +1,15 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { useSkus } from "../api/hooks";
 import type { Filtros } from "../api/tipos";
 import { BarraFiltros } from "../componentes/Filtros";
+import { IconeOlho } from "../componentes/Icones";
 import { Erro, Vazio } from "../componentes/Layout";
 import { Paginacao } from "../componentes/Paginacao";
 import { SeletorTema } from "../componentes/SeletorTema";
 import { SkeletonTabela } from "../componentes/Skeleton";
+import { escreverFiltros, useFiltrosUrl } from "../filtrosUrl";
 import { inteiro, moeda, numeroBruto, percentual } from "../formato";
 
 const COLUNAS = [
@@ -17,15 +20,19 @@ const COLUNAS = [
   { chave: "receita", rotulo: "Receita", num: true },
   { chave: "margem", rotulo: "Margem", num: true },
   { chave: "margem_pct", rotulo: "Margem %", num: true },
+  { chave: null, rotulo: "Ações", num: false },
 ] as const;
 
 export function Skus() {
-  const [filtros, setFiltros] = useState<Filtros>({});
+  // O recorte vive na URL, e nao em `useState`: e o que faz o filtro sobreviver
+  // a ida ao detalhe do SKU e a volta, e de quebra torna a tela linkavel.
+  const [filtros, setFiltros] = useFiltrosUrl();
   const [ordenar, setOrdenar] = useState("-margem");
   const [offset, setOffset] = useState(0);
   const [itensPorPagina, setItensPorPagina] = useState(25);
 
   const { data, isPending, isError, error } = useSkus(filtros, ordenar, offset, itensPorPagina);
+  const consulta = escreverFiltros(filtros);
 
   function ordenarPor(chave: string | null) {
     if (!chave) return;
@@ -56,7 +63,7 @@ export function Skus() {
       <BarraFiltros valor={filtros} aoMudar={mudarFiltros} />
 
       {isError && <Erro mensagem={(error as Error).message} />}
-      {isPending && <SkeletonTabela linhas={12} colunas={7} />}
+      {isPending && <SkeletonTabela linhas={12} colunas={8} />}
 
       {data && data.itens.length === 0 && (
         <Vazio mensagem="Nenhum item no período e filtros selecionados." />
@@ -118,6 +125,18 @@ export function Skus() {
                       }
                     >
                       {percentual(item.margem_pct)}
+                    </td>
+                    <td className="acoes">
+                      <Link
+                        className="botao-alt acao-visualizar"
+                        to={`/skus/${encodeURIComponent(item.sku)}${
+                          consulta ? `?${consulta}` : ""
+                        }`}
+                        aria-label={`Visualizar detalhes do SKU ${item.sku}`}
+                      >
+                        <IconeOlho />
+                        Visualizar
+                      </Link>
                     </td>
                   </tr>
                 ))}

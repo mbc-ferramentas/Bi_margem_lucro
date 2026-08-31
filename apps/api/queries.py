@@ -118,6 +118,13 @@ def _pct(margem, receita) -> Decimal | None:
     return round(Decimal(margem) / Decimal(receita), 6)
 
 
+def _media(total, quantidade) -> Decimal | None:
+    """Valor unitario medio. `None` quando nao ha quantidade para dividir."""
+    if not quantidade or total is None:
+        return None
+    return round(Decimal(total) / Decimal(quantidade), 4)
+
+
 def kpis(clausula) -> dict[str, Any]:
     """Indicadores consolidados sobre as linhas aptas (ver LIMPAS)."""
     where = clausula.where(LIMPAS)
@@ -724,3 +731,278 @@ def pedido(clausula, escopo_puro, chave: str) -> dict[str, Any] | None:
         },
         "itens": itens,
     }
+
+
+# --------------------------------------------------------------------------- #
+# Detalhe de um SKU
+# --------------------------------------------------------------------------- #
+#
+# A tela `Por SKU` le `mv_margem_sku`, que ja nasce cortada por LIMPAS. O detalhe
+# le `mv_margem_item` **sem** o corte: quem abre o detalhe geralmente esta atras
+# justamente da linha que saiu sem custo ou como outlier, e escondê-la aqui faria
+# o item desaparecer do proprio drill-down. Os totais daqui podem, portanto, ser
+# maiores que os da lista — a tela avisa em vez de deixar a diferenca no ar.
+
+
+def sku_detalhe(
+    clausula,
+    escopo_puro,
+    sku: str,
+    ordem: str,
+    limite: int,
+    offset: int,
+) -> dict[str, Any] | None:
+    """Cabecalho, pedidos, notas e vendedores de um SKU. `None` quando nada casa.
+
+    O escopo do usuario vem dentro da clausula, entao um vendedor que digite o
+    codigo de um SKU que so outro vendeu cai no `None` — e a view responde 404.
+
+    `escopo_puro` e a mesma clausula **sem** os filtros de tela: e o que permite
+    dizer quantas linhas do SKU ficaram fora do recorte atual.
+    """
+    condicao = "sku = %s"
+    valores = [sku]
+
+    cabecalho = _um(
+        f"""
+        SELECT max(descricao)                       AS descricao,
+               min(grupo_codigo)                    AS grupo_codigo,
+               min(grupo_rotulo)                    AS grupo_rotulo,
+               bool_or(grupo_reclassificado)        AS grupo_reclassificado,
+               count(DISTINCT {CHAVE_PEDIDO})       AS pedidos,
+               count(DISTINCT (nota_fiscal, serie_nf)) AS notas,
+               count(*)                             AS linhas,
+               count(DISTINCT cod_cliente)          AS clientes,
+               min(emissao)                         AS primeira_venda,
+               max(emissao)                         AS ultima_venda,
+               sum(quantidade)                      AS quantidade,
+               sum(receita_bruta)                   AS receita,
+               sum(desconto)                        AS desconto,
+               sum(receita_liquida)                 AS receita_liquida,
+               sum(custo_total)                     AS custo,
+               sum(margem_bruta)                    AS margem,
+               sum(margem_liquida)                  AS margem_liquida,
+               -- Base do percentual: so o que entra no KPI. Dividir a margem
+               -- parcial pela receita cheia subestimaria a margem.
+               sum(margem_bruta)    FILTER (WHERE {LIMPAS}) AS margem_no_kpi,
+               sum(margem_liquida)  FILTER (WHERE {LIMPAS}) AS margem_liquida_no_kpi,
+               sum(receita_bruta)   FILTER (WHERE {LIMPAS}) AS base_margem,
+               sum(receita_liquida) FILTER (WHERE {LIMPAS}) AS base_margem_liquida,
+               count(*) FILTER (WHERE NOT ({LIMPAS}))       AS itens_fora_do_kpi
+        FROM mv_margem_item
+        {clausula.where(condicao)}
+        """,
+        [*clausula.parametros, *valores],
+    )
+    if not cabecalho.get("linhas"):
+        return None
+
+    dimensoes = _um(
+        f"""
+        SELECT array_agg(DISTINCT armazem_rotulo) FILTER (WHERE armazem_rotulo IS NOT NULL)
+                   AS armazens,
+               array_agg(DISTINCT canal) FILTER (WHERE canal IS NOT NULL) AS canais
+        FROM mv_margem_item
+        {clausula.where(condicao)}
+        """,
+        [*clausula.parametros, *valores],
+    )
+
+    total = _um(
+        f"""
+        SELECT count(*) AS total FROM (
+            SELECT {CHAVE_PEDIDO} AS chave, nota_fiscal, serie_nf
+            FROM mv_margem_item
+            {clausula.where(condicao)}
+            GROUP BY 1, 2, 3
+        ) t
+        """,
+        [*clausula.parametros, *valores],
+    )
+
+    # Uma linha por (pedido, nota): e o "quanto deste item saiu em cada pedido".
+    # O mesmo SKU pode repetir em itens diferentes do pedido, e um pedido pode
+    # sair em mais de uma nota — agrupar so por pedido esconderia o documento.
+    pedidos_do_sku = _linhas(
+        f"""
+        SELECT {CHAVE_PEDIDO}                       AS chave,
+               CASE WHEN min(num_pedido) IS NULL THEN 'pdv' ELSE 'pedido' END
+                                                    AS origem,
+               min(num_pedido)                      AS num_pedido,
+               nota_fiscal,
+               serie_nf,
+               min(emissao)                         AS emissao,
+               min(competencia)                     AS competencia,
+               min(cod_cliente)                     AS cod_cliente,
+               min(nome_cliente)                    AS nome_cliente,
+               min(canal)                           AS canal,
+               min(vendedor_codigo)                 AS vendedor_codigo,
+               min(vendedor_nome)                   AS vendedor_nome,
+               min(armazem)                         AS armazem,
+               min(armazem_rotulo)                  AS armazem_rotulo,
+               count(*)                             AS linhas,
+               sum(quantidade)                      AS quantidade,
+               -- Preco e custo unitarios sao medias ponderadas: o SKU pode
+               -- repetir na mesma nota com precos diferentes.
+               CASE WHEN sum(quantidade) <> 0
+                    THEN round(sum(receita_bruta) / sum(quantidade), 4) END
+                                                    AS vlr_unitario,
+               sum(receita_bruta)                   AS receita_bruta,
+               sum(desconto)                        AS desconto,
+               sum(receita_liquida)                 AS receita_liquida,
+               CASE WHEN sum(quantidade) <> 0
+                    THEN round(sum(custo_total) / sum(quantidade), 4) END
+                                                    AS custo_unitario_ref,
+               min(origem_custo)                    AS origem_custo,
+               sum(custo_total)                     AS custo_total,
+               sum(margem_bruta)                    AS margem_bruta,
+               sum(margem_liquida)                  AS margem_liquida,
+               CASE WHEN sum(receita_bruta) <> 0
+                    THEN round(sum(margem_bruta) / sum(receita_bruta), 6) END
+                                                    AS margem_pct,
+               bool_or(sem_custo)                   AS sem_custo,
+               bool_or(outlier_custo)               AS outlier_custo,
+               bool_and(tes_receita)                AS tes_receita
+        FROM mv_margem_item
+        {clausula.where(condicao)}
+        GROUP BY 1, nota_fiscal, serie_nf
+        ORDER BY {ordem}
+        LIMIT %s OFFSET %s
+        """,
+        [*clausula.parametros, *valores, limite, offset],
+    )
+
+    # Quem vendeu o item. Nao e ranking de vendedor (Regra 1): o Marketplace entra
+    # aqui com vendedor nulo, e a tela rotula como canal.
+    vendedores_do_sku = _linhas(
+        f"""
+        SELECT vendedor_codigo,
+               min(vendedor_nome)                   AS vendedor_nome,
+               count(DISTINCT {CHAVE_PEDIDO})       AS pedidos,
+               sum(quantidade)                      AS quantidade,
+               sum(receita_bruta)                   AS receita,
+               sum(margem_bruta)                    AS margem,
+               CASE WHEN sum(receita_bruta) <> 0
+                    THEN round(sum(margem_bruta) / sum(receita_bruta), 6) END
+                                                    AS margem_pct
+        FROM mv_margem_item
+        {clausula.where(condicao)}
+        GROUP BY vendedor_codigo
+        ORDER BY sum(receita_bruta) DESC NULLS LAST
+        """,
+        [*clausula.parametros, *valores],
+    )
+
+    linhas_no_escopo = _um(
+        f"SELECT count(*) AS total FROM mv_margem_item {escopo_puro.where(condicao)}",
+        [*escopo_puro.parametros, *valores],
+    ).get("total", 0)
+
+    quantidade = cabecalho.get("quantidade") or Decimal(0)
+
+    return {
+        "total": total.get("total", 0),
+        "sku": {
+            "sku": sku,
+            "descricao": cabecalho.get("descricao"),
+            "grupo_codigo": cabecalho.get("grupo_codigo"),
+            "grupo_rotulo": cabecalho.get("grupo_rotulo"),
+            "grupo_reclassificado": bool(cabecalho.get("grupo_reclassificado")),
+            "armazens": sorted(dimensoes.get("armazens") or []),
+            "canais": sorted(dimensoes.get("canais") or []),
+            "pedidos": cabecalho.get("pedidos") or 0,
+            "notas": cabecalho.get("notas") or 0,
+            "linhas": cabecalho.get("linhas") or 0,
+            "clientes": cabecalho.get("clientes") or 0,
+            "primeira_venda": cabecalho.get("primeira_venda"),
+            "ultima_venda": cabecalho.get("ultima_venda"),
+            "quantidade": quantidade,
+            "receita": cabecalho.get("receita") or Decimal(0),
+            "desconto": cabecalho.get("desconto") or Decimal(0),
+            "receita_liquida": cabecalho.get("receita_liquida") or Decimal(0),
+            "custo": cabecalho.get("custo") or Decimal(0),
+            "margem": cabecalho.get("margem") or Decimal(0),
+            "margem_liquida": cabecalho.get("margem_liquida") or Decimal(0),
+            "margem_pct": _pct(
+                cabecalho.get("margem_no_kpi"), cabecalho.get("base_margem")
+            ),
+            "margem_liquida_pct": _pct(
+                cabecalho.get("margem_liquida_no_kpi"),
+                cabecalho.get("base_margem_liquida"),
+            ),
+            # Preco e custo medios do periodo: e o par que explica a margem sem
+            # obrigar a abrir pedido por pedido.
+            "preco_medio": _media(cabecalho.get("receita"), quantidade),
+            "custo_medio": _media(cabecalho.get("custo"), quantidade),
+            "itens_fora_do_kpi": cabecalho.get("itens_fora_do_kpi") or 0,
+            "linhas_fora_do_recorte": max(
+                linhas_no_escopo - (cabecalho.get("linhas") or 0), 0
+            ),
+        },
+        "pedidos": pedidos_do_sku,
+        "vendedores": vendedores_do_sku,
+    }
+
+
+def sku_suprimentos(sku: str) -> dict[str, Any]:
+    """Estoque e ultimas entradas do item, lidos do staging.
+
+    Nao ha materialized view aqui de proposito: e leitura pontual de um SKU, nao
+    agregado de BI. O SB2 e a unica fonte sempre presente do **valor** da ultima
+    compra (`V. Ult. Comp`), mas ele nao guarda a data dela; a data real so existe
+    no SD1, cujo export cobre um periodo proprio — entao a lista de compras pode
+    vir legitimamente vazia, e a tela diz isso em vez de esconder o bloco.
+    """
+    estoque = _linhas(
+        """
+        SELECT b.armazem,
+               CASE
+                   WHEN b.armazem IS NULL THEN 'Sem armazem'
+                   ELSE COALESCE(ar.rotulo, b.armazem || ' - sem cadastro')
+               END                              AS armazem_rotulo,
+               b.saldo_atual,
+               COALESCE(b.sld_atu, b.saldo_disp) AS saldo_disponivel,
+               b.custo_unitario,
+               b.vlr_ult_compra,
+               b.dt_carga
+        FROM stg_sb2 b
+        LEFT JOIN core_mapaarmazem ar ON ar.codigo = b.armazem
+        WHERE b.produto = %s
+          AND b.dt_carga = (SELECT max(dt_carga) FROM stg_sb2)
+        ORDER BY b.armazem
+        """,
+        [sku],
+    )
+
+    # `tipo_docto = 'N'`: so entrada normal e compra. 'D' e devolucao de cliente e
+    # 'C' complemento de nota — nenhum dos dois responde "quando eu comprei isto".
+    #
+    # O agrupamento por documento nao e cosmetico: o SD1 nao tem chave natural
+    # unica (o mesmo item pode repetir em linhas diferentes da mesma nota), entao
+    # sem ele a lista mostraria a mesma compra tres vezes.
+    compras = _linhas(
+        """
+        SELECT d.dt_emissao,
+               d.documento,
+               d.serie,
+               -- O SD1 traz o codigo do fornecedor, nunca o nome. A tela mostra o
+               -- codigo/loja como estao; inventar um nome aqui seria pior.
+               d.forn_cliente,
+               d.loja,
+               d.armazem,
+               sum(d.quantidade)   AS quantidade,
+               sum(d.custo_moeda1) AS custo_total,
+               CASE WHEN sum(d.quantidade) <> 0
+                    THEN round(sum(d.vlr_unitario * d.quantidade)
+                               / sum(d.quantidade), 4) END AS vlr_unitario
+        FROM stg_sd1 d
+        WHERE d.produto = %s
+          AND d.tipo_docto = 'N'
+          AND d.dt_carga = (SELECT max(dt_carga) FROM stg_sd1)
+        GROUP BY d.dt_emissao, d.documento, d.serie, d.forn_cliente, d.loja, d.armazem
+        ORDER BY d.dt_emissao DESC NULLS LAST
+        LIMIT 10
+        """,
+        [sku],
+    )
+    return {"estoque": estoque, "compras": compras}
