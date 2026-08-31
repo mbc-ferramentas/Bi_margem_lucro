@@ -45,7 +45,9 @@ passa a fazer sentido.
 | 1 | **Canal ≠ vendedor.** Vendedor 72 "VENDAS LEXOS" é o integrador de marketplace (Amazon, Magalu, Shopee, Mercado Livre), não uma pessoa — 94% dos pedidos e 68,5% da receita. Canal (`Marketplace` / `Venda interna` / `Balcão-PDV`) e vendedor são dimensões separadas; ranking de rentabilidade por vendedor só dentro de "Venda interna". O armazém **não** serve para segmentar canal: 97,9% da receita está no armazém 02. | Decidida |
 | 2 | **Quarentena de outlier de custo.** Linhas com margem muito negativa são erro de cadastro, não prejuízo (ex.: SKU 60186 com custo 1.449,75 no armazém 02 e 147,91 no 13, vendido a 150,00 — distorce a margem global em ~2 p.p. sozinho). | **Em aberto** — definir o corte |
 | 3 | **Cascata de custo:** `D2_CUSTO1` (custo congelado na saída) → `C Unitario` → `V. Ult. Comp` → custo do mesmo produto em outro armazém → `sem_custo` (fora do KPI, identificável pela flag em `mv_margem_item`). | Decidida |
-| 4 | **Grupo vazio = `(sem classificação)`**, categoria explícita e visível em todos os cortes — 11,5% da receita. Reclassificação por SKU via Django Admin. Nunca somar silenciosamente no Agrícola. | Decidida |
+| 4 | **Grupo vazio = `Sem grupo`**, categoria explícita e visível em todos os cortes — 11,5% da receita. Reclassificação por SKU via Django Admin. Nunca somar silenciosamente no Agrícola. | Decidida |
+| 4.2 | **Armazém > grupo.** O mesmo grupo aparece em vários armazéns (Ecommerce em 4 deles), então grupo sozinho não organiza a análise: armazém é a dimensão de fora. Código padronizado em 2 dígitos no ETL; rótulo em `MapaArmazem`; armazém sem cadastro visível como `20 - sem cadastro`. As listas de filtro saem em cascata — cada dimensão recortada pelas outras, nunca por si mesma. | Decidida |
+| 4.1 | **Consolidação de grupos.** As caudas do Protheus somam no grupo principal via `MapaGrupo.agrupa_em`: 0129 (Ecommerce - acessórios, 90 linhas) → 0128, 0150 (Diversos, 33 linhas) → 0057. Restam três baldes: `Ecommerce`, `Agricola`, `Sem grupo`. Fusão é por **código** (o filtro da API casa por código, não por rótulo); `grupo_codigo_origem` preserva o código cru para auditoria. Um nível só. | Decidida |
 | 5 | **Pedido do SD2 ausente no SC5** aparece como `(pedido sem cadastro)` e nunca some do faturamento. Causa provável: SC5 exportado por data de emissão do pedido e SD2 por data da nota. Pedir SC5 com janela ~90 dias maior. | Decidida |
 | 6 | **Devolução por competência** (estorna no mês da venda original), com a tela exibindo a data do último recálculo. | Fase 2 |
 
@@ -122,7 +124,7 @@ Responsabilidades:
    com frequência durante a validação do cálculo de margem:
    - `RegraCusto` — fallback quando `V. Ult. Comp` vem zerado
    - `ComissaoCanal` — percentual por armazém (13 = Full Mercado Livre)
-   - `MapaArmazem`, `MapaGrupo` — rótulos de negócio
+   - `MapaArmazem`, `MapaGrupo` — rótulos de negócio (ambos implementados)
 3. **DRF** — endpoints de leitura que executam SQL puro contra as materialized views.
 
 O que o Django **não** faz: agregação analítica. Nenhum `annotate()` / `aggregate()`
@@ -904,7 +906,7 @@ Observação sobre o SB2: apesar de 39,8% do cadastro estar sem custo, isso atin
   o PDV tem outro tratamento de custo/preço?
 - **MATEUS B. CARVALHO: 0,9% de margem em 7 linhas / R$ 63.760** — desconto aprovado
   ou erro de cadastro?
-- **Grupo vazio**: confirmado como `(sem classificação)`, mas falta saber a origem
+- **Grupo vazio**: confirmado como `Sem grupo`, mas falta saber a origem
   (itens antigos? serviços? uso interno?) para orientar a reclassificação.
 
 ### Fase 2
