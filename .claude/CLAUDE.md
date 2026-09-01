@@ -1,7 +1,8 @@
 # BI de Margem de Lucro
 
 BI de margem bruta sobre exportações CSV do Protheus (`SB2`, `SC5`, `SC6`, `SD1`, `SD2`).
-Django 5 + DRF no backend, React 18 + Vite + TS no frontend, Postgres 18 em container.
+Django 5 + DRF no backend, React 19 + Vite + TS + Tailwind v4 + shadcn/ui (base: Base UI)
+no frontend, Postgres 18 em container.
 Tudo roda em Docker — **não existe fluxo de execução no host**.
 
 Fase 1 = margem bruta: `receita − (quantidade × custo unitário)`. Sem impostos, frete,
@@ -20,7 +21,18 @@ make carregar   # ETL contra os CSVs em data/dados/usarei
 make shell      # django shell
 make logs       # logs da api
 make deploy     # produção na VPS (docker-compose.vps.yml)
+
+make web-lint   # tsc --noEmit no container do frontend
+make web-test   # vitest no container do frontend
+make web-build  # build de produção do SPA
+make web-sh     # shell no container do frontend
 ```
+
+O `node_modules` do frontend é um **volume nomeado** que cobre o da imagem: `npm` e
+`npx` (inclusive `npx shadcn@latest add`) só funcionam **de dentro do container**.
+`package.json`/`package-lock.json` são bind mount e voltam para o host sozinhos; os
+arquivos gerados dentro do container nascem com dono `root` — devolva a posse com
+`chown -R 1000:1000 /app/src` antes de editá-los pelo host.
 
 Comando avulso no container: `docker compose --env-file container/.env.dev -f container/docker-compose.dev.yml exec bi-margem-lucro-api <cmd>`.
 
@@ -38,7 +50,7 @@ config/            settings.py, urls.py (health, admin, api/v1)
 apps/core/         models de cadastro + migrations SQL (staging e materialized views)
 apps/etl/          readers (Polars) → Parquet → writers (COPY no Postgres)
 apps/api/          DRF com SQL puro sobre as views + RBAC
-frontend/src/      React + TanStack Query + ECharts (páginas em português)
+frontend/src/      React + TanStack Query + ECharts + shadcn/ui (páginas em português)
 tests/             ~123 testes ancorados no baseline real de 07/2026
 docs/Dados.md      como extrair cada relatório do Protheus
 data/stack.md      regras de negócio decididas (fonte da verdade, fora do git)
@@ -115,6 +127,21 @@ Alterar `ParamOutlier`, `MapaCanal`, `MapaGrupo`, `MapaArmazem`, `MapaTES` ou
 - Código, nomes de arquivo, models e páginas em **português**; comentários explicam *por quê*,
   não *o quê*.
 - `ruff`, `line-length = 100`, target py312. Lint com `select = ["E","F","I","UP","B","DJ"]`.
+- No frontend, `src/componentes/ui/` é código **vendorizado** pelo shadcn (em inglês, com
+  o alias `@/`): não reescreva à mão — atualize com `npx shadcn@latest add <item> --diff`.
+  Os componentes da casa (`Visual.tsx`, `Tabela.tsx`, `Layout.tsx`, `Filtros.tsx`…)
+  continuam em português e são a única camada que as páginas importam.
+- Tokens de cor em `src/index.css`. Os do shadcn vestem a interface; `--chart-1..5` e
+  `--status-*` são a **paleta validada de dataviz** — a ordem dos slots é o mecanismo de
+  segurança para daltonismo, e trocar qualquer valor exige rodar o validador da skill
+  `dataviz` nos dois modos.
+- Tema claro/escuro/sistema em `src/tema.ts`: publica a classe `.dark` na raiz (é o que o
+  Tailwind enxerga) e o `color-scheme`. O primeiro frame vem de um script inline no
+  `<head>` do `index.html` — sem ele a tela pisca clara a cada carregamento.
+- Gráfico novo usa `useOpcaoGrafico(fabrica, deps)` de `Grafico.tsx`, que injeta o tema
+  resolvido nas dependências, e `token("--x")` para ler cor — o SVGRenderer do ECharts não
+  resolve `var()` dentro de uma string de cor.
+- Tabela nova usa `Tabela` (`src/componentes/Tabela.tsx`), nunca `<table>` à mão.
 - Testes com `pytest-django`; a fixture `carga` (session-scoped, `tests/conftest.py`) roda o
   ETL contra os CSVs reais. Os números esperados são o baseline de 07/2026 — se um teste de
   valor quebra, verifique se o dado mudou antes de mudar o teste.
