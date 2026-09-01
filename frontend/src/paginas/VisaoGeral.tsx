@@ -306,9 +306,11 @@ export function VisaoGeral() {
     const negativa = token("--status-critico");
     return {
       ...base,
-      // Espaco dos dois lados: as barras negativas crescem para a esquerda e
-      // levam o rotulo junto.
-      grid: { ...base.grid, left: 112, right: 112, top: 8 },
+      // Assimetrico de proposito: a esquerda so precisa caber o codigo do SKU
+      // (eixo), porque o rotulo do valor negativo foi para o lado do zero, e
+      // nao mais para a ponta esquerda da barra — onde colidia com o codigo. A
+      // direita fica larga para o rotulo das barras positivas.
+      grid: { ...base.grid, left: 52, right: 112, top: 8 },
       legend: { show: false },
       tooltip: { ...base.tooltip, valueFormatter: (v) => moeda(v as number) },
       xAxis: {
@@ -338,6 +340,10 @@ export function VisaoGeral() {
                 extremos[p.dataIndex].margem_pct,
               )}`,
           },
+          // Rede de seguranca: num recorte apertado varias barras ficam curtas e
+          // proximas do zero, e os rotulos se empilhariam ilegiveis. Aqui o
+          // ECharts esconde o que sobrepoe em vez de embaralhar tudo.
+          labelLayout: { hideOverlap: true },
           data: extremos.map((item) => {
             const valor = numeroBruto(item.margem);
             const perda = valor < 0;
@@ -347,9 +353,11 @@ export function VisaoGeral() {
                 color: perda ? negativa : positiva,
                 borderRadius: perda ? [4, 0, 0, 4] : [0, 4, 4, 0],
               },
-              // A barra negativa cresce para a esquerda: com o rotulo a direita
-              // ele cairia em cima do zero, onde comecam as barras positivas.
-              label: perda ? { position: "left" as const } : undefined,
+              // A barra negativa cresce para a esquerda; o rotulo vai para o lado
+              // do zero (`right` = borda da barra junto ao zero, crescendo para a
+              // direita, area vazia da linha) em vez da ponta esquerda, onde
+              // batia no codigo do SKU do eixo.
+              label: perda ? { position: "right" as const } : undefined,
             };
           }),
         },
@@ -633,7 +641,7 @@ export function VisaoGeral() {
               ) : (
                 <Grafico
                   opcao={opcaoArmazem}
-                  altura={260}
+                  altura={320}
                   rotuloAcessivel="Margem bruta por armazém, do maior para o menor."
                   aoClicar={irParaArmazens}
                 />
@@ -662,7 +670,7 @@ export function VisaoGeral() {
               ) : (
                 <Grafico
                   opcao={opcaoSkus}
-                  altura={260}
+                  altura={320}
                   rotuloAcessivel="Margem bruta por SKU: os que mais somam e os que mais tiram."
                   aoClicar={irParaSku}
                 />
