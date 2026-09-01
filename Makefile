@@ -4,8 +4,9 @@
 DEV  := docker compose --env-file container/.env.dev -f container/docker-compose.dev.yml
 PROD := docker compose -f container/docker-compose.vps.yml
 API  := bi-margem-lucro-api
+WEB  := bi-margem-lucro-web
 
-.PHONY: dev down logs shell migrate carregar test lint deploy
+.PHONY: dev down logs shell migrate carregar test lint deploy web-sh web-lint web-test web-build
 
 dev:                      ## sobe o ambiente de desenvolvimento
 	$(DEV) up -d --build
@@ -32,6 +33,21 @@ test:
 lint:
 	$(DEV) exec $(API) ruff check .
 	$(DEV) exec $(API) ruff format --check .
+
+# O node_modules do front e um volume nomeado que cobre o da imagem: npm so
+# funciona de dentro do container. package.json e package-lock.json sao bind
+# mount e voltam para o host sozinhos.
+web-sh:                   ## shell no container do frontend
+	$(DEV) exec $(WEB) sh
+
+web-lint:                 ## typecheck do frontend (tsc --noEmit)
+	$(DEV) exec $(WEB) npm run lint
+
+web-test:                 ## vitest do frontend
+	$(DEV) exec $(WEB) npm run test
+
+web-build:                ## build de producao do SPA
+	$(DEV) exec $(WEB) npm run build
 
 deploy:                   ## producao na VPS
 	# migrate e collectstatic rodam no proprio container da api (ver vps.yml).

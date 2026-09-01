@@ -113,8 +113,19 @@ bonificação e transferência — mas o BI não adivinha qual é qual. Todo TES
 `MapaTES` contando como venda; desmarcar `gera_receita` no Admin tira a linha do KPI
 sem tirá-la do faturamento. Os 32 códigos do período já vêm cadastrados.
 
+**Armazém > grupo**: o mesmo grupo vende por mais de um armazém, então a leitura do BI é
+armazém por fora e grupo por dentro — a tela **Por armazém** abre cada armazém nos seus
+grupos, e o filtro de grupo já vem recortado pelo armazém escolhido. O código é padronizado
+em dois dígitos no ETL (`01`, `02`), e `MapaArmazem` guarda o nome de negócio; armazém que
+aparece no export sem estar cadastrado sai como `20 - sem cadastro`.
+
 **Grupo** (Regra 4): reclassificação manual → grupo da linha faturada (`SD2`) →
-cadastro do `SB2` → `(sem classificação)` (2.232 linhas, 11,2% da receita).
+cadastro do `SB2` → `Sem grupo` (2.232 linhas, 11,2% da receita). O resultado dessa
+cascata é o código cru (`grupo_codigo_origem`); o `grupo_codigo` que a API publica já
+passou pela consolidação de `MapaGrupo.agrupa_em` — 0150 (Diversos) soma em 0057
+(Agricola). Cada grupo cadastrado vira um marcador na barra de filtros e dá para
+selecionar vários de uma vez. Apontar um grupo novo para outro (ou nomeá-lo) é
+cadastro no Admin, seguido de `refresh_views`.
 
 **Canal ≠ vendedor** (Regra 1): o código 72 é o integrador Lexos (Amazon, Magalu,
 Shopee, Mercado Livre), não uma pessoa — 94% dos pedidos. Vira canal, nunca entra em
