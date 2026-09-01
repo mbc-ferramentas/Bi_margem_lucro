@@ -17,7 +17,7 @@
 
 import { ArrowLeftIcon, EyeIcon } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 
 import { useSku } from "../api/hooks";
 import type { CompraSku, EstoqueSku, PedidoDoSku, VendedorDoSku } from "../api/tipos";

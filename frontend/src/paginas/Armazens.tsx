@@ -12,7 +12,7 @@
 import type { EChartsOption } from "echarts";
 import { ChevronRightIcon, EyeIcon } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import { useArmazens } from "../api/hooks";
 import type { LinhaArmazem } from "../api/tipos";

@@ -18,7 +18,7 @@
 
 import { ArrowLeftIcon, EyeIcon } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 
 import { usePedidos } from "../api/hooks";
 import type { LinhaPedido, ResumoPedidos } from "../api/tipos";

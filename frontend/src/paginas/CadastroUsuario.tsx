@@ -12,7 +12,7 @@
  */
 
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router";
 
 import { ErroApi } from "../api/cliente";
 import { useSalvarUsuario, useUsuarios } from "../api/hooks";

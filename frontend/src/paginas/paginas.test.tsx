@@ -13,7 +13,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { JSX } from "react";
 import { cleanup, render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Um stub só para todos os hooks: nenhum deles chega a devolver dado aqui.

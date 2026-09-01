@@ -11,7 +11,7 @@
 
 import { ArrowLeftIcon } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 
 import { usePedido } from "../api/hooks";
 import type { ItemPedido } from "../api/tipos";

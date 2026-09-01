@@ -1,7 +1,7 @@
 import type { EChartsOption } from "echarts";
 import { EyeIcon } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import { useVendedores } from "../api/hooks";
 import type { Filtros } from "../api/tipos";

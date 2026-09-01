@@ -1,6 +1,6 @@
 import { EyeIcon } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import { useSkus } from "../api/hooks";
 import type { Filtros, ItemSku } from "../api/tipos";

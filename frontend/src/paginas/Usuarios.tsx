@@ -16,7 +16,7 @@
 
 import { PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 import { ErroApi } from "../api/cliente";
 import { useEu, useRedefinirSenha, useRemoverUsuario, useUsuarios } from "../api/hooks";

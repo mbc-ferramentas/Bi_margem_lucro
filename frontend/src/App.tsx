@@ -1,4 +1,4 @@
-import { Navigate, Outlet, Route, Routes } from "react-router-dom";
+import { Navigate, Outlet, Route, Routes } from "react-router";
 
 import { tokens } from "./api/cliente";
 import { Layout } from "./componentes/Layout";

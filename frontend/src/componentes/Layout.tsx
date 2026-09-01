@@ -11,7 +11,7 @@ import {
   UsersIcon,
   UsersRoundIcon,
 } from "lucide-react";
-import { Navigate, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Navigate, NavLink, Outlet, useNavigate } from "react-router";
 
 import { ErroApi, tokens } from "../api/cliente";
 import { useEu } from "../api/hooks";
