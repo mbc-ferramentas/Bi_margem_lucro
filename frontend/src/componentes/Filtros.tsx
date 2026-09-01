@@ -1,6 +1,15 @@
 import { useOpcoes } from "../api/hooks";
 import type { Filtros } from "../api/tipos";
 import { competencia } from "../formato";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/componentes/ui/select";
+import { Label } from "@/componentes/ui/label";
 import { SeletorGrupos } from "./SeletorGrupos";
 import { ChipsFiltros } from "./Visual";
 
@@ -15,21 +24,41 @@ type Props = {
   ocultarArmazem?: boolean;
 };
 
+/** Sentinela do "sem filtro". O Select do Base UI trata "" como ausencia de
+ *  valor e cai no placeholder, entao a opcao "Todos" precisa de um valor
+ *  proprio — que nunca chega a API. */
+const TODOS = "__todos__";
+
+const ROTULO = "text-[11px] tracking-wider text-muted-foreground uppercase";
+
+function Campo({ children }: { children: React.ReactNode }) {
+  return <div className="flex flex-col gap-1.5">{children}</div>;
+}
+
 export function BarraFiltros({ valor, aoMudar, ocultarCanal, ocultarArmazem }: Props) {
   // As opcoes vem recortadas pelos filtros ativos: escolher um armazem reduz a
   // lista de grupos aos que existem nele. Por isso o proprio `valor` entra aqui.
   const { data } = useOpcoes(valor);
   const opcoes = data?.opcoes;
 
+  // O Base UI devolve `null` quando a selecao e limpa; para a API isso e a
+  // mesma coisa que a sentinela "Todos": o filtro simplesmente nao vai.
   function definir(chave: keyof Filtros) {
-    return (evento: React.ChangeEvent<HTMLSelectElement>) =>
-      aoMudar({ ...valor, [chave]: evento.target.value || undefined });
+    return (escolhido: string | null) =>
+      aoMudar({
+        ...valor,
+        [chave]: !escolhido || escolhido === TODOS ? undefined : escolhido,
+      });
   }
 
   // Trocar de armazem pode deixar o grupo escolhido fora do recorte novo. Manter
   // o grupo antigo devolveria tela vazia sem explicar por que.
-  function definirArmazem(evento: React.ChangeEvent<HTMLSelectElement>) {
-    aoMudar({ ...valor, armazem: evento.target.value || undefined, grupo: [] });
+  function definirArmazem(escolhido: string | null) {
+    aoMudar({
+      ...valor,
+      armazem: !escolhido || escolhido === TODOS ? undefined : escolhido,
+      grupo: [],
+    });
   }
 
   // As competencias sao AAAA-MM zero-padded: comparar como string ja ordena por
@@ -38,76 +67,112 @@ export function BarraFiltros({ valor, aoMudar, ocultarCanal, ocultarArmazem }: P
   const fim = valor.competencia_fim ?? "";
 
   return (
-    <><div className="filtros">
-      <div className="campo campo-periodo">
-        <span className="rotulo-grupo">Período</span>
-        <div className="intervalo" role="group" aria-label="Período">
-          <select
-            id="f-inicio"
-            aria-label="Competência inicial"
-            value={inicio}
-            onChange={definir("competencia_inicio")}
-          >
-            <option value="">Início</option>
-            {opcoes?.competencias.map((c) => (
-              <option key={c} value={c.slice(0, 7)} disabled={!!fim && c.slice(0, 7) > fim}>
-                {competencia(c)}
-              </option>
-            ))}
-          </select>
-          <span className="ate">até</span>
-          <select
-            id="f-fim"
-            aria-label="Competência final"
-            value={fim}
-            onChange={definir("competencia_fim")}
-          >
-            <option value="">Fim</option>
-            {opcoes?.competencias.map((c) => (
-              <option key={c} value={c.slice(0, 7)} disabled={!!inicio && c.slice(0, 7) < inicio}>
-                {competencia(c)}
-              </option>
-            ))}
-          </select>
-        </div>
+    <div className="mb-4 flex flex-col gap-2.5">
+      <div className="flex flex-wrap items-end gap-2.5">
+        <Campo>
+          <span className={ROTULO}>Período</span>
+          <div className="flex items-center gap-1.5" role="group" aria-label="Período">
+            <Select
+              value={inicio || TODOS}
+              onValueChange={definir("competencia_inicio")}
+            >
+              <SelectTrigger size="sm" aria-label="Competência inicial">
+                <SelectValue placeholder="Início" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value={TODOS}>Início</SelectItem>
+                  {opcoes?.competencias.map((c) => (
+                    <SelectItem
+                      key={c}
+                      value={c.slice(0, 7)}
+                      disabled={!!fim && c.slice(0, 7) > fim}
+                    >
+                      {competencia(c)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground">até</span>
+            <Select value={fim || TODOS} onValueChange={definir("competencia_fim")}>
+              <SelectTrigger size="sm" aria-label="Competência final">
+                <SelectValue placeholder="Fim" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value={TODOS}>Fim</SelectItem>
+                  {opcoes?.competencias.map((c) => (
+                    <SelectItem
+                      key={c}
+                      value={c.slice(0, 7)}
+                      disabled={!!inicio && c.slice(0, 7) < inicio}
+                    >
+                      {competencia(c)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+        </Campo>
+
+        {!ocultarCanal && (
+          <Campo>
+            <Label htmlFor="f-canal" className={ROTULO}>
+              Canal
+            </Label>
+            <Select value={valor.canal ?? TODOS} onValueChange={definir("canal")}>
+              <SelectTrigger id="f-canal" size="sm" className="min-w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value={TODOS}>Todos</SelectItem>
+                  {opcoes?.canais.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Campo>
+        )}
+
+        {/* Armazem antes de grupo: a ordem na barra e a hierarquia da analise. */}
+        {!ocultarArmazem && (
+          <Campo>
+            <Label htmlFor="f-armazem" className={ROTULO}>
+              Armazém
+            </Label>
+            <Select value={valor.armazem ?? TODOS} onValueChange={definirArmazem}>
+              <SelectTrigger id="f-armazem" size="sm" className="min-w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value={TODOS}>Todos</SelectItem>
+                  {opcoes?.armazens.map((a) => (
+                    <SelectItem key={a.codigo} value={a.codigo}>
+                      {a.rotulo ?? a.codigo}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Campo>
+        )}
+
+        <SeletorGrupos
+          opcoes={opcoes?.grupos}
+          valor={valor.grupo}
+          aoMudar={(grupos) => aoMudar({ ...valor, grupo: grupos })}
+          idPrefixo="f"
+        />
       </div>
 
-      {!ocultarCanal && (
-        <div className="campo">
-          <label htmlFor="f-canal">Canal</label>
-          <select id="f-canal" value={valor.canal ?? ""} onChange={definir("canal")}>
-            <option value="">Todos</option>
-            {opcoes?.canais.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {/* Armazem antes de grupo: a ordem na barra e a hierarquia da analise. */}
-      {!ocultarArmazem && (
-        <div className="campo">
-          <label htmlFor="f-armazem">Armazém</label>
-          <select id="f-armazem" value={valor.armazem ?? ""} onChange={definirArmazem}>
-            <option value="">Todos</option>
-            {opcoes?.armazens.map((a) => (
-              <option key={a.codigo} value={a.codigo}>
-                {a.rotulo ?? a.codigo}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      <SeletorGrupos
-        opcoes={opcoes?.grupos}
-        valor={valor.grupo}
-        aoMudar={(grupos) => aoMudar({ ...valor, grupo: grupos })}
-        idPrefixo="f"
-      />
-
-    </div><ChipsFiltros valor={valor} aoMudar={aoMudar} /></>
+      <ChipsFiltros valor={valor} aoMudar={aoMudar} />
+    </div>
   );
 }

@@ -10,33 +10,42 @@
  */
 
 import type { EChartsOption } from "echarts";
-import { useMemo, useState } from "react";
 
 import { useKpis, useOpcoes, useSerie } from "../api/hooks";
 import type { Filtros } from "../api/tipos";
-import { Grafico, baseDoTema, corDaSerie } from "../componentes/Grafico";
+import { Label } from "@/componentes/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/componentes/ui/select";
+import { Grafico, baseDoTema, corDaSerie, useOpcaoGrafico } from "../componentes/Grafico";
 import { AvisoMarketplace, Erro, Vazio } from "../componentes/Layout";
-import { SeletorTema } from "../componentes/SeletorTema";
 import { SkeletonGrafico, SkeletonTiles } from "../componentes/Skeleton";
+import { CabecalhoPagina, CartaoKpi, GradeKpis, Secao } from "../componentes/Visual";
+import { useFiltrosUrl } from "../filtrosUrl";
 import { dataCurta, inteiro, moeda, moedaCurta, percentual } from "../formato";
-import { useTema } from "../tema";
 
 export function Canais() {
   const { data: opcoes } = useOpcoes();
   const canais = opcoes?.opcoes.canais ?? [];
-  const [canal, setCanal] = useState<string | null>(null);
+  // O canal escolhido mora na URL: esta e a tela que mais se manda por link
+  // ("olha o marketplace de julho"), e em estado local o link chegava no canal
+  // errado do outro lado.
+  const [filtrosUrl, setFiltros] = useFiltrosUrl();
 
-  const canalAtivo = canal ?? canais[0] ?? null;
+  const canalAtivo = filtrosUrl.canal ?? canais[0] ?? null;
   const filtros: Filtros = canalAtivo ? { canal: canalAtivo } : {};
 
   const kpis = useKpis(filtros);
   const serie = useSerie(filtros, "dia");
 
-  // Ver a nota em VisaoGeral: `resolvido` entra nas deps porque baseDoTema() e
+  // useOpcaoGrafico injeta o tema resolvido nas deps: baseDoTema() e
   // corDaSerie() leem as variaveis CSS no momento do calculo.
-  const { resolvido } = useTema();
-
-  const opcao = useMemo<EChartsOption>(() => {
+  const opcao = useOpcaoGrafico<EChartsOption>(() => {
     const base = baseDoTema();
     const pontos = [...(serie.data?.serie ?? [])].sort((a, b) =>
       a.periodo.localeCompare(b.periodo),
@@ -65,87 +74,84 @@ export function Canais() {
         },
       ],
     };
-  }, [serie.data, resolvido]);
+  }, [serie.data]);
 
   const k = kpis.data?.kpis;
   const ehMarketplace = canalAtivo === "Marketplace";
 
   return (
     <>
-      <div className="cabecalho">
-        <div>
-          <h1>Por canal</h1>
-          <p className="subtitulo">
-            Um canal por vez. A comparação entre canais entra na fase 2, quando a
-            comissão de marketplace estiver lançada.
-          </p>
-        </div>
-        <SeletorTema />
-      </div>
+      <CabecalhoPagina
+        titulo="Por canal"
+        descricao="Um canal por vez. A comparação entre canais entra na fase 2, quando a comissão de marketplace estiver lançada."
+      />
 
       {ehMarketplace && kpis.data && (
         <AvisoMarketplace texto={kpis.data.escopo.aviso_marketplace} />
       )}
 
-      <div className="filtros">
-        <div className="campo">
-          <label htmlFor="sel-canal">Canal</label>
-          <select
-            id="sel-canal"
-            value={canalAtivo ?? ""}
-            onChange={(e) => setCanal(e.target.value)}
-          >
-            {canais.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="mb-4 flex flex-col gap-1.5">
+        <Label htmlFor="sel-canal" className="text-[11px] tracking-wider text-muted-foreground uppercase">
+          Canal
+        </Label>
+        <Select
+          value={canalAtivo ?? ""}
+          onValueChange={(valor) => setFiltros(valor ? { canal: valor } : {})}
+        >
+          <SelectTrigger id="sel-canal" size="sm" className="min-w-44">
+            <SelectValue placeholder="Selecione um canal" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {canais.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </div>
 
       {kpis.isError && <Erro mensagem={(kpis.error as Error).message} />}
       {kpis.isPending && <SkeletonTiles quantidade={3} />}
 
       {k && (
-        <div className="grade grade-tiles">
-          <div className="cartao tile">
-            <div className="rotulo">Receita bruta</div>
-            <div className="valor">{moeda(k.receita_bruta)}</div>
-            <div className="apoio">{inteiro(k.pedidos)} pedidos</div>
-          </div>
-          <div className="cartao tile">
-            <div className="rotulo">Margem bruta</div>
-            <div className="valor">{moeda(k.margem_bruta)}</div>
-            <div className="apoio">
-              {percentual(k.margem_pct)}
-              {ehMarketplace && " — antes da comissão"}
-            </div>
-          </div>
-          <div className="cartao tile">
-            <div className="rotulo">Ticket médio</div>
-            <div className="valor">{moeda(k.ticket_medio)}</div>
-            <div className="apoio">{inteiro(k.skus)} SKUs distintos</div>
-          </div>
-        </div>
+        <GradeKpis>
+          <CartaoKpi
+            rotulo="Receita bruta"
+            valor={moeda(k.receita_bruta)}
+            apoio={`${inteiro(k.pedidos)} pedidos`}
+          />
+          <CartaoKpi
+            rotulo="Margem bruta"
+            valor={moeda(k.margem_bruta)}
+            apoio={`${percentual(k.margem_pct)}${ehMarketplace ? " — antes da comissão" : ""}`}
+          />
+          <CartaoKpi
+            rotulo="Ticket médio"
+            valor={moeda(k.ticket_medio)}
+            apoio={`${inteiro(k.skus)} SKUs distintos`}
+          />
+        </GradeKpis>
       )}
 
-      <div style={{ height: 14 }} />
-
       {serie.isPending && <SkeletonGrafico altura={280} />}
+      {serie.isError && <Erro mensagem={(serie.error as Error).message} />}
       {serie.data &&
         (serie.data.serie.length === 0 ? (
           <Vazio mensagem="Nenhum faturamento neste canal no período." />
         ) : (
-          <div className="cartao">
-            <h2>Margem bruta diária — {canalAtivo}</h2>
-            <p className="nota">Somente este canal. Nenhuma outra série no gráfico.</p>
+          <Secao
+            titulo={`Margem bruta diária — ${canalAtivo}`}
+            nota="Somente este canal. Nenhuma outra série no gráfico."
+          >
             <Grafico
               opcao={opcao}
               altura={280}
               rotuloAcessivel={`Margem bruta diária do canal ${canalAtivo}.`}
             />
-          </div>
+          </Secao>
         ))}
     </>
   );

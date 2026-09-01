@@ -1,29 +1,34 @@
 import type { EChartsOption } from "echarts";
+import { EyeIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { useVendedores } from "../api/hooks";
 import type { Filtros } from "../api/tipos";
+import { Button } from "@/componentes/ui/button";
 import { BarraFiltros } from "../componentes/Filtros";
-import { Grafico, baseDoTema, corDaSerie } from "../componentes/Grafico";
-import { IconeOlho } from "../componentes/Icones";
+import { Grafico, baseDoTema, corDaSerie, token, useOpcaoGrafico } from "../componentes/Grafico";
 import { Erro, Vazio } from "../componentes/Layout";
-import { Paginacao } from "../componentes/Paginacao";
 import { SkeletonTabela } from "../componentes/Skeleton";
-import { Abas, CabecalhoPagina, CartaoKpi, PainelInsight } from "../componentes/Visual";
+import { Tabela, type Coluna } from "../componentes/Tabela";
+import {
+  Abas,
+  CabecalhoPagina,
+  CartaoKpi,
+  GradeInsights,
+  GradeKpis,
+  PainelInsight,
+  Secao,
+  Segmentado,
+} from "../componentes/Visual";
 import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
 import { inteiro, moeda, moedaCurta, numeroBruto, percentual } from "../formato";
-import { useTema } from "../tema";
 
-// `chave: null` = coluna que nao ordena; a de acoes nao e um dado do ranking.
-const COLUNAS: readonly { chave: string | null; rotulo: string; num: boolean }[] = [
-  { chave: "nome", rotulo: "Vendedor", num: false },
-  { chave: "receita", rotulo: "Receita", num: true },
-  { chave: "margem", rotulo: "Margem", num: true },
-  { chave: "margem_pct", rotulo: "Margem %", num: true },
-  { chave: "pedidos", rotulo: "Pedidos", num: true },
-  { chave: null, rotulo: "Ações", num: false },
-];
+type Linha = ReturnType<typeof useVendedores>["data"] extends infer D
+  ? D extends { vendedores: (infer L)[] }
+    ? L
+    : never
+  : never;
 
 export function Vendedores() {
   // Filtros na URL, e nao em memoria: sem isso, voltar do drill-down devolveria
@@ -38,6 +43,7 @@ export function Vendedores() {
   const { data, isPending, isError, error } = useVendedores(filtros, ordenar);
   const linhas = data?.vendedores ?? [];
   const consulta = escreverFiltros(filtros);
+
   const totais = useMemo(() => {
     const receita = linhas.reduce((s, v) => s + numeroBruto(v.receita), 0);
     const margem = linhas.reduce((s, v) => s + numeroBruto(v.margem), 0);
@@ -46,11 +52,10 @@ export function Vendedores() {
     return { receita, margem, margemPct: receita ? margem / receita : null, negativos, lider };
   }, [linhas]);
 
-  // Ver a nota em VisaoGeral: `resolvido` entra nas deps porque baseDoTema() e
-  // corDaSerie() leem as variaveis CSS no momento do calculo.
-  const { resolvido } = useTema();
-
-  const opcao = useMemo<EChartsOption>(() => {
+  // `useOpcaoGrafico` injeta o tema resolvido nas dependencias: baseDoTema() e
+  // corDaSerie() leem as variaveis CSS no momento do calculo, entao trocar de
+  // tema sem recalcular deixaria o grafico com as cores do modo anterior.
+  const opcao = useOpcaoGrafico<EChartsOption>(() => {
     const base = baseDoTema();
     const top = [...linhas]
       .sort((a, b) => numeroBruto(b[metrica]) - numeroBruto(a[metrica]))
@@ -64,13 +69,17 @@ export function Vendedores() {
       tooltip: {
         ...base.tooltip,
         trigger: "item",
-        valueFormatter: (v) => metrica === "margem_pct" ? percentual(v as number) : moeda(v as number),
+        valueFormatter: (v) =>
+          metrica === "margem_pct" ? percentual(v as number) : moeda(v as number),
       },
       xAxis: {
         ...base.xAxis,
         type: "value",
-        axisLabel: { ...base.xAxis.axisLabel, formatter: (v: number) => metrica === "margem_pct" ? percentual(v) : moedaCurta(v) },
-        splitLine: { lineStyle: { color: "var(--grid)" } },
+        axisLabel: {
+          ...base.xAxis.axisLabel,
+          formatter: (v: number) => (metrica === "margem_pct" ? percentual(v) : moedaCurta(v)),
+        },
+        splitLine: { lineStyle: { color: token("--grid") } },
       },
       yAxis: {
         ...base.yAxis,
@@ -87,31 +96,98 @@ export function Vendedores() {
           label: {
             show: true,
             position: "right" as const,
-            formatter: (p: { dataIndex: number }) => metrica === "margem_pct" ? moeda(top[p.dataIndex].margem) : percentual(top[p.dataIndex].margem_pct),
-            color: "var(--text-secondary)",
+            formatter: (p: { dataIndex: number }) =>
+              metrica === "margem_pct"
+                ? moeda(top[p.dataIndex].margem)
+                : percentual(top[p.dataIndex].margem_pct),
+            color: token("--muted-foreground"),
             fontSize: 11,
           },
-          markLine: metrica === "margem_pct" ? { silent: true, symbol: "none", lineStyle: { color: "var(--axis)", type: "dashed" }, data: [{ xAxis: totais.margemPct ?? 0, name: "Média" }] } : undefined,
+          markLine:
+            metrica === "margem_pct"
+              ? {
+                  silent: true,
+                  symbol: "none",
+                  lineStyle: { color: token("--axis"), type: "dashed" },
+                  data: [{ xAxis: totais.margemPct ?? 0, name: "Média" }],
+                }
+              : undefined,
           data: top.map((v) => numeroBruto(v[metrica])),
         },
       ],
     };
-  }, [linhas, metrica, resolvido, totais.margemPct]);
-
-  function ordenarPor(chave: string | null) {
-    if (!chave) return;
-    setOffset(0);
-    setOrdenar((atual) => (atual === `-${chave}` ? chave : `-${chave}`));
-  }
+  }, [linhas, metrica, totais.margemPct]);
 
   function mudarFiltros(f: Filtros) {
     setOffset(0);
     setFiltros(f);
   }
 
+  const colunas: readonly Coluna<Linha>[] = useMemo(
+    () => [
+      {
+        chave: "nome",
+        rotulo: "Vendedor",
+        fixa: true,
+        ordenarPor: () => 0,
+        celula: (v) => {
+          const posicao = linhas.indexOf(v) + 1;
+          return (
+            <>
+              <strong>{inteiro(posicao)}.</strong> {v.vendedor_nome ?? v.vendedor_codigo}
+            </>
+          );
+        },
+      },
+      { chave: "receita", rotulo: "Receita", num: true, celula: (v) => moeda(v.receita) },
+      {
+        chave: "margem",
+        rotulo: "Margem",
+        num: true,
+        negativo: (v) => numeroBruto(v.margem) < 0,
+        celula: (v) => moeda(v.margem),
+      },
+      {
+        chave: "margem_pct",
+        rotulo: "Margem %",
+        num: true,
+        celula: (v) => percentual(v.margem_pct),
+      },
+      { chave: "pedidos", rotulo: "Pedidos", num: true, celula: (v) => inteiro(v.pedidos) },
+      {
+        chave: null,
+        rotulo: "Ações",
+        acao: true,
+        celula: (v) =>
+          // A view ja filtra vendedor nulo, mas o schema tipa como nullable:
+          // sem a guarda o link viraria /undefined/.
+          v.vendedor_codigo ? (
+            <Button
+              nativeButton={false}
+              variant="outline"
+              size="sm"
+              render={
+                <Link
+                  to={`/vendedores/${encodeURIComponent(v.vendedor_codigo)}/pedidos${consulta ? `?${consulta}` : ""}`}
+                  aria-label={`Visualizar pedidos de ${v.vendedor_nome ?? v.vendedor_codigo}`}
+                />
+              }
+            >
+              <EyeIcon data-icon="inline-start" />
+              Ver pedidos
+            </Button>
+          ) : null,
+      },
+    ],
+    [consulta, linhas],
+  );
+
   return (
     <>
-      <CabecalhoPagina titulo="Por vendedor" descricao="Compare desempenho, identifique concentração de margem e encontre vendedores que precisam de atenção." />
+      <CabecalhoPagina
+        titulo="Por vendedor"
+        descricao="Compare desempenho, identifique concentração de margem e encontre vendedores que precisam de atenção."
+      />
 
       <BarraFiltros valor={filtros} aoMudar={mudarFiltros} ocultarCanal />
 
@@ -124,92 +200,121 @@ export function Vendedores() {
 
       {linhas.length > 0 && (
         <>
-          <div className="grade-kpis">
-            <CartaoKpi rotulo="Receita total" valor={moeda(totais.receita)} apoio={`${inteiro(linhas.length)} vendedores ativos`} />
-            <CartaoKpi rotulo="Margem total" valor={moeda(totais.margem)} apoio="Margem bruta no recorte" tom={totais.margem < 0 ? "critico" : "bom"} />
-            <CartaoKpi rotulo="Margem ponderada" valor={percentual(totais.margemPct)} apoio="Margem total sobre receita total" />
-            <CartaoKpi rotulo="Margem negativa" valor={inteiro(totais.negativos)} apoio={totais.negativos ? "Vendedores para revisar" : "Nenhuma ocorrência"} tom={totais.negativos ? "critico" : "bom"} />
-          </div>
+          <GradeKpis>
+            <CartaoKpi
+              rotulo="Receita total"
+              valor={moeda(totais.receita)}
+              apoio={`${inteiro(linhas.length)} vendedores ativos`}
+            />
+            <CartaoKpi
+              rotulo="Margem total"
+              valor={moeda(totais.margem)}
+              apoio="Margem bruta no recorte"
+              tom={totais.margem < 0 ? "critico" : "bom"}
+            />
+            <CartaoKpi
+              rotulo="Margem ponderada"
+              valor={percentual(totais.margemPct)}
+              apoio="Margem total sobre receita total"
+            />
+            <CartaoKpi
+              rotulo="Margem negativa"
+              valor={inteiro(totais.negativos)}
+              apoio={totais.negativos ? "Vendedores para revisar" : "Nenhuma ocorrência"}
+              tom={totais.negativos ? "critico" : "bom"}
+            />
+          </GradeKpis>
 
-          <Abas valor={aba} aoMudar={setAba} opcoes={[{ valor: "gerencial", rotulo: "Visão gerencial" }, { valor: "detalhamento", rotulo: "Detalhamento", contador: linhas.length }]} />
+          <Abas
+            valor={aba}
+            aoMudar={setAba}
+            opcoes={[
+              { valor: "gerencial", rotulo: "Visão gerencial" },
+              { valor: "detalhamento", rotulo: "Detalhamento", contador: linhas.length },
+            ]}
+          />
 
-          {aba === "gerencial" && <>
-            <div className="grade-insights">
-              <PainelInsight titulo="Líder de margem" valor={totais.lider?.vendedor_nome ?? totais.lider?.vendedor_codigo ?? "—"} texto={totais.lider ? `${moeda(totais.lider.margem)} de margem bruta` : "Sem dados"} tom="bom" />
-              <PainelInsight titulo="Concentração do líder" valor={percentual(totais.margem ? numeroBruto(totais.lider?.margem) / totais.margem : null)} texto="Participação na margem total" />
-              <PainelInsight titulo="Pontos de atenção" valor={inteiro(totais.negativos)} texto="Vendedores com margem abaixo de zero" tom={totais.negativos ? "critico" : "bom"} />
-            </div>
-            <div className="cartao">
-              <div className="secao-topo"><div><h2>Ranking de vendedores</h2><p className="nota">Dez maiores na métrica selecionada.</p></div><div className="segmented" aria-label="Métrica do ranking">{([['margem','Margem R$'],['margem_pct','Margem %'],['receita','Receita']] as const).map(([valor, rotulo]) => <button key={valor} aria-pressed={metrica === valor} onClick={() => setMetrica(valor)}>{rotulo}</button>)}</div></div>
-              <Grafico opcao={opcao} altura={Math.max(240, Math.min(linhas.length, 10) * 36)} rotuloAcessivel="Ranking dos dez vendedores na métrica selecionada." />
-            </div>
-          </>}
+          {aba === "gerencial" && (
+            <>
+              <GradeInsights>
+                <PainelInsight
+                  titulo="Líder de margem"
+                  valor={totais.lider?.vendedor_nome ?? totais.lider?.vendedor_codigo ?? "—"}
+                  texto={
+                    totais.lider ? `${moeda(totais.lider.margem)} de margem bruta` : "Sem dados"
+                  }
+                  tom="bom"
+                />
+                <PainelInsight
+                  titulo="Concentração do líder"
+                  valor={percentual(
+                    totais.margem ? numeroBruto(totais.lider?.margem) / totais.margem : null,
+                  )}
+                  texto="Participação na margem total"
+                />
+                <PainelInsight
+                  titulo="Pontos de atenção"
+                  valor={inteiro(totais.negativos)}
+                  texto="Vendedores com margem abaixo de zero"
+                  tom={totais.negativos ? "critico" : "bom"}
+                />
+              </GradeInsights>
 
-          {aba === "detalhamento" && <div className="cartao">
-            <h2>Detalhamento</h2>
-            <p className="nota">Clique no cabeçalho para ordenar.</p>
-            <div className="rolagem">
-              <table>
-                <thead>
-                  <tr>
-                    {COLUNAS.map((c) => (
-                      <th
-                        key={c.rotulo}
-                        className={c.num ? "num" : undefined}
-                        onClick={() => ordenarPor(c.chave)}
-                        style={{ cursor: c.chave ? "pointer" : "default" }}
-                        aria-sort={
-                          !c.chave || ordenar.replace("-", "") !== c.chave
-                            ? "none"
-                            : ordenar.startsWith("-")
-                              ? "descending"
-                              : "ascending"
-                        }
-                      >
-                        {c.rotulo}
-                        {c.chave &&
-                          ordenar.replace("-", "") === c.chave &&
-                          (ordenar.startsWith("-") ? " ↓" : " ↑")}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {linhas.slice(offset, offset + itensPorPagina).map((v, indice) => (
-                    <tr key={v.vendedor_codigo ?? v.vendedor_nome}>
-                      <td className="tabela-identidade"><strong>{inteiro(offset + indice + 1)}.</strong> {v.vendedor_nome ?? v.vendedor_codigo}</td>
-                      <td className="num">{moeda(v.receita)}</td>
-                      <td className={numeroBruto(v.margem) < 0 ? "num negativo" : "num"}>
-                        {moeda(v.margem)}
-                      </td>
-                      <td className="num">{percentual(v.margem_pct)}</td>
-                      <td className="num">{inteiro(v.pedidos)}</td>
-                      <td className="acoes">
-                        {/* A view ja filtra vendedor nulo, mas o schema tipa como
-                            nullable: sem a guarda o link viraria /undefined/. */}
-                        {v.vendedor_codigo && (
-                          <Link
-                            className="botao-alt acao-visualizar"
-                            to={`/vendedores/${encodeURIComponent(
-                              v.vendedor_codigo,
-                            )}/pedidos${consulta ? `?${consulta}` : ""}`}
-                            aria-label={`Visualizar pedidos de ${
-                              v.vendedor_nome ?? v.vendedor_codigo
-                            }`}
-                          >
-                            <IconeOlho />
-                            Ver pedidos
-                          </Link>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <Paginacao total={linhas.length} offset={offset} itensPorPagina={itensPorPagina} aoMudarOffset={setOffset} aoMudarItensPorPagina={(quantidade) => { setOffset(0); setItensPorPagina(quantidade); }} />
-          </div>
-          }
+              <Secao
+                titulo="Ranking de vendedores"
+                nota="Dez maiores na métrica selecionada."
+                acao={
+                  <Segmentado
+                    valor={metrica}
+                    aoMudar={setMetrica}
+                    rotulo="Métrica do ranking"
+                    opcoes={[
+                      ["margem", "Margem R$"],
+                      ["margem_pct", "Margem %"],
+                      ["receita", "Receita"],
+                    ]}
+                  />
+                }
+              >
+                <Grafico
+                  opcao={opcao}
+                  altura={Math.max(240, Math.min(linhas.length, 10) * 36)}
+                  rotuloAcessivel="Ranking dos dez vendedores na métrica selecionada."
+                />
+              </Secao>
+            </>
+          )}
+
+          {aba === "detalhamento" && (
+            <Secao titulo="Detalhamento" nota="Clique no cabeçalho para ordenar.">
+              <Tabela
+                linhas={linhas}
+                colunas={colunas}
+                chaveLinha={(v) => v.vendedor_codigo ?? v.vendedor_nome ?? "—"}
+                rotuloAcessivel="Detalhamento por vendedor"
+                // A API ja devolve ordenado; a pagina fatia no cliente porque o
+                // ranking inteiro cabe na resposta.
+                ordenacao={{
+                  valor: ordenar,
+                  aoMudar: (valor) => {
+                    setOffset(0);
+                    setOrdenar(valor);
+                  },
+                }}
+                paginacao={{
+                  modo: "cliente",
+                  total: linhas.length,
+                  offset,
+                  itensPorPagina,
+                  aoMudarOffset: setOffset,
+                  aoMudarItensPorPagina: (quantidade) => {
+                    setOffset(0);
+                    setItensPorPagina(quantidade);
+                  },
+                }}
+              />
+            </Secao>
+          )}
         </>
       )}
     </>

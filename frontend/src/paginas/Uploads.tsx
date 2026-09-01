@@ -8,13 +8,19 @@
  *  nao e enfeite: sem ele o usuario reenvia achando que travou.
  */
 
+import { CheckIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
 import { ErroApi } from "../api/cliente";
 import { useUploads } from "../api/hooks";
 import type { ResultadoArquivo } from "../api/tipos";
+import { Button } from "@/componentes/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/componentes/ui/field";
+import { Input } from "@/componentes/ui/input";
+import { Spinner } from "@/componentes/ui/spinner";
 import { Erro } from "../componentes/Layout";
-import { SeletorTema } from "../componentes/SeletorTema";
+import { Tabela, type Coluna } from "../componentes/Tabela";
+import { CabecalhoPagina, Secao } from "../componentes/Visual";
 import { inteiro } from "../formato";
 
 const CAMPOS = [
@@ -25,48 +31,42 @@ const CAMPOS = [
   { nome: "SD2", rotulo: "SD2 — Itens faturados" },
 ] as const;
 
-function Resultado({ linhas }: { linhas: ResultadoArquivo[] }) {
-  return (
-    <table className="tabela">
-      <thead>
-        <tr>
-          <th>Arquivo</th>
-          <th>Situação</th>
-          <th style={{ textAlign: "right" }}>Linhas lidas</th>
-          <th style={{ textAlign: "right" }}>Linhas gravadas</th>
-          <th>Competência</th>
-        </tr>
-      </thead>
-      <tbody>
-        {linhas.map((l) => (
-          <tr key={l.arquivo}>
-            <td>{l.arquivo}</td>
-            <td>
-              <span
-                style={{
-                  color:
-                    l.status === "sucesso"
-                      ? "var(--status-good)"
-                      : "var(--status-critical)",
-                }}
-              >
-                {l.status === "sucesso" ? "✓ Carregado" : "✕ Erro"}
-              </span>
-              {l.mensagem && (
-                <div style={{ color: "var(--text-muted)", fontSize: 12 }}>
-                  {l.mensagem}
-                </div>
-              )}
-            </td>
-            <td style={{ textAlign: "right" }}>{inteiro(l.linhas_lidas)}</td>
-            <td style={{ textAlign: "right" }}>{inteiro(l.linhas_gravadas)}</td>
-            <td>{l.competencia ?? "—"}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
+const COLUNAS: readonly Coluna<ResultadoArquivo>[] = [
+  { chave: null, rotulo: "Arquivo", fixa: true, celula: (l) => l.arquivo },
+  {
+    chave: null,
+    rotulo: "Situação",
+    // Icone + rotulo, nunca a cor sozinha: no modo claro o verde de sucesso
+    // fica abaixo de 3:1 contra o cartao.
+    celula: (l) => (
+      <div>
+        <span
+          className={
+            l.status === "sucesso"
+              ? "flex items-center gap-1 text-delta-bom"
+              : "flex items-center gap-1 text-destructive"
+          }
+        >
+          {l.status === "sucesso" ? (
+            <CheckIcon className="size-4" aria-hidden="true" />
+          ) : (
+            <XIcon className="size-4" aria-hidden="true" />
+          )}
+          {l.status === "sucesso" ? "Carregado" : "Erro"}
+        </span>
+        {l.mensagem && <div className="text-xs text-muted-foreground">{l.mensagem}</div>}
+      </div>
+    ),
+  },
+  { chave: null, rotulo: "Linhas lidas", num: true, celula: (l) => inteiro(l.linhas_lidas) },
+  {
+    chave: null,
+    rotulo: "Linhas gravadas",
+    num: true,
+    celula: (l) => inteiro(l.linhas_gravadas),
+  },
+  { chave: null, rotulo: "Competência", celula: (l) => l.competencia ?? "—" },
+];
 
 export function Uploads() {
   const [arquivos, setArquivos] = useState<Record<string, File>>({});
@@ -99,64 +99,68 @@ export function Uploads() {
 
   return (
     <>
-      <div className="cabecalho">
-        <div>
-          <h1>Uploads</h1>
-          <p style={{ color: "var(--text-secondary)", maxWidth: 640 }}>
-            Envie os arquivos exportados do Protheus. Você pode mandar um, dois ou
-            os quatro — o que não for enviado permanece como está. O envio substitui
-            a competência inteira contida no arquivo, então reenviar o mesmo mês é
-            seguro.
-          </p>
-        </div>
-        <SeletorTema />
-      </div>
+      <CabecalhoPagina
+        titulo="Uploads"
+        descricao="Envie os arquivos exportados do Protheus. Você pode mandar um, dois ou os cinco — o que não for enviado permanece como está. O envio substitui a competência inteira contida no arquivo, então reenviar o mesmo mês é seguro."
+      />
 
-      <div className="cartao" style={{ maxWidth: 640 }}>
-        {CAMPOS.map((campo) => (
-          <div key={campo.nome} style={{ marginBottom: 16 }}>
-            <label
-              htmlFor={`arquivo-${campo.nome}`}
-              style={{ display: "block", marginBottom: 4, fontWeight: 560 }}
+      <div className="max-w-2xl">
+        <Secao titulo="Arquivos do Protheus">
+          <FieldGroup>
+            {CAMPOS.map((campo) => (
+              <Field key={campo.nome}>
+                <FieldLabel htmlFor={`arquivo-${campo.nome}`}>{campo.rotulo}</FieldLabel>
+                <Input
+                  id={`arquivo-${campo.nome}`}
+                  type="file"
+                  accept=".csv,text/csv"
+                  disabled={envio.isPending}
+                  onChange={(e) => escolher(campo.nome, e.target.files?.[0])}
+                />
+              </Field>
+            ))}
+          </FieldGroup>
+
+          <div className="mt-5 flex flex-col gap-2">
+            <Button
+              onClick={enviar}
+              disabled={selecionados.length === 0 || envio.isPending}
+              className="w-fit"
             >
-              {campo.rotulo}
-            </label>
-            <input
-              id={`arquivo-${campo.nome}`}
-              type="file"
-              accept=".csv,text/csv"
-              disabled={envio.isPending}
-              onChange={(e) => escolher(campo.nome, e.target.files?.[0])}
-            />
+              {envio.isPending && <Spinner data-icon="inline-start" />}
+              {envio.isPending
+                ? "Processando… isso leva alguns segundos"
+                : `Enviar ${selecionados.length || ""} arquivo${
+                    selecionados.length === 1 ? "" : "s"
+                  }`}
+            </Button>
+
+            {envio.isPending && (
+              <p className="text-xs text-muted-foreground" role="status">
+                Validando, gravando no banco e atualizando os indicadores. Não feche a
+                página.
+              </p>
+            )}
           </div>
-        ))}
-
-        <button
-          className="botao"
-          onClick={enviar}
-          disabled={selecionados.length === 0 || envio.isPending}
-        >
-          {envio.isPending
-            ? "Processando… isso leva alguns segundos"
-            : `Enviar ${selecionados.length || ""} arquivo${
-                selecionados.length === 1 ? "" : "s"
-              }`}
-        </button>
-
-        {envio.isPending && (
-          <p style={{ color: "var(--text-muted)", marginBottom: 0 }} role="status">
-            Validando, gravando no banco e atualizando os indicadores. Não feche a
-            página.
-          </p>
-        )}
+        </Secao>
       </div>
 
-      {erro && <Erro mensagem={erro} />}
+      {erro && (
+        <div className="mt-4">
+          <Erro mensagem={erro} />
+        </div>
+      )}
 
       {envio.data && (
-        <div style={{ marginTop: 20 }}>
-          <h2>Resultado</h2>
-          <Resultado linhas={envio.data.arquivos} />
+        <div className="mt-5">
+          <Secao titulo="Resultado">
+            <Tabela
+              linhas={envio.data.arquivos}
+              colunas={COLUNAS}
+              chaveLinha={(l) => l.arquivo}
+              rotuloAcessivel="Resultado do envio por arquivo"
+            />
+          </Secao>
         </div>
       )}
     </>

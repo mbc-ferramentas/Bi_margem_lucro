@@ -18,7 +18,9 @@ import {
 } from "echarts/components";
 import * as echarts from "echarts/core";
 import { SVGRenderer } from "echarts/renderers";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+
+import { useTema } from "../tema";
 
 import type { EChartsOption } from "echarts";
 
@@ -31,32 +33,38 @@ echarts.use([
   SVGRenderer,
 ]);
 
+/** Slots categoricos, na ordem fixa validada. A ordem e o mecanismo de
+ *  seguranca para daltonismo — nao e enfeite. Ciclar para uma sexta serie e
+ *  proibido: agrupe em "Outros" ou quebre em pequenos multiplos. */
 export const SERIES = [
-  "--series-1",
-  "--series-2",
-  "--series-3",
-  "--series-4",
+  "--chart-1",
+  "--chart-2",
+  "--chart-3",
+  "--chart-4",
+  "--chart-5",
 ] as const;
 
-export function corDaSerie(indice: number): string {
-  const estilo = getComputedStyle(document.documentElement);
-  return estilo.getPropertyValue(SERIES[indice % SERIES.length]).trim();
+/** Le um token da raiz ja resolvido. O SVGRenderer do ECharts nao resolve
+ *  `var(--x)` dentro de uma string de cor — passar "var(--grid)" direto para a
+ *  opcao produz uma marca sem cor, silenciosamente. Sempre passe por aqui. */
+export function token(nome: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
 }
 
-function token(nome: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
+export function corDaSerie(indice: number): string {
+  return token(SERIES[indice % SERIES.length]);
 }
 
 export function baseDoTema() {
   return {
-    textStyle: { fontFamily: "system-ui, -apple-system, sans-serif" },
+    textStyle: { fontFamily: "inherit" },
     grid: { left: 8, right: 24, top: 28, bottom: 8, containLabel: true },
     tooltip: {
       trigger: "axis" as const,
       axisPointer: { type: "line" as const, lineStyle: { color: token("--axis") } },
-      backgroundColor: token("--surface-1"),
+      backgroundColor: token("--popover"),
       borderColor: token("--border"),
-      textStyle: { color: token("--text-primary"), fontSize: 12 },
+      textStyle: { color: token("--popover-foreground"), fontSize: 12 },
     },
     legend: {
       top: 0,
@@ -65,21 +73,37 @@ export function baseDoTema() {
       itemWidth: 9,
       itemHeight: 9,
       itemGap: 16,
-      textStyle: { color: token("--text-secondary"), fontSize: 12 },
+      textStyle: { color: token("--muted-foreground"), fontSize: 12 },
     },
     xAxis: {
       axisLine: { lineStyle: { color: token("--axis") } },
       axisTick: { show: false },
-      axisLabel: { color: token("--text-muted"), fontSize: 11 },
+      axisLabel: { color: token("--muted-foreground"), fontSize: 11 },
       splitLine: { show: false },
     },
     yAxis: {
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: { color: token("--text-muted"), fontSize: 11 },
+      axisLabel: { color: token("--muted-foreground"), fontSize: 11 },
       splitLine: { lineStyle: { color: token("--grid"), width: 1 } },
     },
   };
+}
+
+/** Memoiza a opcao do grafico ja incluindo o tema resolvido nas dependencias.
+ *
+ *  Isso existe porque `baseDoTema()` e `token()` leem `getComputedStyle`: sao
+ *  valores capturados no momento do render, nao referencias vivas. Um `useMemo`
+ *  que esquecesse o tema deixaria o grafico com as cores do modo anterior ate
+ *  algum outro filtro mudar — um bug que so aparece ao alternar claro/escuro, e
+ *  que ja custou caro. Com este hook nao da para esquecer. */
+export function useOpcaoGrafico<T extends EChartsOption = EChartsOption>(
+  fabrica: () => T,
+  deps: unknown[],
+): T {
+  const { resolvido } = useTema();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(fabrica, [...deps, resolvido]);
 }
 
 type Props = {
@@ -90,7 +114,9 @@ type Props = {
 
 export function Grafico({ opcao, altura = 300, rotuloAcessivel }: Props) {
   const alvo = useRef<HTMLDivElement>(null);
-  const instancia = useRef<echarts.ECharts>();
+  // O `undefined` explicito e exigencia dos tipos do React 19: useRef sem
+  // argumento nao existe mais.
+  const instancia = useRef<echarts.ECharts | undefined>(undefined);
 
   useEffect(() => {
     if (!alvo.current) return;

@@ -6,7 +6,7 @@ import { BrowserRouter } from "react-router-dom";
 import { App } from "./App";
 import { ErroApi } from "./api/cliente";
 import { iniciarTema } from "./tema";
-import "./styles.css";
+import "./index.css";
 
 // Antes do render: aplicar o data-theme so depois da primeira pintura faria a
 // tela piscar no tema errado a cada carregamento.

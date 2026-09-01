@@ -17,9 +17,25 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ErroApi } from "../api/cliente";
 import { useSalvarUsuario, useUsuarios } from "../api/hooks";
 import { PERFIS, type Perfil } from "../api/tipos";
+import { Button } from "@/componentes/ui/button";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/componentes/ui/field";
+import { Input } from "@/componentes/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/componentes/ui/select";
 import { Erro } from "../componentes/Layout";
-import { SeletorTema } from "../componentes/SeletorTema";
 import { SkeletonTabela } from "../componentes/Skeleton";
+import { CabecalhoPagina, Secao } from "../componentes/Visual";
 
 const ROTULO_PERFIL: Record<Perfil, string> = {
   admin: "Administrador",
@@ -118,134 +134,148 @@ export function CadastroUsuario() {
 
   return (
     <>
-      <div className="cabecalho">
-        <div>
-          <h1>{editando ? `Editar ${inicial.username}` : "Novo usuário"}</h1>
-          <p style={{ color: "var(--text-secondary)", maxWidth: 640 }}>
-            {editando
-              ? "Alterações passam a valer no próximo carregamento de tela da pessoa. Para trocar a senha, use o botão Senha na lista."
-              : "A conta passa a funcionar assim que for salva. A senha é definida por você e não é enviada por e-mail — anote e comunique à pessoa."}
-          </p>
-        </div>
-        <SeletorTema />
+      <CabecalhoPagina
+        titulo={editando ? `Editar ${inicial.username}` : "Novo usuário"}
+        descricao={
+          editando
+            ? "Alterações passam a valer no próximo carregamento de tela da pessoa. Para trocar a senha, use o botão Senha na lista."
+            : "A conta passa a funcionar assim que for salva. A senha é definida por você e não é enviada por e-mail — anote e comunique à pessoa."
+        }
+      />
+
+      <div className="max-w-2xl">
+        <Secao titulo="Dados da conta">
+          <form onSubmit={enviar}>
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="u-username">Login</FieldLabel>
+                <Input
+                  id="u-username"
+                  value={valores.username}
+                  required
+                  autoComplete="off"
+                  onChange={(e) => campo("username", e.target.value)}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="u-nome">Nome</FieldLabel>
+                <Input
+                  id="u-nome"
+                  value={valores.nome}
+                  onChange={(e) => campo("nome", e.target.value)}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="u-email">E-mail</FieldLabel>
+                <Input
+                  id="u-email"
+                  type="email"
+                  value={valores.email}
+                  onChange={(e) => campo("email", e.target.value)}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="u-perfil">Perfil</FieldLabel>
+                <Select
+                  value={valores.perfil}
+                  onValueChange={(valor) => valor && campo("perfil", valor as Perfil)}
+                >
+                  <SelectTrigger id="u-perfil" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {PERFIS.map((p) => (
+                        <SelectItem key={p} value={p}>
+                          {ROTULO_PERFIL[p]}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>{DESCRICAO_PERFIL[valores.perfil]}</FieldDescription>
+              </Field>
+
+              {valores.perfil === "vendedor" && (
+                <Field>
+                  <FieldLabel htmlFor="u-vendedor">Código do vendedor</FieldLabel>
+                  <Select
+                    value={valores.vendedor_codigo}
+                    onValueChange={(valor) => campo("vendedor_codigo", valor ?? "")}
+                  >
+                    <SelectTrigger id="u-vendedor" className="w-full">
+                      <SelectValue placeholder="selecione…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {vendedores.map((v) => (
+                          <SelectItem key={v.codigo} value={v.codigo}>
+                            {v.codigo} — {v.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <FieldDescription>
+                    Sem o vínculo com um código do Protheus, a pessoa entra e não vê tela
+                    nenhuma: é o código que define as linhas do escopo dela.
+                  </FieldDescription>
+                </Field>
+              )}
+
+              {!editando && (
+                <Field>
+                  <FieldLabel htmlFor="u-senha">Senha inicial</FieldLabel>
+                  <Input
+                    id="u-senha"
+                    type="text"
+                    value={valores.senha}
+                    required
+                    autoComplete="new-password"
+                    onChange={(e) => campo("senha", e.target.value)}
+                  />
+                </Field>
+              )}
+
+              <Field>
+                <FieldLabel htmlFor="u-ativo">Situação</FieldLabel>
+                <Select
+                  value={valores.ativo ? "1" : "0"}
+                  onValueChange={(valor) => campo("ativo", valor === "1")}
+                >
+                  <SelectTrigger id="u-ativo" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="1">Ativo</SelectItem>
+                      <SelectItem value="0">Inativo (não entra)</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </FieldGroup>
+
+            <div className="mt-5 flex gap-2">
+              <Button type="submit" disabled={salvar.isPending}>
+                {salvar.isPending ? "Salvando…" : "Salvar"}
+              </Button>
+              <Button variant="outline" type="button" onClick={() => navegar("/usuarios")}>
+                Cancelar
+              </Button>
+            </div>
+
+            {erro && (
+              <div className="mt-4">
+                <Erro mensagem={erro} />
+              </div>
+            )}
+          </form>
+        </Secao>
       </div>
-
-      <form className="cartao" onSubmit={enviar} style={{ maxWidth: 640 }}>
-        <div className="filtros">
-          <div className="campo">
-            <label htmlFor="u-username">Login</label>
-            <input
-              id="u-username"
-              value={valores.username}
-              required
-              autoComplete="off"
-              onChange={(e) => campo("username", e.target.value)}
-            />
-          </div>
-
-          <div className="campo">
-            <label htmlFor="u-nome">Nome</label>
-            <input
-              id="u-nome"
-              value={valores.nome}
-              onChange={(e) => campo("nome", e.target.value)}
-            />
-          </div>
-
-          <div className="campo">
-            <label htmlFor="u-email">E-mail</label>
-            <input
-              id="u-email"
-              type="email"
-              value={valores.email}
-              onChange={(e) => campo("email", e.target.value)}
-            />
-          </div>
-
-          <div className="campo">
-            <label htmlFor="u-perfil">Perfil</label>
-            <select
-              id="u-perfil"
-              value={valores.perfil}
-              onChange={(e) => campo("perfil", e.target.value as Perfil)}
-            >
-              {PERFIS.map((p) => (
-                <option key={p} value={p}>
-                  {ROTULO_PERFIL[p]}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {valores.perfil === "vendedor" && (
-            <div className="campo">
-              <label htmlFor="u-vendedor">Código do vendedor</label>
-              <select
-                id="u-vendedor"
-                value={valores.vendedor_codigo}
-                required
-                onChange={(e) => campo("vendedor_codigo", e.target.value)}
-              >
-                <option value="">selecione…</option>
-                {vendedores.map((v) => (
-                  <option key={v.codigo} value={v.codigo}>
-                    {v.codigo} — {v.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {!editando && (
-            <div className="campo">
-              <label htmlFor="u-senha">Senha inicial</label>
-              <input
-                id="u-senha"
-                type="text"
-                value={valores.senha}
-                required
-                autoComplete="new-password"
-                onChange={(e) => campo("senha", e.target.value)}
-              />
-            </div>
-          )}
-
-          <div className="campo">
-            <label htmlFor="u-ativo">Situação</label>
-            <select
-              id="u-ativo"
-              value={valores.ativo ? "1" : "0"}
-              onChange={(e) => campo("ativo", e.target.value === "1")}
-            >
-              <option value="1">Ativo</option>
-              <option value="0">Inativo (não entra)</option>
-            </select>
-          </div>
-        </div>
-
-        <p className="nota">{DESCRICAO_PERFIL[valores.perfil]}</p>
-        {valores.perfil === "vendedor" && (
-          <p className="nota">
-            Sem o vínculo com um código do Protheus, a pessoa entra e não vê tela
-            nenhuma: é o código que define as linhas do escopo dela.
-          </p>
-        )}
-
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-          <button className="botao" type="submit" disabled={salvar.isPending}>
-            {salvar.isPending ? "Salvando…" : "Salvar"}
-          </button>
-          <button
-            className="botao-alt"
-            type="button"
-            onClick={() => navegar("/usuarios")}
-          >
-            Cancelar
-          </button>
-        </div>
-
-        {erro && <Erro mensagem={erro} />}
-      </form>
     </>
   );
 }
@@ -253,10 +283,7 @@ export function CadastroUsuario() {
 function Carregando() {
   return (
     <>
-      <div className="cabecalho">
-        <h1>Usuário</h1>
-        <SeletorTema />
-      </div>
+      <CabecalhoPagina titulo="Usuário" descricao="Carregando o cadastro…" />
       <SkeletonTabela linhas={3} colunas={2} />
     </>
   );

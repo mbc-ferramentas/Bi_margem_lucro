@@ -1,0 +1,209 @@
+/* Tokens do BI de margem.
+ *
+ * Duas famílias convivem aqui de propósito:
+ *
+ * 1. Os tokens do shadcn (--background, --card, --primary, --border…), que
+ *    vestem a interface. Estes definem a identidade nova: superfície quente e
+ *    quase neutra, azul da série 1 como cor primária, cantos de 10px.
+ *
+ * 2. Os tokens de dados (--chart-1..5, --status-*, --grid, --axis), que são a
+ *    paleta validada do método de dataviz e NÃO são escolha estética. A ordem
+ *    dos slots é o mecanismo de segurança para daltonismo — nunca cicle, nunca
+ *    reordene sem rodar o validador de novo. Rodado em 2026-09-01 contra as
+ *    superfícies abaixo: passa em todas as checagens nos dois modos.
+ *
+ * No modo claro, aqua/amarelo/magenta ficam abaixo de 3:1 contra a superfície.
+ * A contrapartida obrigatória é a regra de relevo: todo gráfico traz rótulo
+ * direto na ponta da série e alternativa em tabela. Não desfaça isso.
+ *
+ * O `.dark` é escrito na raiz por src/tema.ts; o primeiro frame vem do script
+ * inline no <head> do index.html.
+ */
+
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: 'Geist Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-status-bom: var(--status-bom);
+    --color-status-atencao: var(--status-atencao);
+    --color-status-serio: var(--status-serio);
+    --color-status-critico: var(--status-critico);
+    --color-delta-bom: var(--delta-bom);
+    --color-grid: var(--grid);
+    --color-axis: var(--axis);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+    --radius: 0.625rem;
+
+    /* Superfícies: o plano da página é meio tom abaixo do cartão, para o cartão
+       existir sem precisar de sombra pesada. São as superfícies contra as quais
+       a paleta de dados foi validada. */
+    --background: oklch(0.9816 0.0026 106.45);
+    --foreground: oklch(0.1496 0 89.88);
+    --card: oklch(0.9908 0.0013 106.42);
+    --card-foreground: oklch(0.1496 0 89.88);
+    --popover: oklch(0.9908 0.0013 106.42);
+    --popover-foreground: oklch(0.1496 0 89.88);
+
+    /* Primária = azul da série 1. O BI é uma tela de números; a cor de ação
+       precisa ser inequivocamente ação, e não competir com nenhuma série. */
+    --primary: oklch(0.5275 0.1497 255.86);
+    --primary-foreground: oklch(0.9908 0.0013 106.42);
+    --secondary: oklch(0.9521 0.0041 91.45);
+    --secondary-foreground: oklch(0.1496 0 89.88);
+    --muted: oklch(0.9521 0.0041 91.45);
+    --muted-foreground: oklch(0.4349 0.005 91.51);
+    --accent: oklch(0.9521 0.0041 91.45);
+    --accent-foreground: oklch(0.1496 0 89.88);
+    --destructive: oklch(0.5748 0.1862 25.23);
+    --border: oklch(0.9055 0.0095 100);
+    --input: oklch(0.9055 0.0095 100);
+    --ring: oklch(0.5275 0.1497 255.86);
+
+    /* --- dados: paleta validada, ordem fixa, nunca ciclada --------------- */
+    --chart-1: oklch(0.5753 0.1626 255.53);  /* azul     */
+    --chart-2: oklch(0.6708 0.175 40.64);    /* laranja  */
+    --chart-3: oklch(0.669 0.1408 162.11);   /* aqua     */
+    --chart-4: oklch(0.7644 0.1612 75.12);   /* amarelo  */
+    --chart-5: oklch(0.7163 0.1412 357.39);  /* magenta  */
+
+    /* Status é reservado: nunca vira "série 6". Sempre acompanhado de rótulo,
+       porque no claro atenção e sério ficam abaixo de 3:1 por construção. */
+    --status-bom: oklch(0.621 0.2073 142.56);
+    --status-atencao: oklch(0.811 0.1644 78.46);
+    --status-serio: oklch(0.7172 0.1406 41.64);
+    --status-critico: oklch(0.5748 0.1862 25.23);
+    --delta-bom: oklch(0.433 0.1473 142.5);
+
+    /* Cromo do gráfico: a grade é recessiva de propósito — ela orienta, não
+       compete com a marca. Não substituir por --border. */
+    --grid: oklch(0.9055 0.0095 100);
+    --axis: oklch(0.8118 0.0152 102.51);
+
+    /* A lateral segue o tema (a faixa azul fixa saiu com o redesign). */
+    --sidebar: oklch(0.9908 0.0013 106.42);
+    --sidebar-foreground: oklch(0.1496 0 89.88);
+    --sidebar-primary: oklch(0.5275 0.1497 255.86);
+    --sidebar-primary-foreground: oklch(0.9908 0.0013 106.42);
+    --sidebar-accent: oklch(0.9521 0.0041 91.45);
+    --sidebar-accent-foreground: oklch(0.1496 0 89.88);
+    --sidebar-border: oklch(0.9055 0.0095 100);
+    --sidebar-ring: oklch(0.5275 0.1497 255.86);
+}
+
+.dark {
+    --background: oklch(0.1591 0 89.88);
+    --foreground: oklch(1 0 89.88);
+    --card: oklch(0.2174 0.0019 106.56);
+    --card-foreground: oklch(1 0 89.88);
+    --popover: oklch(0.2174 0.0019 106.56);
+    --popover-foreground: oklch(1 0 89.88);
+
+    --primary: oklch(0.6221 0.1612 255.05);
+    --primary-foreground: oklch(0.1591 0 89.88);
+    --secondary: oklch(0.2924 0.0036 106.62);
+    --secondary-foreground: oklch(1 0 89.88);
+    --muted: oklch(0.2924 0.0036 106.62);
+    --muted-foreground: oklch(0.8118 0.0152 102.51);
+    --accent: oklch(0.2924 0.0036 106.62);
+    --accent-foreground: oklch(1 0 89.88);
+    --destructive: oklch(0.6224 0.1712 0.84);
+    --border: oklch(1 0 89.88 / 10%);
+    --input: oklch(1 0 89.88 / 15%);
+    --ring: oklch(0.6221 0.1612 255.05);
+
+    /* Mesmos oito matizes, degraus escolhidos para a faixa escura — não é um
+       "flip" automático do claro. Validado como conjunto. */
+    --chart-1: oklch(0.6221 0.1612 255.05);
+    --chart-2: oklch(0.6221 0.1726 40.11);
+    --chart-3: oklch(0.6212 0.1283 163.11);
+    --chart-4: oklch(0.6699 0.1425 73.23);
+    --chart-5: oklch(0.6224 0.1712 0.84);
+
+    /* Status são os mesmos quatro degraus nos dois modos, por decisão: um
+       vermelho de "crítico" que mudasse de tom entre temas deixaria de ser
+       reconhecível como o mesmo estado. */
+    --status-bom: oklch(0.621 0.2073 142.56);
+    --status-atencao: oklch(0.811 0.1644 78.46);
+    --status-serio: oklch(0.7172 0.1406 41.64);
+    --status-critico: oklch(0.5748 0.1862 25.23);
+    --delta-bom: oklch(0.621 0.2073 142.56);
+
+    --grid: oklch(0.2924 0.0036 106.62);
+    --axis: oklch(0.3396 0.0051 106.67);
+
+    --sidebar: oklch(0.2174 0.0019 106.56);
+    --sidebar-foreground: oklch(1 0 89.88);
+    --sidebar-primary: oklch(0.6221 0.1612 255.05);
+    --sidebar-primary-foreground: oklch(0.1591 0 89.88);
+    --sidebar-accent: oklch(0.2924 0.0036 106.62);
+    --sidebar-accent-foreground: oklch(1 0 89.88);
+    --sidebar-border: oklch(1 0 89.88 / 10%);
+    --sidebar-ring: oklch(0.6221 0.1612 255.05);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  html {
+    @apply font-sans;
+    }
+}
+
+@layer utilities {
+  /* Colunas de números só alinham verticalmente com figuras tabulares. Fora de
+     tabela e de eixo, o método pede figuras proporcionais — por isso é um
+     utilitário aplicado onde precisa, e não uma regra global. */
+  .num-tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}

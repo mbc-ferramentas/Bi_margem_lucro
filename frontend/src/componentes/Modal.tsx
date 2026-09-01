@@ -5,12 +5,19 @@
  *  vira pagina propria, porque perder o preenchimento ao clicar fora e o tipo de
  *  erro que o modal convida a cometer.
  *
- *  Usa o `<dialog>` nativo em modo modal: o navegador ja cuida do foco preso, do
- *  fundo inerte e do Esc. Reimplementar isso na mao costuma deixar o leitor de
- *  tela navegando pela pagina que esta atras.
+ *  Era um `<dialog>` nativo. O Dialog do Base UI entrega o mesmo foco preso,
+ *  fundo inerte e Esc, e resolve um problema que o nativo tinha aqui: o
+ *  `aria-labelledby` apontava para um id fixo, e a tela de Usuarios monta dois
+ *  modais no mesmo documento — dois elementos com o mesmo id.
  */
 
-import { useEffect, useRef } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/componentes/ui/dialog";
 
 export function Modal({
   titulo,
@@ -21,50 +28,24 @@ export function Modal({
   aoFechar: () => void;
   children: React.ReactNode;
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    // `showModal` so pode ser chamado uma vez por abertura; o dialogo e montado
-    // e desmontado junto com a acao, entao o efeito roda uma vez so.
-    ref.current?.showModal();
-  }, []);
-
   return (
-    <dialog
-      ref={ref}
-      className="modal"
-      aria-labelledby="modal-titulo"
-      // Esc dispara `cancel` antes de fechar: avisar o pai aqui mantem o estado
-      // dele em sincronia com o que esta na tela.
-      onCancel={(e) => {
-        e.preventDefault();
-        aoFechar();
-      }}
-      onClose={aoFechar}
-      // Clique no fundo escuro (fora da caixa) fecha, como em qualquer modal.
-      onClick={(e) => {
-        if (e.target === ref.current) aoFechar();
+    <Dialog
+      open
+      onOpenChange={(aberto) => {
+        if (!aberto) aoFechar();
       }}
     >
-      <div className="modal-caixa">
-        <div className="modal-topo">
-          <h2 id="modal-titulo">{titulo}</h2>
-          <button
-            type="button"
-            className="botao-alt"
-            aria-label="Fechar"
-            onClick={aoFechar}
-          >
-            ✕
-          </button>
-        </div>
+      <DialogContent className="sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle>{titulo}</DialogTitle>
+        </DialogHeader>
         {children}
-      </div>
-    </dialog>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 /** Rodape padrao: a acao principal a esquerda, cancelar ao lado. */
 export function AcoesModal({ children }: { children: React.ReactNode }) {
-  return <div className="modal-acoes">{children}</div>;
+  return <DialogFooter className="sm:justify-start">{children}</DialogFooter>;
 }

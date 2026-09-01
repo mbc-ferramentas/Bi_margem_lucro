@@ -1,10 +1,14 @@
 /** Preferencia de tema do usuario.
  *
- *  O styles.css ja traz as tres camadas de paleta: :root (claro), o
- *  @media (prefers-color-scheme: dark) e o override :root[data-theme="dark"].
- *  Este modulo so decide qual delas vale, escrevendo (ou removendo) o atributo
- *  data-theme na raiz. Remover o atributo e o que devolve a palavra ao sistema
- *  operacional — por isso "sistema" apaga em vez de escrever algum valor.
+ *  O tema efetivo e publicado de duas formas na raiz do documento:
+ *  a classe `.dark`, que e o que o Tailwind e todos os componentes do shadcn
+ *  enxergam, e o `color-scheme`, que manda nos controles nativos e na barra de
+ *  rolagem. O modo "sistema" nao e um terceiro valor publicado: ele e resolvido
+ *  aqui, contra o `prefers-color-scheme`, e reavaliado quando o SO muda.
+ *
+ *  O primeiro frame nao passa por aqui — quem o pinta e o script inline no
+ *  <head> do index.html, que repete esta leitura. Sem ele a tela piscaria clara
+ *  antes do bundle carregar.
  */
 
 import { useSyncExternalStore } from "react";
@@ -26,23 +30,35 @@ function avisar() {
   for (const ouvinte of ouvintes) ouvinte();
 }
 
-function aplicar(tema: Tema) {
-  const raiz = document.documentElement;
-  if (tema === "sistema") raiz.removeAttribute("data-theme");
-  else raiz.setAttribute("data-theme", tema === "escuro" ? "dark" : "light");
+function resolver(tema: Tema): "claro" | "escuro" {
+  if (tema !== "sistema") return tema;
+  return window.matchMedia(ESCURO).matches ? "escuro" : "claro";
 }
 
-/** Chamado uma vez em main.tsx, antes do render: se o data-theme so fosse
- *  escrito depois da primeira pintura, quem escolheu claro num Windows escuro
- *  veria a tela piscar preta a cada carregamento. */
+function aplicar(tema: Tema) {
+  const raiz = document.documentElement;
+  const efetivo = resolver(tema);
+  raiz.classList.toggle("dark", efetivo === "escuro");
+  raiz.style.colorScheme = efetivo === "escuro" ? "dark" : "light";
+}
+
+/** Chamado uma vez em main.tsx, antes do render. Alem de aplicar a preferencia
+ *  salva, registra o ouvinte de modulo do prefers-color-scheme: no modo
+ *  "sistema" quem troca o tema e o SO, e a classe precisa acompanhar mesmo que
+ *  nenhum componente esteja assinando o store. */
 export function iniciarTema() {
   aplicar(atual);
+  window.matchMedia(ESCURO).addEventListener("change", () => {
+    if (atual === "sistema") aplicar(atual);
+  });
 }
 
 export function definirTema(tema: Tema) {
   atual = tema;
   if (tema === "sistema") localStorage.removeItem(CHAVE);
   else localStorage.setItem(CHAVE, tema);
+  // Aplicar antes de avisar: os graficos leem os tokens com getComputedStyle no
+  // proprio render, entao a classe tem que estar na raiz quando eles rodarem.
   aplicar(tema);
   avisar();
 }

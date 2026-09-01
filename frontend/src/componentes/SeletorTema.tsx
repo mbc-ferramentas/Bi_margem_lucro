@@ -1,77 +1,65 @@
+import { ChevronDownIcon, MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
+
+import { Button } from "@/componentes/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/componentes/ui/dropdown-menu";
 import { useTema } from "../tema";
 import type { Tema } from "../tema";
 
-/** Icones inline: um SVG de 14px nao justifica uma dependencia de pacote, e em
- *  currentColor eles seguem a cor do botao nos dois modos sem regra extra. */
-const ICONES: Record<Tema, JSX.Element> = {
-  sistema: (
-    <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
-      <rect
-        x="1.5"
-        y="2.5"
-        width="13"
-        height="9"
-        rx="1.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.3"
-      />
-      <path d="M5.5 14h5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-    </svg>
-  ),
-  claro: (
-    <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
-      <circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" strokeWidth="1.3" />
-      <path
-        d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3.1 3.1l1.1 1.1M11.8 11.8l1.1 1.1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-      />
-    </svg>
-  ),
-  escuro: (
-    <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
-      <path
-        d="M13.2 9.6A5.6 5.6 0 0 1 6.4 2.8a5.6 5.6 0 1 0 6.8 6.8Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinejoin="round"
-      />
-    </svg>
-  ),
-};
-
-const OPCOES: { valor: Tema; rotulo: string }[] = [
-  { valor: "sistema", rotulo: "Sistema" },
-  { valor: "claro", rotulo: "Claro" },
-  { valor: "escuro", rotulo: "Escuro" },
+const OPCOES: { valor: Tema; rotulo: string; Icone: typeof SunIcon }[] = [
+  { valor: "sistema", rotulo: "Sistema", Icone: MonitorIcon },
+  { valor: "claro", rotulo: "Claro", Icone: SunIcon },
+  { valor: "escuro", rotulo: "Escuro", Icone: MoonIcon },
 ];
 
 /** Escolha de tema. Fica no cabecalho de cada pagina, e nao na barra lateral,
- *  por pedido do usuario. */
+ *  por pedido do usuario.
+ *
+ *  Um menu, e nao tres botoes lado a lado: no cabecalho o titulo da pagina ja
+ *  disputa a linha, e no celular os tres botoes empurravam o titulo para baixo.
+ *  O gatilho mostra o icone do modo que esta valendo — inclusive o "sistema",
+ *  que e uma resposta diferente de "claro" mesmo quando pinta igual.
+ *
+ *  `secondary` + chevron, e nao `outline`: no modo claro o `outline` pinta
+ *  bg-background sobre uma pagina de bg-background, e a borda fica em 1.2:1
+ *  contra ela — o gatilho lia como texto solto no cabecalho e o usuario nao
+ *  percebia que dava para clicar. O chevron e o sinal de "isto abre um menu". */
 export function SeletorTema() {
   const { tema, definirTema } = useTema();
+  const atual = OPCOES.find((o) => o.valor === tema) ?? OPCOES[0];
 
   return (
-    <div className="seletor-tema" role="radiogroup" aria-label="Tema">
-      {OPCOES.map((o) => (
-        <button
-          key={o.valor}
-          type="button"
-          role="radio"
-          aria-checked={tema === o.valor}
-          // O rotulo textual some no layout estreito (media query em
-          // styles.css), entao o nome acessivel nao pode depender dele.
-          aria-label={o.rotulo}
-          title={o.rotulo}
-          onClick={() => definirTema(o.valor)}
-        >
-          {ICONES[o.valor]}
-          <span>{o.rotulo}</span>
-        </button>
-      ))}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button variant="secondary" size="sm" aria-label={`Tema: ${atual.rotulo}`}>
+            <atual.Icone data-icon="inline-start" />
+            <span className="max-sm:sr-only">{atual.rotulo}</span>
+            <ChevronDownIcon className="text-muted-foreground" data-icon="inline-end" />
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="end">
+        <DropdownMenuGroup>
+          <DropdownMenuRadioGroup
+            value={tema}
+            onValueChange={(valor) => definirTema(valor as Tema)}
+          >
+            {OPCOES.map(({ valor, rotulo, Icone }) => (
+              <DropdownMenuRadioItem key={valor} value={valor}>
+                <Icone data-icon="inline-start" />
+                {rotulo}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

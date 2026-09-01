@@ -16,45 +16,36 @@
  *  errada.
  */
 
-import { useState } from "react";
+import { ArrowLeftIcon, EyeIcon } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { usePedidos } from "../api/hooks";
-import type { ResumoPedidos } from "../api/tipos";
+import type { LinhaPedido, ResumoPedidos } from "../api/tipos";
+import { Button } from "@/componentes/ui/button";
 import { BarraFiltros } from "../componentes/Filtros";
-import { IconeOlho } from "../componentes/Icones";
 import { Erro, Vazio } from "../componentes/Layout";
-import { Paginacao } from "../componentes/Paginacao";
 import { SkeletonTabela, SkeletonTiles } from "../componentes/Skeleton";
+import { Tabela, type Coluna } from "../componentes/Tabela";
 import {
   Abas,
   Badge,
   BarraComposicao,
   CabecalhoPagina,
   CartaoKpi,
+  GradeInsights,
+  GradeKpis,
+  Nota,
   PainelInsight,
+  Secao,
 } from "../componentes/Visual";
 import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
 import { dataCurta, inteiro, moeda, numeroBruto, percentual, rotuloNota } from "../formato";
 
-const COLUNAS = [
-  { chave: "pedido", rotulo: "Pedido", num: false },
-  { chave: "nota", rotulo: "Nota fiscal", num: false },
-  { chave: "emissao", rotulo: "Emissão", num: false },
-  { chave: "cliente", rotulo: "Cliente", num: false },
-  { chave: null, rotulo: "Vendedor", num: false },
-  { chave: null, rotulo: "Canal", num: false },
-  { chave: "quantidade", rotulo: "Qtd", num: true },
-  { chave: "receita", rotulo: "Receita", num: true },
-  { chave: null, rotulo: "Custo", num: true },
-  { chave: "margem", rotulo: "Margem", num: true },
-  { chave: "margem_pct", rotulo: "Margem %", num: true },
-  { chave: null, rotulo: "Ações", num: false },
-] as const;
 
 function Resumo({ resumo }: { resumo: ResumoPedidos }) {
   return (
-    <div className="grade-kpis">
+    <GradeKpis>
       <CartaoKpi
         rotulo="Receita faturada"
         valor={moeda(resumo.receita)}
@@ -82,7 +73,7 @@ function Resumo({ resumo }: { resumo: ResumoPedidos }) {
         valor={moeda(resumo.ticket_medio)}
         apoio={`${inteiro(resumo.skus)} SKUs distintos`}
       />
-    </div>
+    </GradeKpis>
   );
 }
 
@@ -110,11 +101,97 @@ export function Pedidos() {
     itensPorPagina,
   );
 
-  function ordenarPor(chave: string | null) {
-    if (!chave) return;
-    setOffset(0);
-    setOrdenar((atual) => (atual === `-${chave}` ? chave : `-${chave}`));
-  }
+  const colunas: readonly Coluna<LinhaPedido>[] = useMemo(
+    () => [
+      {
+        chave: "pedido",
+        rotulo: "Pedido",
+        fixa: true,
+        celula: (p) => (
+          <span className="num-tabular flex flex-wrap items-center gap-1.5">
+            <strong>{p.origem === "pdv" ? "Balcão/PDV" : p.chave}</strong>
+            {p.armazens > 1 && (
+              <Badge>{p.armazens} armazéns</Badge>
+            )}
+            {/* O marcador veio para ca com o fim da coluna Itens: ele explica por
+                que a margem do pedido e parcial, e some-lo junto com a coluna
+                seria esconder o motivo. */}
+            {p.itens_fora_do_kpi > 0 && (
+              <Badge tom="atencao">{p.itens_fora_do_kpi} fora do KPI</Badge>
+            )}
+          </span>
+        ),
+        titulo: (p) =>
+          p.itens_fora_do_kpi > 0
+            ? `${p.itens_fora_do_kpi} itens somam receita mas ficam fora do KPI de margem`
+            : "",
+      },
+      {
+        chave: "nota",
+        rotulo: "Nota fiscal",
+        celula: (p) => (
+          <span className="num-tabular">
+            {p.notas > 1
+              ? `${inteiro(p.notas)} notas`
+              : (rotuloNota(p.nota_fiscal, p.serie_nf) ?? "—")}
+          </span>
+        ),
+      },
+      {
+        chave: "emissao",
+        rotulo: "Emissão",
+        celula: (p) => (p.emissao ? dataCurta(p.emissao) : "—"),
+      },
+      {
+        chave: "cliente",
+        rotulo: "Cliente",
+        truncar: 240,
+        titulo: (p) => p.nome_cliente ?? "",
+        celula: (p) => p.nome_cliente ?? p.cod_cliente ?? "—",
+      },
+      { chave: null, rotulo: "Vendedor", celula: (p) => p.vendedor_nome ?? "—" },
+      { chave: null, rotulo: "Canal", celula: (p) => p.canal },
+      { chave: "quantidade", rotulo: "Qtd", num: true, celula: (p) => inteiro(p.quantidade) },
+      { chave: "receita", rotulo: "Receita", num: true, celula: (p) => moeda(p.receita) },
+      { chave: null, rotulo: "Custo", num: true, celula: (p) => moeda(p.custo) },
+      {
+        chave: "margem",
+        rotulo: "Margem",
+        num: true,
+        negativo: (p) => numeroBruto(p.margem) < 0,
+        celula: (p) => moeda(p.margem),
+      },
+      {
+        chave: "margem_pct",
+        rotulo: "Margem %",
+        num: true,
+        negativo: (p) => numeroBruto(p.margem_pct) < 0,
+        celula: (p) => percentual(p.margem_pct),
+      },
+      {
+        chave: null,
+        rotulo: "Ações",
+        acao: true,
+        celula: (p) => (
+          <Button
+            nativeButton={false}
+            variant="outline"
+            size="sm"
+            render={
+              <Link
+                to={`${base}/${encodeURIComponent(p.chave)}${consulta ? `?${consulta}` : ""}`}
+                aria-label={`Visualizar detalhes do pedido ${p.chave}`}
+              />
+            }
+          >
+            <EyeIcon data-icon="inline-start" />
+            Ver pedido
+          </Button>
+        ),
+      },
+    ],
+    [base, consulta],
+  );
 
   const rotulo = porArmazem
     ? (data?.pedidos[0]?.armazem_rotulo ?? armazem)
@@ -126,12 +203,20 @@ export function Pedidos() {
         titulo={`Pedidos faturados — ${rotulo}`}
         descricao="Acompanhe o faturamento realizado, a cobertura do indicador de margem e os pedidos que exigem revisão."
         voltar={
-          <Link
-            className="voltar"
-            to={`/${porArmazem ? "armazens" : "vendedores"}${consulta ? `?${consulta}` : ""}`}
+          <Button
+            variant="link"
+            size="sm"
+            nativeButton={false}
+            className="mb-1 h-auto p-0"
+            render={
+              <Link
+                to={`/${porArmazem ? "armazens" : "vendedores"}${consulta ? `?${consulta}` : ""}`}
+              />
+            }
           >
-            ← Voltar para {porArmazem ? "Por armazém" : "Por vendedor"}
-          </Link>
+            <ArrowLeftIcon data-icon="inline-start" />
+            Voltar para {porArmazem ? "Por armazém" : "Por vendedor"}
+          </Button>
         }
         contexto={<><Badge tom="info">Faturado</Badge><Badge>{porArmazem ? "Recorte por armazém" : "Recorte por vendedor"}</Badge></>}
       />
@@ -173,28 +258,28 @@ export function Pedidos() {
           />
 
           {aba === "gerencial" && (
-            <div className="cartao">
-              <div className="secao-topo">
-                <div>
-                  <h2>Qualidade do faturamento</h2>
-                  <p className="nota">Indicadores calculados sobre todos os pedidos do recorte, não apenas sobre a página atual.</p>
-                </div>
-              </div>
-
+            <Secao
+              titulo="Qualidade do faturamento"
+              nota="Indicadores calculados sobre todos os pedidos do recorte, não apenas sobre a página atual."
+            >
               <BarraComposicao
-                valor={numeroBruto(data.resumo.receita)
-                  ? numeroBruto(data.resumo.receita_no_kpi) / numeroBruto(data.resumo.receita)
-                  : 0}
+                valor={
+                  numeroBruto(data.resumo.receita)
+                    ? numeroBruto(data.resumo.receita_no_kpi) /
+                      numeroBruto(data.resumo.receita)
+                    : 0
+                }
                 rotulo="Receita coberta pelo KPI de margem"
                 detalhe={percentual(
                   numeroBruto(data.resumo.receita)
-                    ? numeroBruto(data.resumo.receita_no_kpi) / numeroBruto(data.resumo.receita)
+                    ? numeroBruto(data.resumo.receita_no_kpi) /
+                        numeroBruto(data.resumo.receita)
                     : null,
                 )}
                 tom="bom"
               />
 
-              <div className="grade-insights">
+              <GradeInsights>
                 <PainelInsight
                   titulo="Volume faturado"
                   valor={inteiro(data.resumo.pedidos)}
@@ -211,125 +296,46 @@ export function Pedidos() {
                   texto="Itens com custo não confiável, outlier ou saída que não é venda"
                   tom={data.resumo.itens_fora_do_kpi ? "atencao" : "bom"}
                 />
-              </div>
+              </GradeInsights>
 
-              <div className="aviso" role="note">
-                <span className="icone" aria-hidden="true">i</span>
-                <span>A receita faturada inclui todas as linhas da nota. A receita no indicador exclui itens sem custo confiável, outliers e tipos de saída que não representam venda.</span>
-              </div>
-            </div>
+              <Nota>
+                A receita faturada inclui todas as linhas da nota. A receita no
+                indicador exclui itens sem custo confiável, outliers e tipos de saída
+                que não representam venda.
+              </Nota>
+            </Secao>
           )}
 
           {aba === "detalhamento" && (
-          <div className="cartao">
-            <div className="secao-topo">
-              <div><h2>Pedidos faturados</h2><p className="nota">Ordene as colunas ou abra um pedido para auditar sua composição.</p></div>
-            </div>
-            <div className="rolagem">
-            <table>
-              <thead>
-                <tr>
-                  {COLUNAS.map((c) => (
-                    <th
-                      key={c.rotulo}
-                      className={c.num ? "num" : undefined}
-                      onClick={() => ordenarPor(c.chave)}
-                      style={{ cursor: c.chave ? "pointer" : "default" }}
-                      aria-sort={
-                        !c.chave || ordenar.replace("-", "") !== c.chave
-                          ? "none"
-                          : ordenar.startsWith("-") ? "descending" : "ascending"
-                      }
-                    >
-                      {c.rotulo}
-                      {c.chave &&
-                        ordenar.replace("-", "") === c.chave &&
-                        (ordenar.startsWith("-") ? " ↓" : " ↑")}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.pedidos.map((pedido) => (
-                  <tr key={pedido.chave}>
-                    <td className="tabela-identidade" style={{ fontVariantNumeric: "tabular-nums" }}>
-                      <strong>{pedido.origem === "pdv" ? "Balcão/PDV" : pedido.chave}</strong>
-                      {pedido.armazens > 1 && (
-                        <span
-                          className="badge"
-                          title="Este pedido também sai por outro armazém"
-                        >
-                          {pedido.armazens} armazéns
-                        </span>
-                      )}
-                      {/* O marcador veio para cá com o fim da coluna Itens: ele
-                          explica por que a margem do pedido é parcial, e some-lo
-                          junto com a coluna seria esconder o motivo. */}
-                      {pedido.itens_fora_do_kpi > 0 && (
-                        <span
-                          className="badge badge-atencao"
-                          title={`${pedido.itens_fora_do_kpi} itens somam receita mas ficam fora do KPI de margem`}
-                        >
-                          {pedido.itens_fora_do_kpi} fora do KPI
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ fontVariantNumeric: "tabular-nums" }}>
-                      {pedido.notas > 1
-                        ? `${inteiro(pedido.notas)} notas`
-                        : (rotuloNota(pedido.nota_fiscal, pedido.serie_nf) ?? "—")}
-                    </td>
-                    <td>{pedido.emissao ? dataCurta(pedido.emissao) : "—"}</td>
-                    <td
-                      style={{ maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis" }}
-                      title={pedido.nome_cliente ?? ""}
-                    >
-                      {pedido.nome_cliente ?? pedido.cod_cliente ?? "—"}
-                    </td>
-                    <td>{pedido.vendedor_nome ?? "—"}</td>
-                    <td>{pedido.canal}</td>
-                    <td className="num">{inteiro(pedido.quantidade)}</td>
-                    <td className="num">{moeda(pedido.receita)}</td>
-                    <td className="num">{moeda(pedido.custo)}</td>
-                    <td className={numeroBruto(pedido.margem) < 0 ? "num negativo" : "num"}>
-                      {moeda(pedido.margem)}
-                    </td>
-                    <td
-                      className={
-                        numeroBruto(pedido.margem_pct) < 0 ? "num negativo" : "num"
-                      }
-                    >
-                      {percentual(pedido.margem_pct)}
-                    </td>
-                    <td className="acoes">
-                      <Link
-                        className="botao-alt acao-visualizar"
-                        to={`${base}/${encodeURIComponent(pedido.chave)}${
-                          consulta ? `?${consulta}` : ""
-                        }`}
-                        aria-label={`Visualizar detalhes do pedido ${pedido.chave}`}
-                      >
-                        <IconeOlho />
-                        Ver pedido
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <Paginacao
-            total={data.total}
-            offset={offset}
-            itensPorPagina={itensPorPagina}
-            aoMudarOffset={setOffset}
-            aoMudarItensPorPagina={(quantidade) => {
-              setOffset(0);
-              setItensPorPagina(quantidade);
-            }}
-          />
-          </div>
+            <Secao
+              titulo="Pedidos faturados"
+              nota="Ordene as colunas ou abra um pedido para auditar sua composição."
+            >
+              <Tabela
+                linhas={data.pedidos}
+                colunas={colunas}
+                chaveLinha={(p) => p.chave}
+                rotuloAcessivel="Pedidos faturados"
+                ordenacao={{
+                  valor: ordenar,
+                  aoMudar: (valor) => {
+                    setOffset(0);
+                    setOrdenar(valor);
+                  },
+                }}
+                paginacao={{
+                  modo: "servidor",
+                  total: data.total,
+                  offset,
+                  itensPorPagina,
+                  aoMudarOffset: setOffset,
+                  aoMudarItensPorPagina: (quantidade) => {
+                    setOffset(0);
+                    setItensPorPagina(quantidade);
+                  },
+                }}
+              />
+            </Secao>
           )}
         </>
       )}

@@ -2,6 +2,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { entrar } from "../api/cliente";
+import { Alert, AlertDescription } from "@/componentes/ui/alert";
+import { Button } from "@/componentes/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/componentes/ui/card";
+import { Field, FieldGroup, FieldLabel } from "@/componentes/ui/field";
+import { Input } from "@/componentes/ui/input";
+import { Spinner } from "@/componentes/ui/spinner";
 
 export function Login() {
   const navegar = useNavigate();
@@ -25,49 +31,56 @@ export function Login() {
   }
 
   return (
-    <div className="login">
-      <form onSubmit={submeter}>
-        <div style={{ marginBottom: 8 }}>
-          <h1>Margem de Lucro</h1>
-          <p className="subtitulo" style={{ margin: "2px 0 0" }}>
-            Margem bruta · fase 1
-          </p>
-        </div>
+    // Esta tela fica fora do Layout: sem sessao nao ha menu nem perfil.
+    <div className="grid min-h-screen place-items-center p-5">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle>Margem de Lucro</CardTitle>
+          <CardDescription>Margem bruta · fase 1</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={submeter}>
+            <FieldGroup>
+              <Field data-invalid={erro ? true : undefined}>
+                <FieldLabel htmlFor="usuario">Usuário</FieldLabel>
+                <Input
+                  id="usuario"
+                  autoComplete="username"
+                  value={usuario}
+                  onChange={(e) => setUsuario(e.target.value)}
+                  required
+                  autoFocus
+                  aria-invalid={erro ? true : undefined}
+                />
+              </Field>
 
-        <div className="campo">
-          <label htmlFor="usuario">Usuário</label>
-          <input
-            id="usuario"
-            autoComplete="username"
-            value={usuario}
-            onChange={(e) => setUsuario(e.target.value)}
-            required
-            autoFocus
-          />
-        </div>
+              <Field data-invalid={erro ? true : undefined}>
+                <FieldLabel htmlFor="senha">Senha</FieldLabel>
+                <Input
+                  id="senha"
+                  type="password"
+                  autoComplete="current-password"
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  required
+                  aria-invalid={erro ? true : undefined}
+                />
+              </Field>
 
-        <div className="campo">
-          <label htmlFor="senha">Senha</label>
-          <input
-            id="senha"
-            type="password"
-            autoComplete="current-password"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            required
-          />
-        </div>
+              {erro && (
+                <Alert variant="destructive" role="alert">
+                  <AlertDescription>{erro}</AlertDescription>
+                </Alert>
+              )}
 
-        {erro && (
-          <div role="alert" style={{ color: "var(--status-critical)", fontSize: 13 }}>
-            {erro}
-          </div>
-        )}
-
-        <button className="principal" type="submit" disabled={enviando}>
-          {enviando ? "Entrando…" : "Entrar"}
-        </button>
-      </form>
+              <Button type="submit" disabled={enviando} className="w-full">
+                {enviando && <Spinner data-icon="inline-start" />}
+                {enviando ? "Entrando…" : "Entrar"}
+              </Button>
+            </FieldGroup>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

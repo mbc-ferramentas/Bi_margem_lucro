@@ -14,16 +14,22 @@
  *  - o proprio usuario logado nao se remove.
  */
 
-import { useState } from "react";
+import { PlusIcon } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { ErroApi } from "../api/cliente";
 import { useEu, useRedefinirSenha, useRemoverUsuario, useUsuarios } from "../api/hooks";
 import type { Usuario } from "../api/tipos";
+import { Alert, AlertDescription } from "@/componentes/ui/alert";
+import { Button } from "@/componentes/ui/button";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/componentes/ui/field";
+import { Input } from "@/componentes/ui/input";
 import { Erro, Vazio } from "../componentes/Layout";
 import { AcoesModal, Modal } from "../componentes/Modal";
-import { SeletorTema } from "../componentes/SeletorTema";
 import { SkeletonTabela } from "../componentes/Skeleton";
+import { Tabela, type Coluna } from "../componentes/Tabela";
+import { CabecalhoPagina, Secao } from "../componentes/Visual";
 
 const ROTULO_PERFIL: Record<string, string> = {
   admin: "Administrador",
@@ -62,38 +68,39 @@ function ModalSenha({ usuario, aoFechar }: { usuario: Usuario; aoFechar: () => v
           troca.mutate({ id: usuario.id, senha });
         }}
       >
-        <div className="campo">
-          <label htmlFor="nova-senha">Nova senha</label>
-          <input
-            id="nova-senha"
-            type="text"
-            value={senha}
-            required
-            autoFocus
-            autoComplete="new-password"
-            onChange={(e) => setSenha(e.target.value)}
-          />
-        </div>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="nova-senha">Nova senha</FieldLabel>
+            <Input
+              id="nova-senha"
+              type="text"
+              value={senha}
+              required
+              autoFocus
+              autoComplete="new-password"
+              onChange={(e) => setSenha(e.target.value)}
+            />
+            <FieldDescription>
+              A senha atual não é solicitada. Comunique a nova senha à pessoa: nada é
+              enviado por e-mail.
+            </FieldDescription>
+          </Field>
 
-        <p>
-          A senha atual não é solicitada. Comunique a nova senha à pessoa: nada é
-          enviado por e-mail.
-        </p>
-
-        {troca.data ? (
-          <p role="status" style={{ color: "var(--status-good)" }}>
-            {troca.data.detail}
-          </p>
-        ) : null}
-        {erro && <Erro mensagem={erro} />}
+          {troca.data ? (
+            <Alert role="status">
+              <AlertDescription>{troca.data.detail}</AlertDescription>
+            </Alert>
+          ) : null}
+          {erro && <Erro mensagem={erro} />}
+        </FieldGroup>
 
         <AcoesModal>
-          <button className="botao" type="submit" disabled={troca.isPending}>
+          <Button type="submit" disabled={troca.isPending}>
             {troca.isPending ? "Redefinindo…" : "Redefinir"}
-          </button>
-          <button className="botao-alt" type="button" onClick={aoFechar}>
+          </Button>
+          <Button variant="outline" type="button" onClick={aoFechar}>
             {troca.data ? "Fechar" : "Cancelar"}
-          </button>
+          </Button>
         </AcoesModal>
       </form>
     </Modal>
@@ -108,31 +115,34 @@ function ModalRemocao({ usuario, aoFechar }: { usuario: Usuario; aoFechar: () =>
 
   return (
     <Modal titulo={`Remover ${usuario.username}?`} aoFechar={aoFechar}>
-      <p>
-        A conta deixa de existir e a pessoa perde o acesso imediatamente.
-        {usuario.vendedor
-          ? ` O código de vendedor ${usuario.vendedor.codigo} fica livre para outro usuário.`
-          : ""}
-      </p>
-      <p>
-        Se a saída for temporária, prefira <strong>editar e marcar como inativo</strong>:
-        preserva o cadastro e o histórico de acesso.
-      </p>
+      <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+        <p>
+          A conta deixa de existir e a pessoa perde o acesso imediatamente.
+          {usuario.vendedor
+            ? ` O código de vendedor ${usuario.vendedor.codigo} fica livre para outro usuário.`
+            : ""}
+        </p>
+        <p>
+          Se a saída for temporária, prefira{" "}
+          <strong className="text-foreground">editar e marcar como inativo</strong>:
+          preserva o cadastro e o histórico de acesso.
+        </p>
+      </div>
 
       {erro && <Erro mensagem={erro} />}
 
       <AcoesModal>
-        <button
-          className="botao"
+        <Button
+          variant="destructive"
           type="button"
           disabled={remover.isPending}
           onClick={() => remover.mutate(usuario.id, { onSuccess: aoFechar })}
         >
           {remover.isPending ? "Removendo…" : "Remover"}
-        </button>
-        <button className="botao-alt" type="button" onClick={aoFechar}>
+        </Button>
+        <Button variant="outline" type="button" onClick={aoFechar}>
           Cancelar
-        </button>
+        </Button>
       </AcoesModal>
     </Modal>
   );
@@ -149,27 +159,76 @@ export function Usuarios() {
   const alvo = (id: number | null) =>
     id === null ? undefined : dados?.usuarios.find((u) => u.id === id);
 
+  const colunas: readonly Coluna<Usuario>[] = useMemo(
+    () => [
+      { chave: null, rotulo: "Login", fixa: true, celula: (u) => u.username },
+      { chave: null, rotulo: "Nome", celula: (u) => u.nome || "—" },
+      { chave: null, rotulo: "Perfil", celula: (u) => ROTULO_PERFIL[u.perfil] ?? "sem perfil" },
+      {
+        chave: null,
+        rotulo: "Vendedor",
+        celula: (u) => (u.vendedor ? `${u.vendedor.codigo} — ${u.vendedor.nome}` : "—"),
+      },
+      {
+        chave: null,
+        rotulo: "Situação",
+        negativo: (u) => !u.ativo,
+        celula: (u) => (u.ativo ? "Ativo" : "Inativo"),
+      },
+      { chave: null, rotulo: "Último acesso", celula: (u) => data(u.ultimo_acesso) },
+      {
+        chave: null,
+        rotulo: "Ações",
+        acao: true,
+        celula: (u) =>
+          u.protegido ? (
+            // A conta de emergencia nao tem acao nenhuma: se as permissoes forem
+            // erradas em qualquer outro lugar, e por ela que se volta a entrar.
+            <span
+              className="text-xs text-muted-foreground"
+              title="Conta administrativa de emergência: só muda por acesso direto ao banco."
+            >
+              conta protegida
+            </span>
+          ) : (
+            <span className="flex gap-1.5">
+              <Button variant="outline" size="sm" onClick={() => navegar(`/usuarios/${u.id}`)}>
+                Editar
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setSenhaDe(u.id)}>
+                Senha
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={u.username === eu?.username}
+                title={
+                  u.username === eu?.username
+                    ? "Você não pode remover a própria conta."
+                    : undefined
+                }
+                onClick={() => setRemovendo(u.id)}
+              >
+                Remover
+              </Button>
+            </span>
+          ),
+      },
+    ],
+    [eu?.username, navegar],
+  );
+
   return (
     <>
-      <div className="cabecalho">
-        <div>
-          <h1>Usuários</h1>
-          <p style={{ color: "var(--text-secondary)", maxWidth: 640 }}>
-            Quem pode entrar no BI e o que cada um enxerga. Administrador e gerente
-            veem tudo; o perfil vendedor vê apenas as próprias linhas, e por isso
-            precisa estar vinculado a um código do Protheus.
-          </p>
-        </div>
-        <SeletorTema />
-      </div>
+      <CabecalhoPagina
+        titulo="Usuários"
+        descricao="Quem pode entrar no BI e o que cada um enxerga. Administrador e gerente veem tudo; o perfil vendedor vê apenas as próprias linhas, e por isso precisa estar vinculado a um código do Protheus."
+      />
 
-      <button
-        className="botao"
-        style={{ marginBottom: 16 }}
-        onClick={() => navegar("/usuarios/novo")}
-      >
+      <Button className="mb-4" onClick={() => navegar("/usuarios/novo")}>
+        <PlusIcon data-icon="inline-start" />
         Novo usuário
-      </button>
+      </Button>
 
       {error && <Erro mensagem="Não foi possível carregar os usuários." />}
 
@@ -178,75 +237,14 @@ export function Usuarios() {
       ) : !dados?.usuarios.length ? (
         <Vazio mensagem="Nenhum usuário cadastrado." />
       ) : (
-        <div className="cartao rolagem">
-          <table className="tabela">
-            <thead>
-              <tr>
-                <th>Login</th>
-                <th>Nome</th>
-                <th>Perfil</th>
-                <th>Vendedor</th>
-                <th>Situação</th>
-                <th>Último acesso</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dados.usuarios.map((u) => {
-                const souEu = u.username === eu?.username;
-                return (
-                  <tr key={u.id}>
-                    <td>{u.username}</td>
-                    <td>{u.nome || "—"}</td>
-                    <td>{ROTULO_PERFIL[u.perfil] ?? "sem perfil"}</td>
-                    <td>
-                      {u.vendedor ? `${u.vendedor.codigo} — ${u.vendedor.nome}` : "—"}
-                    </td>
-                    <td className={u.ativo ? undefined : "negativo"}>
-                      {u.ativo ? "Ativo" : "Inativo"}
-                    </td>
-                    <td>{data(u.ultimo_acesso)}</td>
-                    <td>
-                      {u.protegido ? (
-                        // A conta de emergencia nao tem acao nenhuma: se as
-                        // permissoes forem erradas em qualquer outro lugar, e por
-                        // ela que se volta a entrar.
-                        <span
-                          style={{ color: "var(--text-muted)" }}
-                          title="Conta administrativa de emergência: só muda por acesso direto ao banco."
-                        >
-                          conta protegida
-                        </span>
-                      ) : (
-                        <span style={{ display: "flex", gap: 6 }}>
-                          <button
-                            className="botao-alt"
-                            onClick={() => navegar(`/usuarios/${u.id}`)}
-                          >
-                            Editar
-                          </button>
-                          <button className="botao-alt" onClick={() => setSenhaDe(u.id)}>
-                            Senha
-                          </button>
-                          <button
-                            className="botao-alt"
-                            disabled={souEu}
-                            title={
-                              souEu ? "Você não pode remover a própria conta." : undefined
-                            }
-                            onClick={() => setRemovendo(u.id)}
-                          >
-                            Remover
-                          </button>
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <Secao titulo="Contas cadastradas">
+          <Tabela
+            linhas={dados.usuarios}
+            colunas={colunas}
+            chaveLinha={(u) => String(u.id)}
+            rotuloAcessivel="Usuários do BI"
+          />
+        </Secao>
       )}
 
       {alvo(senhaDe) && (

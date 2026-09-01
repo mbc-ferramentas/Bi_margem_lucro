@@ -5,6 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/icone-margem-lucro.png" />
     <title>Margem de Lucro-MBC</title>
+    <!--
+      O tema virou classe `.dark` na raiz porque e o que o Tailwind e todos os
+      componentes do shadcn enxergam. So que classe e decidida em JS, e o body ja
+      pinta antes do bundle carregar: sem este script a tela pisca clara a cada
+      carregamento de quem usa o modo escuro. Ele repete de proposito a leitura
+      que o src/tema.ts faz — e a unica duplicacao que evita o flash.
+    -->
+    <script>
+      (function () {
+        try {
+          var salvo = localStorage.getItem("bi.tema");
+          var escuro =
+            salvo === "escuro" ||
+            (salvo !== "claro" && matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.classList.toggle("dark", escuro);
+          document.documentElement.style.colorScheme = escuro ? "dark" : "light";
+        } catch (e) {
+          /* localStorage bloqueado: cai no tema claro, que e o padrao. */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

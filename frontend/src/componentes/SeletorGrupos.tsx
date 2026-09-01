@@ -1,4 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { CheckIcon, ChevronDownIcon } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { Button } from "@/componentes/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@/componentes/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/componentes/ui/popover";
+import { Label } from "@/componentes/ui/label";
 
 type Opcao = { codigo: string; rotulo: string | null; sem_movimento: boolean };
 
@@ -18,30 +32,15 @@ type Props = {
  *  Protheus, e deixar todos visiveis empurraria o resto da barra de filtros para
  *  fora da tela. Fechado, o campo resume o que esta marcado.
  *
+ *  Ganhou campo de busca ao virar Command: com os grupos consolidados a lista ja
+ *  passa de vinte itens, e rolar procurando um codigo era o gesto mais lento da
+ *  barra de filtros.
+ *
  *  Os grupos `sem_movimento` vem do cadastro e nao tem linha no recorte atual.
  *  Aparecem assim mesmo — a lista tambem serve para conferir a classificacao —
  *  mas apagados, para ninguem marcar um deles e concluir que o BI zerou. */
 export function SeletorGrupos({ opcoes, valor, aoMudar, idPrefixo }: Props) {
   const marcados = valor ?? [];
-  const [aberto, setAberto] = useState(false);
-  const caixa = useRef<HTMLDivElement>(null);
-
-  // Clique fora e Esc fecham: sem isso o menu ficaria por cima da tabela.
-  useEffect(() => {
-    if (!aberto) return;
-    function fora(evento: MouseEvent) {
-      if (!caixa.current?.contains(evento.target as Node)) setAberto(false);
-    }
-    function tecla(evento: KeyboardEvent) {
-      if (evento.key === "Escape") setAberto(false);
-    }
-    document.addEventListener("mousedown", fora);
-    document.addEventListener("keydown", tecla);
-    return () => {
-      document.removeEventListener("mousedown", fora);
-      document.removeEventListener("keydown", tecla);
-    };
-  }, [aberto]);
 
   function alternar(codigo: string) {
     aoMudar(
@@ -64,46 +63,62 @@ export function SeletorGrupos({ opcoes, valor, aoMudar, idPrefixo }: Props) {
         : `${marcados.length} grupos`;
 
   return (
-    <div className="campo campo-grupos" ref={caixa}>
-      <label htmlFor={`${idPrefixo}-grupo`}>Grupo</label>
-      <button
-        type="button"
-        id={`${idPrefixo}-grupo`}
-        className="seletor-menu"
-        aria-haspopup="true"
-        aria-expanded={aberto}
-        onClick={() => setAberto((a) => !a)}
-      >
-        <span>{resumo}</span>
-        <span aria-hidden="true">▾</span>
-      </button>
-
-      {aberto && (
-        <div className="menu" role="group" aria-label="Grupos">
-          <label className="menu-item menu-todos">
-            <input
-              type="checkbox"
-              checked={marcados.length === 0}
-              onChange={() => aoMudar([])}
-            />
-            <span>Todos</span>
-          </label>
-          {opcoes?.map((g) => (
-            <label
-              key={g.codigo}
-              className={`menu-item${g.sem_movimento ? " menu-item-vazio" : ""}`}
-              title={g.sem_movimento ? "Sem linhas no recorte atual" : undefined}
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={`${idPrefixo}-grupo`} className="text-[11px] tracking-wider text-muted-foreground uppercase">
+        Grupo
+      </Label>
+      <Popover>
+        <PopoverTrigger
+          render={
+            <Button
+              id={`${idPrefixo}-grupo`}
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-w-40 justify-between font-normal"
             >
-              <input
-                type="checkbox"
-                checked={marcados.includes(g.codigo)}
-                onChange={() => alternar(g.codigo)}
-              />
-              <span>{g.rotulo ?? g.codigo}</span>
-            </label>
-          ))}
-        </div>
-      )}
+              <span className="truncate">{resumo}</span>
+              <ChevronDownIcon data-icon="inline-end" className="text-muted-foreground" />
+            </Button>
+          }
+        />
+        <PopoverContent align="start" className="w-64 p-0">
+          <Command>
+            <CommandInput placeholder="Buscar grupo…" />
+            <CommandList>
+              <CommandEmpty>Nenhum grupo encontrado.</CommandEmpty>
+              <CommandGroup>
+                <CommandItem value="Todos" onSelect={() => aoMudar([])}>
+                  <CheckIcon
+                    className={cn("text-primary", marcados.length > 0 && "invisible")}
+                  />
+                  Todos
+                </CommandItem>
+              </CommandGroup>
+              <CommandSeparator />
+              <CommandGroup>
+                {opcoes?.map((g) => (
+                  <CommandItem
+                    key={g.codigo}
+                    value={`${g.rotulo ?? g.codigo} ${g.codigo}`}
+                    onSelect={() => alternar(g.codigo)}
+                    className={cn(g.sem_movimento && "opacity-50")}
+                    title={g.sem_movimento ? "Sem linhas no recorte atual" : undefined}
+                  >
+                    <CheckIcon
+                      className={cn(
+                        "text-primary",
+                        !marcados.includes(g.codigo) && "invisible",
+                      )}
+                    />
+                    {g.rotulo ?? g.codigo}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

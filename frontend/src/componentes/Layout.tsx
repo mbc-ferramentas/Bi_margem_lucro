@@ -1,10 +1,41 @@
+import {
+  BoxesIcon,
+  ChartLineIcon,
+  ClipboardListIcon,
+  LayoutDashboardIcon,
+  LogOutIcon,
+  PackageIcon,
+  StoreIcon,
+  TriangleAlertIcon,
+  UploadIcon,
+  UsersIcon,
+  UsersRoundIcon,
+} from "lucide-react";
 import { Navigate, NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { ErroApi, tokens } from "../api/cliente";
 import { useEu } from "../api/hooks";
+import { Alert, AlertDescription, AlertTitle } from "@/componentes/ui/alert";
+import { Button } from "@/componentes/ui/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/componentes/ui/empty";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarSeparator,
+} from "@/componentes/ui/sidebar";
 import { Barra } from "./Skeleton";
 
-type ItemMenu = { para: string; rotulo: string; fim?: boolean };
+type ItemMenu = { para: string; rotulo: string; fim?: boolean; Icone: typeof PackageIcon };
 
 type GrupoMenu = { titulo: string; somenteAdmin?: boolean; itens: ItemMenu[] };
 
@@ -15,17 +46,17 @@ const GRUPOS: GrupoMenu[] = [
   {
     titulo: "Análise",
     itens: [
-      { para: "/", rotulo: "Visão geral", fim: true },
+      { para: "/", rotulo: "Visão geral", fim: true, Icone: LayoutDashboardIcon },
       // Armazem antes das demais quebras: e a dimensao de fora da hierarquia.
-      { para: "/armazens", rotulo: "Por armazém" },
-      { para: "/vendedores", rotulo: "Por vendedor" },
-      { para: "/skus", rotulo: "Por SKU" },
-      { para: "/canais", rotulo: "Por canal" },
+      { para: "/armazens", rotulo: "Por armazém", Icone: BoxesIcon },
+      { para: "/vendedores", rotulo: "Por vendedor", Icone: UsersRoundIcon },
+      { para: "/skus", rotulo: "Por SKU", Icone: PackageIcon },
+      { para: "/canais", rotulo: "Por canal", Icone: StoreIcon },
     ],
   },
   {
     titulo: "Operação",
-    itens: [{ para: "/carteira", rotulo: "Carteira em aberto" }],
+    itens: [{ para: "/carteira", rotulo: "Carteira em aberto", Icone: ClipboardListIcon }],
   },
   {
     // Esconder o bloco nao e a protecao: a API recusa quem nao e admin. Aqui e
@@ -35,26 +66,40 @@ const GRUPOS: GrupoMenu[] = [
     titulo: "Administração",
     somenteAdmin: true,
     itens: [
-      { para: "/uploads", rotulo: "Uploads" },
-      { para: "/usuarios", rotulo: "Usuários" },
+      { para: "/uploads", rotulo: "Uploads", Icone: UploadIcon },
+      { para: "/usuarios", rotulo: "Usuários", Icone: UsersIcon },
     ],
   },
 ];
 
 /** Moldura fixa da aplicacao: existe igual nos tres estados (carregando, erro e
- *  pronto), para que a troca entre eles nao desloque nada na tela. */
+ *  pronto), para que a troca entre eles nao desloque nada na tela.
+ *
+ *  O SidebarProvider precisa envolver os tres — e nao so o estado pronto —
+ *  senao a barra apareceria depois do dado, deslocando a pagina inteira. */
 function Moldura({ children, menu }: { children: React.ReactNode; menu: React.ReactNode }) {
   return (
-    <div className="app">
-      <nav className="lateral" aria-label="Navegação principal">
-        <div className="marca">
-          Margem de Lucro
-          <small>Margem bruta · fase 1</small>
-        </div>
-        {menu}
-      </nav>
-      <main className="conteudo">{children}</main>
-    </div>
+    <SidebarProvider>
+      <Sidebar collapsible="icon">
+        <SidebarHeader>
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <ChartLineIcon className="size-5 shrink-0 text-primary" />
+            <div className="grid min-w-0 leading-tight group-data-[collapsible=icon]:hidden">
+              <span className="truncate text-sm font-semibold">Margem de Lucro</span>
+              <span className="truncate text-[11px] text-muted-foreground">
+                Margem bruta · fase 1
+              </span>
+            </div>
+          </div>
+        </SidebarHeader>
+        <SidebarContent>{menu}</SidebarContent>
+      </Sidebar>
+      <SidebarInset>
+        <main className="w-full max-w-[1400px] px-4 pt-4 pb-12 sm:px-7 sm:pt-6">
+          {children}
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 
@@ -67,6 +112,16 @@ export function Layout() {
     navegar("/login", { replace: true });
   }
 
+  const botaoSair = (
+    <SidebarFooter>
+      <SidebarSeparator />
+      <Button variant="ghost" size="sm" onClick={sair} className="justify-start">
+        <LogOutIcon data-icon="inline-start" />
+        <span className="group-data-[collapsible=icon]:hidden">Sair</span>
+      </Button>
+    </SidebarFooter>
+  );
+
   // O menu depende do perfil, e o perfil vem de /auth/eu. Renderizar antes da
   // resposta faria o item de administrador surgir alguns instantes depois dos
   // demais — o usuario ve o menu mudar sozinho e duvida do que esta vendo.
@@ -76,19 +131,23 @@ export function Layout() {
       <Moldura
         menu={
           <div role="status" aria-live="polite" aria-busy="true">
-            <span style={{ position: "absolute", left: "-9999px" }}>Carregando</span>
+            <span className="sr-only">Carregando</span>
             <div aria-hidden="true">
               {/* Os titulos nao dependem de /auth/eu: entram como texto mesmo, e
                   so os itens esperam em barra. */}
               {GRUPOS.filter((g) => !g.somenteAdmin).map((g) => (
-                <div key={g.titulo} className="nav-grupo">
-                  <h2 className="nav-grupo-titulo">{g.titulo}</h2>
-                  {g.itens.map((p) => (
-                    <div key={p.para} className="nav-item">
-                      <Barra largura="70%" altura="11px" />
-                    </div>
-                  ))}
-                </div>
+                <SidebarGroup key={g.titulo}>
+                  <SidebarGroupLabel>{g.titulo}</SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {g.itens.map((p) => (
+                        <SidebarMenuItem key={p.para} className="px-2 py-1.5">
+                          <Barra largura="70%" altura="11px" />
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
               ))}
             </div>
           </div>
@@ -108,19 +167,9 @@ export function Layout() {
   if (error || !eu) {
     return (
       <Moldura
-        menu={
-          // Sem o perfil nao da para montar o menu, mas o botao de sair precisa
-          // existir: sem ele o usuario fica preso numa tela sem saida.
-          <div className="rodape-lateral">
-            <button
-              className="botao-alt"
-              onClick={sair}
-              style={{ marginTop: 8, width: "100%" }}
-            >
-              Sair
-            </button>
-          </div>
-        }
+        // Sem o perfil nao da para montar o menu, mas o botao de sair precisa
+        // existir: sem ele o usuario fica preso numa tela sem saida.
+        menu={botaoSair}
       >
         <Erro mensagem="Não foi possível carregar seu perfil. Recarregue a página." />
       </Moldura>
@@ -135,28 +184,33 @@ export function Layout() {
       menu={
         <>
           {grupos.map((g) => (
-            <div key={g.titulo} className="nav-grupo">
-              <h2 className="nav-grupo-titulo">{g.titulo}</h2>
-              {g.itens.map((p) => (
-                <NavLink key={p.para} to={p.para} end={p.fim} className="nav-item">
-                  {p.rotulo}
-                </NavLink>
-              ))}
-            </div>
+            <SidebarGroup key={g.titulo}>
+              <SidebarGroupLabel>{g.titulo}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {g.itens.map((p) => (
+                    <SidebarMenuItem key={p.para}>
+                      <NavLink to={p.para} end={p.fim}>
+                        {({ isActive }) => (
+                          <SidebarMenuButton isActive={isActive} tooltip={p.rotulo} render={<span />}>
+                            <p.Icone />
+                            <span>{p.rotulo}</span>
+                          </SidebarMenuButton>
+                        )}
+                      </NavLink>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
           ))}
 
-          <div className="rodape-lateral">
-            <div style={{ color: "var(--lateral-texto)" }}>{eu.nome || eu.username}</div>
-            <div>{eu.perfis.join(", ")}</div>
+          <div className="mt-auto px-2 pb-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+            <div className="truncate text-foreground">{eu.nome || eu.username}</div>
+            <div className="truncate">{eu.perfis.join(", ")}</div>
             {eu.vendedor && <div>Vendedor {eu.vendedor.codigo}</div>}
-            <button
-              className="botao-alt"
-              onClick={sair}
-              style={{ marginTop: 8, width: "100%" }}
-            >
-              Sair
-            </button>
           </div>
+          {botaoSair}
         </>
       }
     >
@@ -169,23 +223,31 @@ export function Layout() {
  *  a comissao de 12-19% ainda nao esta lancada, e sem o rotulo o numero engana. */
 export function AvisoMarketplace({ texto }: { texto: string }) {
   return (
-    <div className="aviso" role="note">
-      <span className="icone" aria-hidden="true">
-        !
-      </span>
-      <span>{texto}</span>
-    </div>
+    <Alert role="note" className="mb-4 border-status-atencao/40 bg-status-atencao/10">
+      <TriangleAlertIcon className="text-status-atencao" />
+      <AlertTitle className="sr-only">Atenção</AlertTitle>
+      <AlertDescription className="text-foreground">{texto}</AlertDescription>
+    </Alert>
   );
 }
 
 export function Erro({ mensagem }: { mensagem: string }) {
   return (
-    <div className="cartao erro" role="alert">
-      {mensagem}
-    </div>
+    <Alert variant="destructive" role="alert">
+      <TriangleAlertIcon />
+      <AlertTitle>Não foi possível carregar</AlertTitle>
+      <AlertDescription>{mensagem}</AlertDescription>
+    </Alert>
   );
 }
 
 export function Vazio({ mensagem }: { mensagem: string }) {
-  return <div className="cartao vazio">{mensagem}</div>;
+  return (
+    <Empty>
+      <EmptyHeader>
+        <EmptyTitle>Nada para mostrar</EmptyTitle>
+        <EmptyDescription>{mensagem}</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  );
 }

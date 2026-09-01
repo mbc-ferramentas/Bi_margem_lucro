@@ -8,20 +8,20 @@
  *  ouve "carregando", nao a descricao de dezenas de retangulos.
  */
 
+import { Card, CardContent } from "@/componentes/ui/card";
+import { Skeleton as SkeletonUi } from "@/componentes/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/componentes/ui/table";
+
 type Props = { largura?: string; altura?: string; raio?: string };
 
 export function Barra({ largura = "100%", altura = "14px", raio }: Props) {
-  return (
-    <div className="sk" style={{ width: largura, height: altura, borderRadius: raio }} />
-  );
+  return <SkeletonUi style={{ width: largura, height: altura, borderRadius: raio }} />;
 }
 
 function Contorno({ children }: { children: React.ReactNode }) {
   return (
     <div role="status" aria-live="polite" aria-busy="true">
-      <span className="sr-only" style={{ position: "absolute", left: "-9999px" }}>
-        Carregando
-      </span>
+      <span className="sr-only">Carregando</span>
       <div aria-hidden="true">{children}</div>
     </div>
   );
@@ -31,15 +31,15 @@ function Contorno({ children }: { children: React.ReactNode }) {
 export function SkeletonTiles({ quantidade = 4 }: { quantidade?: number }) {
   return (
     <Contorno>
-      <div className="grade grade-tiles">
+      <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
         {Array.from({ length: quantidade }, (_, i) => (
-          <div className="cartao tile" key={i}>
-            <Barra largura="52%" altura="10px" />
-            <div style={{ height: 10 }} />
-            <Barra largura="72%" altura="26px" />
-            <div style={{ height: 8 }} />
-            <Barra largura="40%" altura="10px" />
-          </div>
+          <Card key={i}>
+            <CardContent className="flex flex-col gap-2.5">
+              <Barra largura="52%" altura="10px" />
+              <Barra largura="72%" altura="26px" />
+              <Barra largura="40%" altura="10px" />
+            </CardContent>
+          </Card>
         ))}
       </div>
     </Contorno>
@@ -51,26 +51,19 @@ export function SkeletonGrafico({ altura = 300 }: { altura?: number }) {
   const barras = [58, 74, 46, 88, 63, 79, 52, 92, 68, 55, 81, 71];
   return (
     <Contorno>
-      <div className="cartao">
-        <Barra largura="180px" altura="12px" />
-        <div style={{ height: 6 }} />
-        <Barra largura="260px" altura="10px" />
-        <div
-          style={{
-            height: altura,
-            display: "flex",
-            alignItems: "flex-end",
-            gap: 6,
-            marginTop: 18,
-          }}
-        >
-          {barras.map((h, i) => (
-            <div key={i} style={{ flex: 1 }}>
-              <Barra altura={`${(h / 100) * altura}px`} raio="4px 4px 0 0" />
-            </div>
-          ))}
-        </div>
-      </div>
+      <Card>
+        <CardContent className="flex flex-col gap-1.5">
+          <Barra largura="180px" altura="12px" />
+          <Barra largura="260px" altura="10px" />
+          <div className="mt-4 flex items-end gap-1.5" style={{ height: altura }}>
+            {barras.map((h, i) => (
+              <div key={i} className="flex-1">
+                <Barra altura={`${(h / 100) * altura}px`} raio="4px 4px 0 0" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </Contorno>
   );
 }
@@ -85,35 +78,36 @@ export function SkeletonTabela({
 }) {
   return (
     <Contorno>
-      <div className="cartao">
-        <Barra largura="150px" altura="12px" />
-        <div style={{ height: 16 }} />
-        <table>
-          <thead>
-            <tr>
-              {Array.from({ length: colunas }, (_, c) => (
-                <th key={c}>
-                  <Barra largura={c === 0 ? "60%" : "44%"} altura="9px" />
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: linhas }, (_, l) => (
-              <tr key={l}>
+      <Card>
+        <CardContent className="flex flex-col gap-4">
+          <Barra largura="150px" altura="12px" />
+          <Table>
+            <TableHeader>
+              <TableRow>
                 {Array.from({ length: colunas }, (_, c) => (
-                  <td key={c}>
-                    <Barra
-                      largura={c === 0 ? "78%" : `${40 + ((l * 7 + c * 11) % 30)}%`}
-                      altura="11px"
-                    />
-                  </td>
+                  <TableHead key={c}>
+                    <Barra largura={c === 0 ? "60%" : "44%"} altura="9px" />
+                  </TableHead>
                 ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Array.from({ length: linhas }, (_, l) => (
+                <TableRow key={l}>
+                  {Array.from({ length: colunas }, (_, c) => (
+                    <TableCell key={c}>
+                      <Barra
+                        largura={c === 0 ? "78%" : `${40 + ((l * 7 + c * 11) % 30)}%`}
+                        altura="11px"
+                      />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </Contorno>
   );
 }

@@ -9,14 +9,26 @@
  *  desconto à parte: `Vlr.Total` continua sendo quantidade × unitário.
  */
 
-import { useState } from "react";
+import { ArrowLeftIcon } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { usePedido } from "../api/hooks";
 import type { ItemPedido } from "../api/tipos";
+import { Button } from "@/componentes/ui/button";
 import { AvisoMarketplace, Erro } from "../componentes/Layout";
 import { SkeletonTabela } from "../componentes/Skeleton";
-import { Abas, Badge, CabecalhoPagina, CartaoKpi } from "../componentes/Visual";
+import { Tabela, type Coluna } from "../componentes/Tabela";
+import {
+  Abas,
+  Badge,
+  CabecalhoPagina,
+  CartaoKpi,
+  GradeKpis,
+  Nota,
+  Secao,
+  Segmentado,
+} from "../componentes/Visual";
 import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
 import {
   competencia,
@@ -38,12 +50,45 @@ const ORIGEM_CUSTO: Record<string, string> = {
   outro_armazem: "Mesmo SKU em outro armazém",
 };
 
+/** Par rotulo/valor. E leitura, nao formulario: nada aqui e editavel, entao
+ *  nada aqui usa Input desabilitado — que so faria o dado parecer bloqueado. */
 function Campo({ rotulo, valor }: { rotulo: string; valor: string }) {
   return (
-    <div className="campo-leitura">
-      <div className="rotulo">{rotulo}</div>
-      <div className="valor">{valor}</div>
+    <div>
+      <div className="text-[11px] tracking-wide text-muted-foreground uppercase">{rotulo}</div>
+      <div className="mt-0.5 text-sm">{valor}</div>
     </div>
+  );
+}
+
+function GradeLeitura({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mt-2.5 grid gap-x-5 gap-y-3 [grid-template-columns:repeat(auto-fit,minmax(190px,1fr))]">
+      {children}
+    </div>
+  );
+}
+
+/** Uma parcela da formula receita − desconto − custo = margem liquida. */
+function Parcela({ rotulo, valor }: { rotulo: string; valor: string }) {
+  return (
+    <div className="min-w-[130px] rounded-lg bg-muted p-3">
+      <span className="block text-[10.5px] tracking-wide text-muted-foreground uppercase">
+        {rotulo}
+      </span>
+      <strong className="num-tabular mt-1 block text-[17px]">{valor}</strong>
+    </div>
+  );
+}
+
+function Operador({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      className="text-center text-xl text-muted-foreground max-md:h-4 max-md:rotate-90"
+      aria-hidden="true"
+    >
+      {children}
+    </span>
   );
 }
 
@@ -89,12 +134,102 @@ export function PedidoDetalhe() {
     return true;
   }) ?? [];
 
+  const colunas: readonly Coluna<ItemPedido>[] = useMemo(
+    () => [
+      {
+        chave: null,
+        rotulo: "Nota",
+        fixa: true,
+        celula: (i) => (
+          <span className="num-tabular">{rotuloNota(i.nota_fiscal, i.serie_nf) ?? "—"}</span>
+        ),
+      },
+      {
+        chave: null,
+        rotulo: "SKU",
+        celula: (i) => {
+          const motivos = motivosForaDoKpi(i);
+          return (
+            <span className="num-tabular flex flex-wrap items-center gap-1.5">
+              {i.sku}
+              {motivos.length > 0 && <Badge tom="atencao">{motivos.join(" · ")}</Badge>}
+            </span>
+          );
+        },
+        titulo: (i) =>
+          motivosForaDoKpi(i).length ? "Soma na receita, fora do KPI de margem" : "",
+      },
+      {
+        chave: null,
+        rotulo: "Descrição",
+        truncar: 280,
+        titulo: (i) => i.descricao ?? "",
+        celula: (i) => i.descricao ?? "—",
+      },
+      {
+        chave: null,
+        rotulo: "Grupo",
+        celula: (i) => (
+          <span className="flex flex-wrap items-center gap-1.5">
+            {i.grupo_rotulo ?? i.grupo_codigo ?? "—"}
+            {i.grupo_reclassificado && <Badge>reclassificado</Badge>}
+          </span>
+        ),
+        titulo: (i) =>
+          i.grupo_reclassificado ? "Grupo definido por reclassificação manual" : "",
+      },
+      { chave: null, rotulo: "Armazém", celula: (i) => i.armazem_rotulo ?? i.armazem ?? "—" },
+      { chave: null, rotulo: "Qtd", num: true, celula: (i) => inteiro(i.quantidade) },
+      { chave: null, rotulo: "Unitário", num: true, celula: (i) => moeda(i.vlr_unitario) },
+      { chave: null, rotulo: "Desconto", num: true, celula: (i) => moeda(i.desconto) },
+      { chave: null, rotulo: "Receita", num: true, celula: (i) => moeda(i.receita_bruta) },
+      {
+        chave: null,
+        rotulo: "Custo unit.",
+        num: true,
+        celula: (i) => moeda(i.custo_unitario_ref),
+      },
+      {
+        chave: null,
+        rotulo: "Origem do custo",
+        celula: (i) =>
+          i.origem_custo ? (ORIGEM_CUSTO[i.origem_custo] ?? i.origem_custo) : "sem custo",
+      },
+      {
+        chave: null,
+        rotulo: "Margem",
+        num: true,
+        negativo: (i) => numeroBruto(i.margem_bruta) < 0,
+        celula: (i) => (i.sem_custo ? "—" : moeda(i.margem_bruta)),
+      },
+      {
+        chave: null,
+        rotulo: "Margem %",
+        num: true,
+        negativo: (i) => numeroBruto(i.margem_pct) < 0,
+        celula: (i) => (i.sem_custo ? "—" : percentual(i.margem_pct)),
+      },
+    ],
+    [],
+  );
+
   return (
     <>
       <CabecalhoPagina
         titulo={cabecalho?.origem === "pdv" ? "Venda de balcão (PDV)" : `Pedido ${cabecalho?.num_pedido ?? chave}`}
         descricao={cabecalho?.origem === "pdv" ? "Venda individual do balcão com composição de receita, custo e margem." : "Resumo financeiro e rastreabilidade dos itens faturados."}
-        voltar={<Link className="voltar" to={voltar}>{porSku ? "← Voltar para o SKU" : "← Voltar para os pedidos"}</Link>}
+        voltar={
+          <Button
+            variant="link"
+            size="sm"
+            nativeButton={false}
+            className="mb-1 h-auto p-0"
+            render={<Link to={voltar} />}
+          >
+            <ArrowLeftIcon data-icon="inline-start" />
+            {porSku ? "Voltar para o SKU" : "Voltar para os pedidos"}
+          </Button>
+        }
         contexto={cabecalho && <><Badge tom="info">{cabecalho.origem === "pdv" ? "PDV" : "Pedido faturado"}</Badge>{cabecalho.canal.toLowerCase().includes("marketplace") && <Badge tom="atencao">Marketplace</Badge>}</>}
       />
 
@@ -107,158 +242,122 @@ export function PedidoDetalhe() {
             <AvisoMarketplace texto={data.escopo.aviso_marketplace} />
           )}
 
-          <div className="grade-kpis">
+          <GradeKpis>
             <CartaoKpi rotulo="Receita líquida" valor={moeda(cabecalho.receita_liquida)} apoio={`${moeda(cabecalho.desconto)} em descontos`} />
             <CartaoKpi rotulo="Custo" valor={moeda(cabecalho.custo)} apoio="Custo considerado no pedido" />
             <CartaoKpi rotulo="Margem bruta" valor={moeda(cabecalho.margem)} apoio={percentual(cabecalho.margem_pct)} tom={numeroBruto(cabecalho.margem) < 0 ? "critico" : "bom"} />
             <CartaoKpi rotulo="Itens fora do KPI" valor={inteiro(cabecalho.itens_fora_do_kpi)} apoio={`de ${inteiro(cabecalho.itens)} itens`} tom={cabecalho.itens_fora_do_kpi ? "atencao" : "bom"} />
-          </div>
+          </GradeKpis>
 
-          <div className="cartao" style={{ marginBottom: 14 }}>
-            <h2>Formação da margem após desconto</h2>
-            <div className="formula-financeira">
-              <div className="formula-item"><span>Receita bruta</span><strong>{moeda(cabecalho.receita)}</strong></div><span className="formula-operador">−</span>
-              <div className="formula-item"><span>Desconto</span><strong>{moeda(cabecalho.desconto)}</strong></div><span className="formula-operador">−</span>
-              <div className="formula-item"><span>Custo</span><strong>{moeda(cabecalho.custo)}</strong></div><span className="formula-operador">=</span>
-              <div className="formula-item"><span>Margem líquida</span><strong>{moeda(cabecalho.margem_liquida)}</strong></div>
-            </div>
-            <p className="nota">A margem bruta antes do desconto é {moeda(cabecalho.margem)}. Após o desconto, a margem líquida é {moeda(cabecalho.margem_liquida)} ({percentual(cabecalho.margem_liquida_pct)}).</p>
+          <div className="mb-3.5">
+            <Secao titulo="Formação da margem após desconto">
+              {/* No celular a formula empilha e o operador gira 90°: em linha,
+                  quatro parcelas de moeda nao cabem em 360px sem quebrar o
+                  numero no meio. */}
+              <div className="grid items-center gap-2.5 max-md:grid-cols-1 md:[grid-template-columns:repeat(7,auto)]">
+                <Parcela rotulo="Receita bruta" valor={moeda(cabecalho.receita)} />
+                <Operador>−</Operador>
+                <Parcela rotulo="Desconto" valor={moeda(cabecalho.desconto)} />
+                <Operador>−</Operador>
+                <Parcela rotulo="Custo" valor={moeda(cabecalho.custo)} />
+                <Operador>=</Operador>
+                <Parcela rotulo="Margem líquida" valor={moeda(cabecalho.margem_liquida)} />
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                A margem bruta antes do desconto é {moeda(cabecalho.margem)}. Após o
+                desconto, a margem líquida é {moeda(cabecalho.margem_liquida)} (
+                {percentual(cabecalho.margem_liquida_pct)}).
+              </p>
+            </Secao>
           </div>
 
           <Abas valor={aba} aoMudar={setAba} opcoes={[{ valor: "informacoes", rotulo: "Informações" }, { valor: "itens", rotulo: "Itens", contador: data.itens.length }]} />
 
-          {aba === "informacoes" && <div className="cartao">
-            <h2>Informações comerciais</h2>
-            <div className="grade-leitura">
-              <Campo
-                rotulo="Cliente"
-                valor={
-                  cabecalho.nome_cliente
-                    ? `${cabecalho.cod_cliente ?? "—"} · ${cabecalho.nome_cliente}`
-                    : (cabecalho.cod_cliente ?? "—")
-                }
+          {aba === "informacoes" && (
+            <Secao titulo="Informações comerciais">
+              <GradeLeitura>
+                <Campo
+                  rotulo="Cliente"
+                  valor={
+                    cabecalho.nome_cliente
+                      ? `${cabecalho.cod_cliente ?? "—"} · ${cabecalho.nome_cliente}`
+                      : (cabecalho.cod_cliente ?? "—")
+                  }
+                />
+                <Campo rotulo="Vendedor" valor={cabecalho.vendedor_nome ?? "—"} />
+                <Campo rotulo="Canal" valor={cabecalho.canal} />
+                <Campo
+                  rotulo="Armazém"
+                  valor={cabecalho.armazens.length ? cabecalho.armazens.join(", ") : "—"}
+                />
+              </GradeLeitura>
+
+              <h3 className="mt-5 text-sm font-semibold">Informações fiscais</h3>
+              <GradeLeitura>
+                <Campo
+                  rotulo={cabecalho.notas.length > 1 ? "Notas fiscais" : "Nota fiscal"}
+                  valor={
+                    cabecalho.notas.length
+                      ? cabecalho.notas
+                          .map((n) => rotuloNota(n.nota_fiscal, n.serie_nf))
+                          .join(", ")
+                      : "—"
+                  }
+                />
+                <Campo
+                  rotulo="Emissão"
+                  valor={cabecalho.emissao ? dataCurta(cabecalho.emissao) : "—"}
+                />
+                <Campo
+                  rotulo="Competência"
+                  valor={cabecalho.competencia ? competencia(cabecalho.competencia) : "—"}
+                />
+              </GradeLeitura>
+
+              {cabecalho.itens_fora_do_kpi > 0 && (
+                <Nota>
+                  {inteiro(cabecalho.itens_fora_do_kpi)} de {inteiro(cabecalho.itens)} itens
+                  somam receita mas ficam fora do indicador de margem — os percentuais
+                  acima são calculados só sobre os itens restantes.
+                </Nota>
+              )}
+              {cabecalho.linhas_fora_do_recorte > 0 && (
+                <Nota>
+                  Este pedido tem mais {inteiro(cabecalho.linhas_fora_do_recorte)} linhas
+                  fora do filtro atual (outro armazém, outro vendedor ou outra
+                  competência). Os totais aqui são só do recorte que você está vendo.
+                </Nota>
+              )}
+            </Secao>
+          )}
+
+          {aba === "itens" && (
+            <Secao
+              titulo="Itens faturados"
+              nota="Os filtros abaixo não alteram os totais do pedido."
+              acao={
+                <Segmentado
+                  valor={filtroItens}
+                  aoMudar={setFiltroItens}
+                  rotulo="Filtrar itens"
+                  opcoes={[
+                    ["todos", "Todos"],
+                    ["fora_kpi", "Fora do KPI"],
+                    ["negativos", "Margem negativa"],
+                    ["sem_custo", "Sem custo"],
+                  ]}
+                />
+              }
+            >
+              <Tabela
+                linhas={itensVisiveis}
+                colunas={colunas}
+                chaveLinha={(i) => String(i.id)}
+                rotuloAcessivel="Itens faturados do pedido"
+                vazio="Nenhum item neste filtro."
               />
-              <Campo rotulo="Vendedor" valor={cabecalho.vendedor_nome ?? "—"} />
-              <Campo rotulo="Canal" valor={cabecalho.canal} />
-              <Campo
-                rotulo="Armazém"
-                valor={cabecalho.armazens.length ? cabecalho.armazens.join(", ") : "—"}
-              />
-            </div>
-
-            <h2 style={{ marginTop: 18 }}>Informações fiscais</h2>
-            <div className="grade-leitura">
-              <Campo rotulo={cabecalho.notas.length > 1 ? "Notas fiscais" : "Nota fiscal"} valor={cabecalho.notas.length ? cabecalho.notas.map((n) => rotuloNota(n.nota_fiscal, n.serie_nf)).join(", ") : "—"} />
-              <Campo rotulo="Emissão" valor={cabecalho.emissao ? dataCurta(cabecalho.emissao) : "—"} />
-              <Campo rotulo="Competência" valor={cabecalho.competencia ? competencia(cabecalho.competencia) : "—"} />
-            </div>
-
-            {cabecalho.itens_fora_do_kpi > 0 && (
-              <p className="nota">
-                {inteiro(cabecalho.itens_fora_do_kpi)} de {inteiro(cabecalho.itens)}{" "}
-                itens somam receita mas ficam fora do indicador de margem — os
-                percentuais acima são calculados só sobre os itens restantes.
-              </p>
-            )}
-            {cabecalho.linhas_fora_do_recorte > 0 && (
-              <p className="nota">
-                Este pedido tem mais {inteiro(cabecalho.linhas_fora_do_recorte)} linhas
-                fora do filtro atual (outro armazém, outro vendedor ou outra
-                competência). Os totais aqui são só do recorte que você está vendo.
-              </p>
-            )}
-          </div>}
-
-          {aba === "itens" && <div className="cartao">
-            <div className="secao-topo"><div><h2>Itens faturados</h2><p className="nota">Os filtros abaixo não alteram os totais do pedido.</p></div><div className="segmented" aria-label="Filtrar itens">{([['todos','Todos'],['fora_kpi','Fora do KPI'],['negativos','Margem negativa'],['sem_custo','Sem custo']] as const).map(([valor, rotulo]) => <button key={valor} aria-pressed={filtroItens === valor} onClick={() => setFiltroItens(valor)}>{rotulo}</button>)}</div></div>
-            <div className="rolagem">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Nota</th>
-                    <th>SKU</th>
-                    <th>Descrição</th>
-                    <th>Grupo</th>
-                    <th>Armazém</th>
-                    <th className="num">Qtd</th>
-                    <th className="num">Unitário</th>
-                    <th className="num">Desconto</th>
-                    <th className="num">Receita</th>
-                    <th className="num">Custo unit.</th>
-                    <th>Origem do custo</th>
-                    <th className="num">Margem</th>
-                    <th className="num">Margem %</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {itensVisiveis.map((item) => {
-                    const motivos = motivosForaDoKpi(item);
-                    return (
-                      <tr key={item.id}>
-                        <td className="tabela-identidade" style={{ fontVariantNumeric: "tabular-nums" }}>
-                          {rotuloNota(item.nota_fiscal, item.serie_nf) ?? "—"}
-                        </td>
-                        <td style={{ fontVariantNumeric: "tabular-nums" }}>
-                          {item.sku}
-                          {motivos.length > 0 && (
-                            <span
-                              className="badge badge-atencao"
-                              title="Soma na receita, fora do KPI de margem"
-                            >
-                              {motivos.join(" · ")}
-                            </span>
-                          )}
-                        </td>
-                        <td
-                          style={{
-                            maxWidth: 280,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                          title={item.descricao ?? ""}
-                        >
-                          {item.descricao ?? "—"}
-                        </td>
-                        <td>
-                          {item.grupo_rotulo ?? item.grupo_codigo ?? "—"}
-                          {item.grupo_reclassificado && (
-                            <span className="badge" title="Grupo definido por reclassificação manual">
-                              reclassificado
-                            </span>
-                          )}
-                        </td>
-                        <td>{item.armazem_rotulo ?? item.armazem ?? "—"}</td>
-                        <td className="num">{inteiro(item.quantidade)}</td>
-                        <td className="num">{moeda(item.vlr_unitario)}</td>
-                        <td className="num">{moeda(item.desconto)}</td>
-                        <td className="num">{moeda(item.receita_bruta)}</td>
-                        <td className="num">{moeda(item.custo_unitario_ref)}</td>
-                        <td>
-                          {item.origem_custo
-                            ? (ORIGEM_CUSTO[item.origem_custo] ?? item.origem_custo)
-                            : "sem custo"}
-                        </td>
-                        <td
-                          className={
-                            numeroBruto(item.margem_bruta) < 0 ? "num negativo" : "num"
-                          }
-                        >
-                          {item.sem_custo ? "—" : moeda(item.margem_bruta)}
-                        </td>
-                        <td
-                          className={
-                            numeroBruto(item.margem_pct) < 0 ? "num negativo" : "num"
-                          }
-                        >
-                          {item.sem_custo ? "—" : percentual(item.margem_pct)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>}
+            </Secao>
+          )}
         </>
       )}
     </>

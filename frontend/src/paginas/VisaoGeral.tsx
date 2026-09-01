@@ -2,37 +2,27 @@ import type { EChartsOption } from "echarts";
 import { useMemo, useState } from "react";
 
 import { useKpis, useSerie } from "../api/hooks";
-import type { Filtros } from "../api/tipos";
+import type { Filtros, PontoSerie } from "../api/tipos";
 import { BarraFiltros } from "../componentes/Filtros";
-import { Grafico, baseDoTema, corDaSerie } from "../componentes/Grafico";
+import { Grafico, baseDoTema, corDaSerie, useOpcaoGrafico } from "../componentes/Grafico";
 import { AvisoMarketplace, Erro, Vazio } from "../componentes/Layout";
-import { Paginacao } from "../componentes/Paginacao";
-import { SeletorTema } from "../componentes/SeletorTema";
 import { SkeletonGrafico, SkeletonTiles } from "../componentes/Skeleton";
+import { Tabela, type Coluna } from "../componentes/Tabela";
+import {
+  CabecalhoPagina,
+  CartaoKpi,
+  GradeKpis,
+  Secao,
+  Segmentado,
+} from "../componentes/Visual";
+import { useFiltrosUrl } from "../filtrosUrl";
 import { competencia, inteiro, moeda, moedaCurta, numeroBruto, percentual } from "../formato";
-import { useTema } from "../tema";
-
-function Tile({
-  rotulo,
-  valor,
-  apoio,
-}: {
-  rotulo: string;
-  valor: string;
-  apoio?: string;
-}) {
-  return (
-    <div className="cartao tile">
-      <div className="rotulo">{rotulo}</div>
-      <div className="valor">{valor}</div>
-      {apoio && <div className="apoio">{apoio}</div>}
-    </div>
-  );
-}
 
 export function VisaoGeral() {
-  const [filtros, setFiltros] = useState<Filtros>({});
-  const [verTabela, setVerTabela] = useState(false);
+  // Filtros na URL como nas demais telas: com useState local, o link da visao
+  // geral filtrada nao carregava o recorte para quem o recebia.
+  const [filtros, setFiltros] = useFiltrosUrl();
+  const [modo, setModo] = useState<"grafico" | "tabela">("grafico");
   const [offsetTabela, setOffsetTabela] = useState(0);
   const [itensPorPagina, setItensPorPagina] = useState(25);
 
@@ -48,22 +38,16 @@ export function VisaoGeral() {
     [serie.data],
   );
 
-  // `resolvido` nao aparece no corpo do memo abaixo, mas precisa estar nas
-  // dependencias: baseDoTema() e corDaSerie() leem as variaveis CSS via
-  // getComputedStyle no momento do calculo. Sem isso o grafico mantem as cores
-  // do tema anterior ate um reload.
-  const { resolvido } = useTema();
-
-  const opcao = useMemo<EChartsOption>(() => {
+  // useOpcaoGrafico injeta o tema resolvido nas dependencias: baseDoTema() e
+  // corDaSerie() leem as variaveis CSS via getComputedStyle no momento do
+  // calculo, entao sem isso o grafico mantem as cores do tema anterior.
+  const opcao = useOpcaoGrafico<EChartsOption>(() => {
     const base = baseDoTema();
     return {
       ...base,
       color: canais.map((_, i) => corDaSerie(i)),
       legend: { ...base.legend, data: canais },
-      tooltip: {
-        ...base.tooltip,
-        valueFormatter: (v) => moeda(v as number),
-      },
+      tooltip: { ...base.tooltip, valueFormatter: (v) => moeda(v as number) },
       xAxis: { ...base.xAxis, type: "category", data: periodos.map(competencia) },
       yAxis: {
         ...base.yAxis,
@@ -76,7 +60,7 @@ export function VisaoGeral() {
         smooth: false,
         symbolSize: 8,
         lineStyle: { width: 2 },
-        // Rotulo direto na ponta: exigido pela regra de relevo, porque dois tons
+        // Rotulo direto na ponta: exigido pela regra de relevo, porque tres tons
         // da paleta ficam abaixo de 3:1 no modo claro.
         endLabel: {
           show: true,
@@ -88,12 +72,11 @@ export function VisaoGeral() {
         emphasis: { focus: "series" as const },
         data: periodos.map(
           (p) =>
-            serie.data?.serie.find((x) => x.periodo === p && x.canal === canal)
-              ?.margem ?? null,
+            serie.data?.serie.find((x) => x.periodo === p && x.canal === canal)?.margem ?? null,
         ),
       })),
     };
-  }, [canais, periodos, serie.data, resolvido]);
+  }, [canais, periodos, serie.data]);
 
   const k = kpis.data?.kpis;
   const escopo = kpis.data?.escopo;
@@ -103,18 +86,45 @@ export function VisaoGeral() {
     setFiltros(f);
   }
 
+  const colunas: readonly Coluna<PontoSerie>[] = useMemo(
+    () => [
+      { chave: null, rotulo: "Competência", fixa: true, celula: (p) => competencia(p.periodo) },
+      {
+        chave: null,
+        rotulo: "Canal",
+        celula: (p) => (
+          <>
+            {/* O quadradinho liga a linha da tabela a serie do grafico: sem ele
+                a alternativa em tabela perde a identidade da cor. */}
+            <span
+              className="mr-1.5 inline-block size-2.5 rounded-[2px] align-baseline"
+              style={{ background: corDaSerie(canais.indexOf(p.canal)) }}
+              aria-hidden="true"
+            />
+            {p.canal}
+          </>
+        ),
+      },
+      { chave: null, rotulo: "Receita", num: true, celula: (p) => moeda(p.receita) },
+      { chave: null, rotulo: "Custo", num: true, celula: (p) => moeda(p.custo) },
+      {
+        chave: null,
+        rotulo: "Margem",
+        num: true,
+        negativo: (p) => numeroBruto(p.margem) < 0,
+        celula: (p) => moeda(p.margem),
+      },
+      { chave: null, rotulo: "Margem %", num: true, celula: (p) => percentual(p.margem_pct) },
+    ],
+    [canais],
+  );
+
   return (
     <>
-      <div className="cabecalho">
-        <div>
-          <h1>Visão geral</h1>
-          <p className="subtitulo">
-            Margem bruta = receita − (quantidade × custo unitário). O custo vem
-            congelado na nota (D2_CUSTO1).
-          </p>
-        </div>
-        <SeletorTema />
-      </div>
+      <CabecalhoPagina
+        titulo="Visão geral"
+        descricao="Margem bruta = receita − (quantidade × custo unitário). O custo vem congelado na nota (D2_CUSTO1)."
+      />
 
       {escopo && <AvisoMarketplace texto={escopo.aviso_marketplace} />}
 
@@ -125,35 +135,35 @@ export function VisaoGeral() {
 
       {k && (
         <>
-          <div className="grade grade-tiles">
-            <Tile
+          <GradeKpis>
+            <CartaoKpi
               rotulo="Receita bruta"
               valor={moeda(k.receita_bruta)}
               apoio={`${inteiro(k.pedidos)} pedidos · ${inteiro(k.skus)} SKUs`}
             />
-            <Tile
+            <CartaoKpi
               rotulo="Custo total"
               valor={moeda(k.custo_total)}
               apoio={`${inteiro(k.quantidade)} unidades`}
             />
-            <Tile
+            <CartaoKpi
               rotulo="Margem bruta"
               valor={moeda(k.margem_bruta)}
               apoio={`${percentual(k.margem_pct)} sobre a receita bruta`}
+              tom={numeroBruto(k.margem_bruta) < 0 ? "critico" : "bom"}
             />
-            <Tile
+            <CartaoKpi
               rotulo="Ticket médio"
               valor={moeda(k.ticket_medio)}
               apoio={`${inteiro(k.linhas)} linhas no cálculo`}
             />
-          </div>
+          </GradeKpis>
 
           {/* O desconto vem registrado a parte no Protheus — a receita bruta nao o
               abate. Fica em uma faixa propria para que a diferenca entre o
               faturamento cheio e o efetivamente cobrado seja explicita. */}
-          <div style={{ height: 14 }} />
-          <div className="grade grade-tiles">
-            <Tile
+          <GradeKpis>
+            <CartaoKpi
               rotulo="Desconto concedido"
               valor={moeda(k.desconto_total)}
               apoio={`${percentual(
@@ -162,78 +172,60 @@ export function VisaoGeral() {
                   : null,
               )} da receita bruta`}
             />
-            <Tile
+            <CartaoKpi
               rotulo="Receita líquida"
               valor={moeda(k.receita_liquida)}
               apoio="Receita bruta − desconto"
             />
-            <Tile
+            <CartaoKpi
               rotulo="Margem líquida"
               valor={moeda(k.margem_liquida)}
               apoio={`${percentual(k.margem_liquida_pct)} sobre a receita líquida`}
+              tom={numeroBruto(k.margem_liquida) < 0 ? "critico" : "bom"}
             />
-          </div>
+          </GradeKpis>
         </>
       )}
-
-      <div style={{ height: 14 }} />
 
       {serie.isPending && <SkeletonGrafico altura={300} />}
       {serie.isError && <Erro mensagem={(serie.error as Error).message} />}
 
       {serie.data && (
-        <div className="cartao">
-          <div className="cabecalho">
-            <div>
-              <h2>Margem bruta por competência</h2>
-              <p className="nota">
-                Cada canal é uma série independente. Escalas iguais, eixo único.
-              </p>
-            </div>
-            <button className="botao-alt" onClick={() => setVerTabela((v) => !v)}>
-              {verTabela ? "Ver gráfico" : "Ver tabela"}
-            </button>
-          </div>
-
+        <Secao
+          titulo="Margem bruta por competência"
+          nota="Cada canal é uma série independente. Escalas iguais, eixo único."
+          acao={
+            <Segmentado
+              valor={modo}
+              aoMudar={setModo}
+              rotulo="Forma de exibição"
+              opcoes={[
+                ["grafico", "Gráfico"],
+                ["tabela", "Tabela"],
+              ]}
+            />
+          }
+        >
           {serie.data.serie.length === 0 ? (
             <Vazio mensagem="Nenhum dado no período selecionado." />
-          ) : verTabela ? (
-            <div className="rolagem">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Competência</th>
-                    <th>Canal</th>
-                    <th className="num">Receita</th>
-                    <th className="num">Custo</th>
-                    <th className="num">Margem</th>
-                    <th className="num">Margem %</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {serie.data.serie.slice(offsetTabela, offsetTabela + itensPorPagina).map((p, i) => (
-                    <tr key={`${p.periodo}-${p.canal}-${i}`}>
-                      <td>{competencia(p.periodo)}</td>
-                      <td>
-                        <span
-                          className="marca-serie"
-                          style={{ background: corDaSerie(canais.indexOf(p.canal)) }}
-                          aria-hidden="true"
-                        />
-                        {p.canal}
-                      </td>
-                      <td className="num">{moeda(p.receita)}</td>
-                      <td className="num">{moeda(p.custo)}</td>
-                      <td className={numeroBruto(p.margem) < 0 ? "num negativo" : "num"}>
-                        {moeda(p.margem)}
-                      </td>
-                      <td className="num">{percentual(p.margem_pct)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <Paginacao total={serie.data.serie.length} offset={offsetTabela} itensPorPagina={itensPorPagina} aoMudarOffset={setOffsetTabela} aoMudarItensPorPagina={(quantidade) => { setOffsetTabela(0); setItensPorPagina(quantidade); }} />
-            </div>
+          ) : modo === "tabela" ? (
+            <Tabela
+              linhas={serie.data.serie}
+              colunas={colunas}
+              chaveLinha={(p) => `${p.periodo}-${p.canal}`}
+              rotuloAcessivel="Margem bruta por competência e canal"
+              paginacao={{
+                modo: "cliente",
+                total: serie.data.serie.length,
+                offset: offsetTabela,
+                itensPorPagina,
+                aoMudarOffset: setOffsetTabela,
+                aoMudarItensPorPagina: (quantidade) => {
+                  setOffsetTabela(0);
+                  setItensPorPagina(quantidade);
+                },
+              }}
+            />
           ) : (
             <Grafico
               opcao={opcao}
@@ -241,7 +233,7 @@ export function VisaoGeral() {
               rotuloAcessivel="Margem bruta por competência, uma linha por canal de venda."
             />
           )}
-        </div>
+        </Secao>
       )}
     </>
   );
