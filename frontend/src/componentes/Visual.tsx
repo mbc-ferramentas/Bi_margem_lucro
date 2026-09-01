@@ -132,21 +132,36 @@ export function CartaoKpi({
           icone. Ela reforca o numero que esta a dois centimetros dali, nunca o
           substitui — por isso e um adorno de borda, e nao o fundo do cartao. */}
       <span aria-hidden="true" className={cn("absolute inset-y-0 left-0 w-[3px]", FAIXA_TOM[tom])} />
-      <CardContent className="flex min-h-28 flex-col items-start gap-2 text-left">
-        <span className="text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
+      {/* Ritmo vertical fixo: cada faixa tem altura propria e nao depende de
+          quebra de linha do vizinho. Antes a legenda era empurrada com
+          `mt-auto` e o espaco entre valor e legenda mudava de cartao para
+          cartao sempre que um apoio quebrava em duas linhas e esticava a
+          linha inteira da grade. */}
+      <CardContent className="flex flex-1 flex-col items-start py-4 text-left">
+        <span className="line-clamp-1 h-4 text-[11px] leading-4 font-medium tracking-wider text-muted-foreground uppercase">
           {rotulo}
         </span>
         {/* Figura proporcional de proposito: numero solto nao alinha com nada.
             O tabular fica para as colunas de tabela e para os eixos. */}
-        <strong className="text-[clamp(1.3rem,2vw,1.75rem)] leading-none font-semibold tracking-tight">
+        <strong className="mt-2 flex h-7 items-center text-[clamp(1.3rem,2vw,1.75rem)] leading-none font-semibold tracking-tight">
           {valor}
         </strong>
-        {apoio && <span className="mt-auto text-xs text-muted-foreground">{apoio}</span>}
+        {/* Duas linhas reservadas: o apoio mais longo quebra, o mais curto
+            deixa a folga — em ambos os casos a distancia ate o valor e a
+            mesma em todos os cartoes. */}
+        {apoio && (
+          <span className="mt-1.5 line-clamp-2 min-h-8 text-xs leading-4 text-muted-foreground">
+            {apoio}
+          </span>
+        )}
       </CardContent>
     </>
   );
 
-  const classe = "relative overflow-hidden py-0";
+  // py-0 porque o padding vertical vive no CardContent — o cartao clicavel e
+  // um <button>, e nao herda o padding do Card. min-h iguala o cartao sem
+  // apoio ao que tem duas linhas de legenda.
+  const classe = "relative min-h-[7.5rem] overflow-hidden py-0";
 
   if (!aoClicar) return <Card className={classe}>{conteudo}</Card>;
 
