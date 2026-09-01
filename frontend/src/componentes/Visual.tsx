@@ -4,7 +4,7 @@
  *  de um `tom` ou de uma prop obriga a varrer todas elas. O interior e livre.
  */
 
-import { InfoIcon, XIcon } from "lucide-react";
+import { ArrowDownRightIcon, ArrowRightIcon, ArrowUpRightIcon, InfoIcon, XIcon } from "lucide-react";
 
 import type { Filtros } from "../api/tipos";
 import { cn } from "@/lib/utils";
@@ -119,12 +119,17 @@ export function CartaoKpi({
   apoio,
   tom = "neutro",
   aoClicar,
+  delta,
 }: {
   rotulo: string;
   valor: string;
   apoio?: string;
   tom?: Tom;
   aoClicar?: () => void;
+  /** Variacao contra o periodo anterior. Fica abaixo do apoio e e opcional de
+   *  proposito: nem todo recorte tem periodo anterior conhecido, e um cartao
+   *  sem base de comparacao nao inventa uma. */
+  delta?: React.ReactNode;
 }) {
   const conteudo = (
     <>
@@ -137,31 +142,43 @@ export function CartaoKpi({
           `mt-auto` e o espaco entre valor e legenda mudava de cartao para
           cartao sempre que um apoio quebrava em duas linhas e esticava a
           linha inteira da grade. */}
-      <CardContent className="flex flex-1 flex-col items-start py-4 text-left">
-        <span className="line-clamp-1 h-4 text-[11px] leading-4 font-medium tracking-wider text-muted-foreground uppercase">
+      <CardContent className="flex w-full min-w-0 flex-1 flex-col items-start py-4 text-left">
+        <span className="line-clamp-1 h-4 w-full text-[11px] leading-4 font-medium tracking-wider text-muted-foreground uppercase">
           {rotulo}
         </span>
         {/* Figura proporcional de proposito: numero solto nao alinha com nada.
-            O tabular fica para as colunas de tabela e para os eixos. */}
-        <strong className="mt-2 flex h-7 items-center text-[clamp(1.3rem,2vw,1.75rem)] leading-none font-semibold tracking-tight">
+            O tabular fica para as colunas de tabela e para os eixos.
+
+            O tamanho e escalonado por breakpoint, e nao por `vw`: a largura do
+            cartao vem da grade, nao da janela, e um `clamp` em `vw` fazia o
+            numero crescer ate vazar de um cartao estreito numa tela larga —
+            exatamente onde a grade tem mais colunas e menos espaco por coluna. */}
+        <strong className="mt-2 block h-7 w-full truncate text-xl leading-7 font-semibold tracking-tight sm:text-2xl">
           {valor}
         </strong>
         {/* Duas linhas reservadas: o apoio mais longo quebra, o mais curto
             deixa a folga — em ambos os casos a distancia ate o valor e a
             mesma em todos os cartoes. */}
         {apoio && (
-          <span className="mt-1.5 line-clamp-2 min-h-8 text-xs leading-4 text-muted-foreground">
+          <span className="mt-1.5 line-clamp-2 min-h-8 w-full text-xs leading-4 text-muted-foreground">
             {apoio}
           </span>
         )}
+        {/* Altura reservada mesmo sem variacao: senao um cartao com base de
+            comparacao e outro sem ficam de alturas diferentes na mesma linha. */}
+        {delta !== undefined && <span className="mt-1 flex h-4 w-full items-center">{delta}</span>}
       </CardContent>
     </>
   );
 
   // py-0 porque o padding vertical vive no CardContent — o cartao clicavel e
-  // um <button>, e nao herda o padding do Card. min-h iguala o cartao sem
-  // apoio ao que tem duas linhas de legenda.
-  const classe = "relative min-h-[7.5rem] overflow-hidden py-0";
+  // um <button>, e nao herda o padding do Card. O min-h iguala o cartao sem
+  // apoio ao que tem duas linhas de legenda, e cresce quando ha uma linha de
+  // variacao a mais para caber.
+  const classe = cn(
+    "relative overflow-hidden py-0",
+    delta === undefined ? "min-h-[7.5rem]" : "min-h-[9rem]",
+  );
 
   if (!aoClicar) return <Card className={classe}>{conteudo}</Card>;
 
@@ -177,6 +194,161 @@ export function CartaoKpi({
     >
       {conteudo}
     </button>
+  );
+}
+
+/** Variacao contra o periodo anterior.
+ *
+ *  Tres decisoes que nao sao estilo:
+ *
+ *  1. **Seta + sinal + texto.** A cor nunca carrega o significado sozinha — em
+ *     modo claro o verde de status fica abaixo de 3:1 sobre o cartao, e ha quem
+ *     nao distinga verde de vermelho em nenhum contraste.
+ *  2. **Ponto percentual para taxa, percentual para valor.** Margem que sobe de
+ *     24% para 26% subiu 2 p.p., nao 2%; trocar as duas unidades e o jeito mais
+ *     comum de um painel mentir.
+ *  3. **`inverter` para custo e desconto.** Subir e ruim la, e pintar de verde
+ *     um custo que cresceu seria pior do que nao pintar nada.
+ *
+ *  Base zerada nao vira variacao infinita: sem denominador, so o texto do
+ *  periodo aparece. */
+export function Delta({
+  atual,
+  anterior,
+  formato = "percentual",
+  inverter = false,
+  referencia,
+}: {
+  atual: number | null;
+  anterior: number | null;
+  formato?: "percentual" | "pontos";
+  inverter?: boolean;
+  /** Rotulo da janela comparada, ex.: "03/2026 a 06/2026". */
+  referencia?: string | null;
+}) {
+  if (atual === null || anterior === null || !Number.isFinite(atual) || !Number.isFinite(anterior)) {
+    return null;
+  }
+
+  const bruto = formato === "pontos" ? (atual - anterior) * 100 : anterior === 0 ? null : (atual - anterior) / Math.abs(anterior);
+  if (bruto === null || !Number.isFinite(bruto)) return null;
+
+  // Meio ponto percentual de variacao em um faturamento de milhoes e ruido de
+  // arredondamento, nao noticia: abaixo disso a leitura e "estavel".
+  const estavel = Math.abs(bruto) < (formato === "pontos" ? 0.05 : 0.001);
+  const melhorou = inverter ? bruto < 0 : bruto > 0;
+  const Icone = estavel ? ArrowRightIcon : bruto > 0 ? ArrowUpRightIcon : ArrowDownRightIcon;
+
+  const sinal = bruto > 0 ? "+" : "";
+  const texto =
+    formato === "pontos"
+      ? `${sinal}${bruto.toFixed(1).replace(".", ",")} p.p.`
+      : `${sinal}${(bruto * 100).toFixed(1).replace(".", ",")}%`;
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 text-xs leading-4",
+        estavel ? "text-muted-foreground" : melhorou ? "text-delta-bom" : "text-destructive",
+      )}
+    >
+      <Icone className="size-3.5 shrink-0" aria-hidden="true" />
+      <span>
+        {estavel ? "estável" : texto}
+        {referencia && <span className="text-muted-foreground"> vs {referencia}</span>}
+      </span>
+    </span>
+  );
+}
+
+/** O numero que a tela lidera.
+ *
+ *  Um cartao, e nao mais um item da grade de KPIs: se todos os numeros tem o
+ *  mesmo tamanho, nenhum e a resposta. Figura proporcional (nunca
+ *  `num-tabular`) porque um numero solto e grande nao alinha com nada — o
+ *  tabular fica para as colunas de tabela e para os eixos. */
+export function CartaoDestaque({
+  rotulo,
+  valor,
+  secundario,
+  apoio,
+  delta,
+  tom = "neutro",
+  rodape,
+}: {
+  rotulo: string;
+  valor: string;
+  secundario?: string;
+  apoio?: string;
+  delta?: React.ReactNode;
+  tom?: Tom;
+  /** Espaco livre no pe do cartao — e onde entra a sparkline. */
+  rodape?: React.ReactNode;
+}) {
+  return (
+    // `--card-spacing` maior: o cartao de destaque respira mais que os KPIs
+    // porque e ele que a tela le primeiro. Mexer na variavel, e nao em `p-*`
+    // solto, mantem os quatro lados iguais — foi o descompasso entre o padding
+    // horizontal herdado e o vertical escrito a mao que deixava a margem torta.
+    <Card className="relative overflow-hidden py-0 [--card-spacing:--spacing(5)]">
+      <span aria-hidden="true" className={cn("absolute inset-y-0 left-0 w-[3px]", FAIXA_TOM[tom])} />
+      <CardContent className="flex h-full min-w-0 flex-col py-(--card-spacing)">
+        <span className="text-[11px] leading-4 font-medium tracking-wider text-muted-foreground uppercase">
+          {rotulo}
+        </span>
+        <div className="mt-2.5 flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+          {/* Escalonado por breakpoint e nao por `vw`: a largura vem da coluna
+              da grade, e um `clamp` em `vw` estourava a caixa justamente na
+              tela larga, onde esta coluna e proporcionalmente mais estreita. */}
+          <strong className="min-w-0 truncate text-[1.75rem] leading-none font-semibold tracking-tight sm:text-[2rem] xl:text-[2.25rem]">
+            {valor}
+          </strong>
+          {secundario && (
+            <span className="text-lg leading-none font-medium text-muted-foreground">
+              {secundario}
+            </span>
+          )}
+        </div>
+        {delta && <div className="mt-2.5">{delta}</div>}
+        {apoio && <p className="mt-2 text-xs leading-4 text-muted-foreground">{apoio}</p>}
+        {rodape && <div className="mt-auto pt-4">{rodape}</div>}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Uma conta escrita como conta: parcela, operador, parcela, resultado.
+ *
+ *  Existe porque a formacao da margem tem tres subtracoes que o Protheus
+ *  registra em lugares diferentes, e quatro cartoes soltos lado a lado nao
+ *  dizem que um deriva do outro. No celular os operadores giram 90 graus e a
+ *  conta desce em coluna, continuando legivel como sequencia. */
+export function Cascata({
+  parcelas,
+}: {
+  parcelas: readonly { rotulo: string; valor: string; operador?: string }[];
+}) {
+  return (
+    <div className="grid items-center gap-2 max-md:justify-items-stretch md:flex md:flex-wrap md:gap-3">
+      {parcelas.map((parcela, indice) => (
+        <div key={parcela.rotulo} className="contents">
+          {indice > 0 && (
+            <span
+              className="text-center text-xl text-muted-foreground max-md:h-4 max-md:rotate-90"
+              aria-hidden="true"
+            >
+              {parcela.operador ?? "−"}
+            </span>
+          )}
+          <div className="min-w-[130px] rounded-lg bg-muted p-3">
+            <span className="block text-[10.5px] tracking-wide text-muted-foreground uppercase">
+              {parcela.rotulo}
+            </span>
+            <strong className="num-tabular mt-1 block text-[17px]">{parcela.valor}</strong>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -348,12 +520,36 @@ export function Secao({
   );
 }
 
+const COLUNAS_KPI = {
+  2: "sm:grid-cols-2",
+  3: "sm:grid-cols-2 xl:grid-cols-3",
+  4: "sm:grid-cols-2 xl:grid-cols-4",
+} as const;
+
 /** Grade dos KPIs do topo. Quatro colunas na tela cheia, duas no tablet, uma no
  *  celular — um KPI espremido a um terco de largura corta o numero, que e a
- *  unica coisa que ele tem para dizer. */
-export function GradeKpis({ children }: { children: React.ReactNode }) {
+ *  unica coisa que ele tem para dizer.
+ *
+ *  `colunas` existe para os blocos que nao tem quatro cartoes: com o padrao,
+ *  tres cartoes se espalhavam numa grade de quatro e o ultimo ficava orfao.
+ *  `margem` sai do caminho quando a grade esta dentro de outra grade. */
+export function GradeKpis({
+  children,
+  colunas = 4,
+  margem = true,
+}: {
+  children: React.ReactNode;
+  colunas?: keyof typeof COLUNAS_KPI;
+  margem?: boolean;
+}) {
   return (
-    <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div
+      className={cn(
+        "grid grid-cols-1 gap-3",
+        COLUNAS_KPI[colunas],
+        margem && "mb-4",
+      )}
+    >
       {children}
     </div>
   );

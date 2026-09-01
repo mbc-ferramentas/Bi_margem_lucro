@@ -31,10 +31,15 @@ export function useEu() {
   });
 }
 
-export function useKpis(f: Filtros) {
+/** `ativo` existe para a comparacao com o periodo anterior: a Visao geral so
+ *  sabe qual e a janela anterior depois que `/filtros` respondeu, e disparar a
+ *  consulta antes disso traria os KPIs da base inteira — um comparativo errado,
+ *  que apareceria por um instante na tela antes de se corrigir. */
+export function useKpis(f: Filtros, ativo = true) {
   return useQuery({
     queryKey: ["kpis", f],
     queryFn: () => buscar(`/kpis${paraQuery(f)}`, kpisSchema),
+    enabled: ativo,
   });
 }
 

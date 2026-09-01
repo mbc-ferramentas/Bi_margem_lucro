@@ -24,6 +24,7 @@ import {
   Badge,
   CabecalhoPagina,
   CartaoKpi,
+  Cascata,
   GradeKpis,
   Nota,
   Secao,
@@ -70,28 +71,6 @@ function GradeLeitura({ children }: { children: React.ReactNode }) {
 }
 
 /** Uma parcela da formula receita − desconto − custo = margem liquida. */
-function Parcela({ rotulo, valor }: { rotulo: string; valor: string }) {
-  return (
-    <div className="min-w-[130px] rounded-lg bg-muted p-3">
-      <span className="block text-[10.5px] tracking-wide text-muted-foreground uppercase">
-        {rotulo}
-      </span>
-      <strong className="num-tabular mt-1 block text-[17px]">{valor}</strong>
-    </div>
-  );
-}
-
-function Operador({ children }: { children: React.ReactNode }) {
-  return (
-    <span
-      className="text-center text-xl text-muted-foreground max-md:h-4 max-md:rotate-90"
-      aria-hidden="true"
-    >
-      {children}
-    </span>
-  );
-}
-
 /** Por que esta linha não entra no KPI de margem. Vazio = ela entra. */
 function motivosForaDoKpi(item: ItemPedido): string[] {
   const motivos: string[] = [];
@@ -251,18 +230,14 @@ export function PedidoDetalhe() {
 
           <div className="mb-3.5">
             <Secao titulo="Formação da margem após desconto">
-              {/* No celular a formula empilha e o operador gira 90°: em linha,
-                  quatro parcelas de moeda nao cabem em 360px sem quebrar o
-                  numero no meio. */}
-              <div className="grid items-center gap-2.5 max-md:grid-cols-1 md:[grid-template-columns:repeat(7,auto)]">
-                <Parcela rotulo="Receita bruta" valor={moeda(cabecalho.receita)} />
-                <Operador>−</Operador>
-                <Parcela rotulo="Desconto" valor={moeda(cabecalho.desconto)} />
-                <Operador>−</Operador>
-                <Parcela rotulo="Custo" valor={moeda(cabecalho.custo)} />
-                <Operador>=</Operador>
-                <Parcela rotulo="Margem líquida" valor={moeda(cabecalho.margem_liquida)} />
-              </div>
+              <Cascata
+                parcelas={[
+                  { rotulo: "Receita bruta", valor: moeda(cabecalho.receita) },
+                  { rotulo: "Desconto", valor: moeda(cabecalho.desconto) },
+                  { rotulo: "Custo", valor: moeda(cabecalho.custo) },
+                  { rotulo: "Margem líquida", valor: moeda(cabecalho.margem_liquida), operador: "=" },
+                ]}
+              />
               <p className="mt-3 text-xs text-muted-foreground">
                 A margem bruta antes do desconto é {moeda(cabecalho.margem)}. Após o
                 desconto, a margem líquida é {moeda(cabecalho.margem_liquida)} (
