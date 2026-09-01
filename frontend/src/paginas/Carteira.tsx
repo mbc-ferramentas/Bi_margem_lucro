@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/componentes/ui/select";
 import { Erro, Vazio } from "../componentes/Layout";
-import { SeletorGrupos } from "../componentes/SeletorGrupos";
+import { SeletorMulti } from "../componentes/SeletorMulti";
 import { SkeletonTabela, SkeletonTiles } from "../componentes/Skeleton";
 import { Tabela, type Coluna } from "../componentes/Tabela";
 import {
@@ -47,8 +47,20 @@ import { useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
 import { dataCurta, inteiro, moeda, numeroBruto, percentual } from "../formato";
 
 
-/** Sentinela do "sem filtro": ver a nota em Filtros.tsx. */
+/** Sentinela do "sem filtro": ver a nota em Filtros.tsx. Como la, ela e valor
+ *  interno — o `SelectValue` recebe o rotulo pronto para nao imprimir o codigo
+ *  cru no campo fechado. */
 const TODOS = "__todos__";
+
+const SITUACOES: Record<string, string> = {
+  atrasados: "Entrega vencida",
+  a_vencer: "A vencer",
+};
+
+function rotuloSelecao(vazio: string, formatar: (valor: string) => string) {
+  return (valor: unknown) =>
+    !valor || valor === TODOS ? vazio : formatar(String(valor));
+}
 
 const ROTULO = "text-[11px] tracking-wider text-muted-foreground uppercase";
 
@@ -128,13 +140,9 @@ export function Carteira() {
 
   // Trocar de armazem pode deixar o grupo escolhido fora do recorte novo — manter
   // o antigo devolveria tela vazia sem explicar por que.
-  function mudarArmazem(valor: string | null) {
+  function mudarArmazem(armazens: string[]) {
     setOffset(0);
-    setFiltros({
-      ...filtros,
-      armazem: !valor || valor === TODOS ? undefined : valor,
-      grupo: [],
-    });
+    setFiltros({ ...filtros, armazem: armazens, grupo: [] });
   }
 
   // A busca so entra na query ao enviar: a cada tecla dispararia uma consulta
@@ -220,7 +228,7 @@ export function Carteira() {
             onValueChange={(valor) => mudarFiltro("situacao", valor)}
           >
             <SelectTrigger id="c-situacao" size="sm" className="min-w-36">
-              <SelectValue />
+              <SelectValue>{rotuloSelecao("Todos", (v) => SITUACOES[v] ?? v)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
@@ -238,7 +246,7 @@ export function Carteira() {
             onValueChange={(valor) => mudarFiltro("canal", valor)}
           >
             <SelectTrigger id="c-canal" size="sm" className="min-w-32">
-              <SelectValue />
+              <SelectValue>{rotuloSelecao("Todos", (c) => c)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
@@ -259,7 +267,13 @@ export function Carteira() {
             onValueChange={(valor) => mudarFiltro("vendedor", valor)}
           >
             <SelectTrigger id="c-vendedor" size="sm" className="min-w-40">
-              <SelectValue />
+              <SelectValue>
+                {rotuloSelecao(
+                  "Todos",
+                  (codigo) =>
+                    opcoes?.vendedores.find((v) => v.codigo === codigo)?.nome ?? codigo,
+                )}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
@@ -275,32 +289,27 @@ export function Carteira() {
         </Campo>
 
         {/* Armazem antes de grupo: a ordem na barra e a hierarquia da analise. */}
-        <Campo id="c-armazem" rotulo="Armazém">
-          <Select value={filtros.armazem ?? TODOS} onValueChange={mudarArmazem}>
-            <SelectTrigger id="c-armazem" size="sm" className="min-w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value={TODOS}>Todos</SelectItem>
-                {opcoes?.armazens.map((a) => (
-                  <SelectItem key={a.codigo} value={a.codigo}>
-                    {a.rotulo ?? a.codigo}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Campo>
+        <SeletorMulti
+          id="c-armazem"
+          rotulo="Armazém"
+          substantivo="armazém"
+          plural="armazéns"
+          opcoes={opcoes?.armazens}
+          valor={filtros.armazem}
+          aoMudar={mudarArmazem}
+        />
 
-        <SeletorGrupos
+        <SeletorMulti
+          id="c-grupo"
+          rotulo="Grupo"
+          substantivo="grupo"
+          plural="grupos"
           opcoes={opcoes?.grupos}
           valor={filtros.grupo}
           aoMudar={(grupos) => {
             setOffset(0);
             setFiltros({ ...filtros, grupo: grupos });
           }}
-          idPrefixo="c"
         />
 
         <form className="flex flex-col gap-1.5" onSubmit={enviarBusca}>

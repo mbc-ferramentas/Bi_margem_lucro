@@ -14,32 +14,51 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/componentes/ui/popover";
 import { Label } from "@/componentes/ui/label";
 
-type Opcao = { codigo: string; rotulo: string | null; sem_movimento: boolean };
-
-type Props = {
-  opcoes: Opcao[] | undefined;
-  valor: string[] | undefined;
-  aoMudar: (grupos: string[]) => void;
-  /** Prefixo dos ids: a mesma barra aparece em telas diferentes. */
-  idPrefixo: string;
+export type OpcaoMulti = {
+  codigo: string;
+  rotulo: string | null;
+  /** So o grupo traz isso: item do cadastro sem linha no recorte atual. */
+  sem_movimento?: boolean;
 };
 
-/** Grupo e a unica dimensao com multi-selecao: comparar "Ecommerce + Fabricacao
- *  propria" ou olhar so os grupos de consumo interno e leitura corriqueira, e um
- *  <select> obrigaria a uma tela por grupo.
+type Props = {
+  /** Sufixo do id do campo — a mesma barra aparece em telas diferentes. */
+  id: string;
+  rotulo: string;
+  /** Palavra usada no resumo e na busca ("3 grupos", "Buscar armazém…"). */
+  substantivo: string;
+  plural: string;
+  opcoes: OpcaoMulti[] | undefined;
+  valor: string[] | undefined;
+  aoMudar: (codigos: string[]) => void;
+};
+
+/** Filtro de dimensao com multi-selecao — grupo e armazem.
  *
- *  Menu suspenso e nao uma fila de botoes: a lista de grupos cresce conforme o
- *  Protheus, e deixar todos visiveis empurraria o resto da barra de filtros para
+ *  Comparar "Ecommerce + Fabricacao propria" ou olhar dois barracoes lado a lado
+ *  e leitura corriqueira, e um <select> de escolha unica obrigaria a uma tela por
+ *  valor. A API ja aceita `?grupo=A,B` e `?armazem=01,02` (apps/api/filtros.py),
+ *  entao a multi-selecao nao custa nada do lado do backend.
+ *
+ *  Menu suspenso e nao uma fila de botoes: as listas crescem conforme o Protheus,
+ *  e deixar todos os valores visiveis empurraria o resto da barra de filtros para
  *  fora da tela. Fechado, o campo resume o que esta marcado.
  *
- *  Ganhou campo de busca ao virar Command: com os grupos consolidados a lista ja
- *  passa de vinte itens, e rolar procurando um codigo era o gesto mais lento da
- *  barra de filtros.
+ *  Campo de busca porque a lista de grupos consolidados ja passa de vinte itens, e
+ *  rolar procurando um codigo era o gesto mais lento da barra.
  *
- *  Os grupos `sem_movimento` vem do cadastro e nao tem linha no recorte atual.
- *  Aparecem assim mesmo — a lista tambem serve para conferir a classificacao —
- *  mas apagados, para ninguem marcar um deles e concluir que o BI zerou. */
-export function SeletorGrupos({ opcoes, valor, aoMudar, idPrefixo }: Props) {
+ *  `sem_movimento` vem do cadastro e nao tem linha no recorte atual. Aparece assim
+ *  mesmo — a lista tambem serve para conferir a classificacao — mas apagado, para
+ *  ninguem marcar um deles e concluir que o BI zerou. */
+export function SeletorMulti({
+  id,
+  rotulo,
+  substantivo,
+  plural,
+  opcoes,
+  valor,
+  aoMudar,
+}: Props) {
   const marcados = valor ?? [];
 
   function alternar(codigo: string) {
@@ -51,7 +70,7 @@ export function SeletorGrupos({ opcoes, valor, aoMudar, idPrefixo }: Props) {
   }
 
   const rotuloDe = (codigo: string) =>
-    opcoes?.find((g) => g.codigo === codigo)?.rotulo ?? codigo;
+    opcoes?.find((o) => o.codigo === codigo)?.rotulo ?? codigo;
 
   // Fechado o campo precisa dizer o recorte sem depender de abrir: um nome
   // quando e um so, a contagem quando sao varios.
@@ -60,18 +79,18 @@ export function SeletorGrupos({ opcoes, valor, aoMudar, idPrefixo }: Props) {
       ? "Todos"
       : marcados.length === 1
         ? rotuloDe(marcados[0])
-        : `${marcados.length} grupos`;
+        : `${marcados.length} ${plural}`;
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={`${idPrefixo}-grupo`} className="text-[11px] tracking-wider text-muted-foreground uppercase">
-        Grupo
+      <Label htmlFor={id} className="text-[11px] tracking-wider text-muted-foreground uppercase">
+        {rotulo}
       </Label>
       <Popover>
         <PopoverTrigger
           render={
             <Button
-              id={`${idPrefixo}-grupo`}
+              id={id}
               type="button"
               variant="outline"
               size="sm"
@@ -84,9 +103,9 @@ export function SeletorGrupos({ opcoes, valor, aoMudar, idPrefixo }: Props) {
         />
         <PopoverContent align="start" className="w-64 p-0">
           <Command>
-            <CommandInput placeholder="Buscar grupo…" />
+            <CommandInput placeholder={`Buscar ${substantivo}…`} />
             <CommandList>
-              <CommandEmpty>Nenhum grupo encontrado.</CommandEmpty>
+              <CommandEmpty>Nenhum resultado.</CommandEmpty>
               <CommandGroup>
                 <CommandItem value="Todos" onSelect={() => aoMudar([])}>
                   <CheckIcon
@@ -97,21 +116,21 @@ export function SeletorGrupos({ opcoes, valor, aoMudar, idPrefixo }: Props) {
               </CommandGroup>
               <CommandSeparator />
               <CommandGroup>
-                {opcoes?.map((g) => (
+                {opcoes?.map((o) => (
                   <CommandItem
-                    key={g.codigo}
-                    value={`${g.rotulo ?? g.codigo} ${g.codigo}`}
-                    onSelect={() => alternar(g.codigo)}
-                    className={cn(g.sem_movimento && "opacity-50")}
-                    title={g.sem_movimento ? "Sem linhas no recorte atual" : undefined}
+                    key={o.codigo}
+                    value={`${o.rotulo ?? o.codigo} ${o.codigo}`}
+                    onSelect={() => alternar(o.codigo)}
+                    className={cn(o.sem_movimento && "opacity-50")}
+                    title={o.sem_movimento ? "Sem linhas no recorte atual" : undefined}
                   >
                     <CheckIcon
                       className={cn(
                         "text-primary",
-                        !marcados.includes(g.codigo) && "invisible",
+                        !marcados.includes(o.codigo) && "invisible",
                       )}
                     />
-                    {g.rotulo ?? g.codigo}
+                    {o.rotulo ?? o.codigo}
                   </CommandItem>
                 ))}
               </CommandGroup>

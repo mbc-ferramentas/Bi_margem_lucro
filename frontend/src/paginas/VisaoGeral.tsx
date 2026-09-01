@@ -69,7 +69,12 @@ export function VisaoGeral() {
           fontSize: 11,
           distance: 6,
         },
-        emphasis: { focus: "series" as const },
+        // Sem `focus: "series"`: com o tooltip por eixo, apontar um ponto
+        // aplicava blur em todas as outras series ao mesmo tempo em que o
+        // tooltip listava os valores delas. Na pratica as linhas somiam sob o
+        // cursor e sobrava so a grade — e a informacao que o usuario queria
+        // comparar era justamente a que desaparecia.
+        emphasis: { focus: "none" as const },
         data: periodos.map(
           (p) =>
             serie.data?.serie.find((x) => x.periodo === p && x.canal === canal)?.margem ?? null,

@@ -90,7 +90,9 @@ export function Pedidos() {
   const [itensPorPagina, setItensPorPagina] = useState(25);
 
   const consulta = escreverFiltros(filtros);
-  const recorte = { ...filtros, ...(porArmazem ? { armazem } : { vendedor }) };
+  // O armazem da rota vira lista de um item: o filtro e multi-valor desde que
+  // virou menu suspenso de marcacao.
+  const recorte = { ...filtros, ...(porArmazem ? { armazem: [armazem] } : { vendedor }) };
   const base = porArmazem
     ? `/armazens/${armazem}/pedidos`
     : `/vendedores/${encodeURIComponent(vendedor)}/pedidos`;

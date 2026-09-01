@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/componentes/ui/select";
 import { Label } from "@/componentes/ui/label";
-import { SeletorGrupos } from "./SeletorGrupos";
+import { SeletorMulti } from "./SeletorMulti";
 import { ChipsFiltros } from "./Visual";
 
 type Props = {
@@ -26,8 +26,20 @@ type Props = {
 
 /** Sentinela do "sem filtro". O Select do Base UI trata "" como ausencia de
  *  valor e cai no placeholder, entao a opcao "Todos" precisa de um valor
- *  proprio — que nunca chega a API. */
+ *  proprio — que nunca chega a API.
+ *
+ *  Ela e so o valor interno: o `Select.Value` do Base UI imprime o valor cru
+ *  quando nao recebe uma funcao de formatacao, e era assim que o "__todos__"
+ *  vazava para a tela (junto com a competencia em AAAA-MM). Por isso todo
+ *  `SelectValue` daqui recebe um rotulo explicito. */
 const TODOS = "__todos__";
+
+/** Rotulo do campo fechado: a sentinela vira o texto da opcao "Todos", e o resto
+ *  passa pelo mesmo formatador da lista. */
+function rotuloSelecao(vazio: string, formatar: (valor: string) => string) {
+  return (valor: unknown) =>
+    !valor || valor === TODOS ? vazio : formatar(String(valor));
+}
 
 const ROTULO = "text-[11px] tracking-wider text-muted-foreground uppercase";
 
@@ -53,12 +65,8 @@ export function BarraFiltros({ valor, aoMudar, ocultarCanal, ocultarArmazem }: P
 
   // Trocar de armazem pode deixar o grupo escolhido fora do recorte novo. Manter
   // o grupo antigo devolveria tela vazia sem explicar por que.
-  function definirArmazem(escolhido: string | null) {
-    aoMudar({
-      ...valor,
-      armazem: !escolhido || escolhido === TODOS ? undefined : escolhido,
-      grupo: [],
-    });
+  function definirArmazem(armazens: string[]) {
+    aoMudar({ ...valor, armazem: armazens, grupo: [] });
   }
 
   // As competencias sao AAAA-MM zero-padded: comparar como string ja ordena por
@@ -77,7 +85,7 @@ export function BarraFiltros({ valor, aoMudar, ocultarCanal, ocultarArmazem }: P
               onValueChange={definir("competencia_inicio")}
             >
               <SelectTrigger size="sm" aria-label="Competência inicial">
-                <SelectValue placeholder="Início" />
+                <SelectValue>{rotuloSelecao("Início", competencia)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
@@ -97,7 +105,7 @@ export function BarraFiltros({ valor, aoMudar, ocultarCanal, ocultarArmazem }: P
             <span className="text-xs text-muted-foreground">até</span>
             <Select value={fim || TODOS} onValueChange={definir("competencia_fim")}>
               <SelectTrigger size="sm" aria-label="Competência final">
-                <SelectValue placeholder="Fim" />
+                <SelectValue>{rotuloSelecao("Fim", competencia)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
@@ -124,7 +132,7 @@ export function BarraFiltros({ valor, aoMudar, ocultarCanal, ocultarArmazem }: P
             </Label>
             <Select value={valor.canal ?? TODOS} onValueChange={definir("canal")}>
               <SelectTrigger id="f-canal" size="sm" className="min-w-32">
-                <SelectValue />
+                <SelectValue>{rotuloSelecao("Todos", (c) => c)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
@@ -142,33 +150,25 @@ export function BarraFiltros({ valor, aoMudar, ocultarCanal, ocultarArmazem }: P
 
         {/* Armazem antes de grupo: a ordem na barra e a hierarquia da analise. */}
         {!ocultarArmazem && (
-          <Campo>
-            <Label htmlFor="f-armazem" className={ROTULO}>
-              Armazém
-            </Label>
-            <Select value={valor.armazem ?? TODOS} onValueChange={definirArmazem}>
-              <SelectTrigger id="f-armazem" size="sm" className="min-w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value={TODOS}>Todos</SelectItem>
-                  {opcoes?.armazens.map((a) => (
-                    <SelectItem key={a.codigo} value={a.codigo}>
-                      {a.rotulo ?? a.codigo}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </Campo>
+          <SeletorMulti
+            id="f-armazem"
+            rotulo="Armazém"
+            substantivo="armazém"
+            plural="armazéns"
+            opcoes={opcoes?.armazens}
+            valor={valor.armazem}
+            aoMudar={definirArmazem}
+          />
         )}
 
-        <SeletorGrupos
+        <SeletorMulti
+          id="f-grupo"
+          rotulo="Grupo"
+          substantivo="grupo"
+          plural="grupos"
           opcoes={opcoes?.grupos}
           valor={valor.grupo}
           aoMudar={(grupos) => aoMudar({ ...valor, grupo: grupos })}
-          idPrefixo="f"
         />
       </div>
 

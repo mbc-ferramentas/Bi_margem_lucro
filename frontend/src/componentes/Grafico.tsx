@@ -65,6 +65,15 @@ export function baseDoTema() {
       backgroundColor: token("--popover"),
       borderColor: token("--border"),
       textStyle: { color: token("--popover-foreground"), fontSize: 12 },
+      // O tooltip sai do container e vai para o <body>. Dentro do cartao ele e
+      // um filho absoluto de uma caixa `overflow-hidden` com cantos
+      // arredondados: mover essa caixa a cada pixel do mouse fazia o navegador
+      // deixar de repintar o SVG por baixo, e o grafico "sumia" no rastro do
+      // cursor, mostrando o fundo do cartao.
+      appendTo: () => document.body,
+      // Sem a animacao de deslizar: e ela que arrasta a area suja do repaint
+      // junto com o ponteiro. O tooltip aparece direto no lugar certo.
+      transitionDuration: 0,
     },
     legend: {
       top: 0,

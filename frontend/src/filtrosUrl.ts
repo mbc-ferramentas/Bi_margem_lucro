@@ -6,7 +6,8 @@
  *  De quebra, a tela vira linkavel — mandar "olha o Barracao 02 em julho" passa
  *  a ser copiar a barra de enderecos.
  *
- *  O formato e o mesmo que `paraQuery` ja escreve (grupo separado por virgula),
+ *  O formato e o mesmo que `paraQuery` ja escreve (grupo e armazem separados por
+ *  virgula),
  *  entao a URL da tela e a URL da chamada da API falam a mesma lingua.
  */
 
@@ -19,10 +20,13 @@ const SIMPLES = [
   "competencia_inicio",
   "competencia_fim",
   "canal",
-  "armazem",
   "vendedor",
   "busca",
 ] as const;
+
+/** Dimensoes multi-valor: na URL vao separadas por virgula, do mesmo jeito que
+ *  `paraQuery` escreve para a API. */
+const LISTAS = ["grupo", "armazem"] as const;
 
 export function lerFiltros(params: URLSearchParams): Filtros {
   const filtros: Filtros = {};
@@ -30,8 +34,10 @@ export function lerFiltros(params: URLSearchParams): Filtros {
     const valor = params.get(chave);
     if (valor) filtros[chave] = valor;
   }
-  const grupo = params.get("grupo");
-  if (grupo) filtros.grupo = grupo.split(",").filter(Boolean);
+  for (const chave of LISTAS) {
+    const bruto = params.get(chave);
+    if (bruto) filtros[chave] = bruto.split(",").filter(Boolean);
+  }
   const situacao = params.get("situacao");
   if (situacao === "atrasados" || situacao === "a_vencer") filtros.situacao = situacao;
   return filtros;
@@ -60,7 +66,7 @@ export function useFiltrosUrl(): [Filtros, (f: Filtros) => void] {
       // do browser percorreria cada select que o usuario tocou antes de sair
       // da tela.
       const seguintes = new URLSearchParams(params);
-      for (const chave of [...SIMPLES, "grupo", "situacao"]) seguintes.delete(chave);
+      for (const chave of [...SIMPLES, ...LISTAS, "situacao"]) seguintes.delete(chave);
       const filtrosSerializados = new URLSearchParams(escreverFiltros(novos));
       filtrosSerializados.forEach((valor, chave) => seguintes.set(chave, valor));
       setParams(seguintes, { replace: true });

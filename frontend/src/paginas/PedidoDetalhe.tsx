@@ -123,7 +123,7 @@ export function PedidoDetalhe() {
   // `linhas_fora_do_recorte` já explica o que o filtro de tela deixou de fora.
   const { data, isPending, isError, error } = usePedido(chave, {
     ...filtros,
-    ...(porSku ? {} : porArmazem ? { armazem } : { vendedor }),
+    ...(porSku ? {} : porArmazem ? { armazem: [armazem] } : { vendedor }),
   });
 
   const cabecalho = data?.pedido;
