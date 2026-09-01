@@ -300,7 +300,7 @@ export function CartaoDestaque({
           {/* Escalonado por breakpoint e nao por `vw`: a largura vem da coluna
               da grade, e um `clamp` em `vw` estourava a caixa justamente na
               tela larga, onde esta coluna e proporcionalmente mais estreita. */}
-          <strong className="min-w-0 truncate text-[1.75rem] leading-none font-semibold tracking-tight sm:text-[2rem] xl:text-[2.25rem]">
+          <strong className="min-w-0 truncate py-0.5 text-[1.75rem] leading-[1.1] font-semibold tracking-tight sm:text-[2rem] xl:text-[2.25rem]">
             {valor}
           </strong>
           {secundario && (

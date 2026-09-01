@@ -172,7 +172,12 @@ export function Grafico({ opcao, altura = 300, rotuloAcessivel, aoClicar }: Prop
   return (
     <div
       ref={alvo}
-      style={{ height: altura, width: "100%" }}
+      // `translateZ(0)` promove o SVG a uma camada de composicao propria. Sem
+      // isso o Chromium nao repinta o SVG por baixo do tooltip (um filho
+      // absoluto do <body>) enquanto ele se move: a barra longa que fica sob a
+      // caixa do tooltip some inteira ao passar o mouse. Com a camada propria o
+      // grafico se repinta independente do que passa por cima.
+      style={{ height: altura, width: "100%", transform: "translateZ(0)" }}
       role="img"
       aria-label={rotuloAcessivel}
       className={aoClicar ? "cursor-pointer" : undefined}
