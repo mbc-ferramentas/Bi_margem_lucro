@@ -429,13 +429,15 @@ class CargaView(APIView):
                 {"detail": f"Envie ao menos um arquivo ({', '.join(sorted(ARQUIVOS))})."}
             )
 
-        teto = settings.MAX_UPLOAD_CSV_MB * 1024 * 1024
-        grandes = [n for n, a in enviados.items() if a.size > teto]
-        if grandes:
+        # O teto e do envio inteiro, nao de cada arquivo: o que derruba a carga e o
+        # corpo da requisicao (proxy reverso e RAM), e ele e a soma dos CSVs.
+        teto = settings.MAX_UPLOAD_CARGA_MB * 1024 * 1024
+        total = sum(a.size for a in enviados.values())
+        if total > teto:
             raise ValidationError(
                 {
-                    "detail": f"{', '.join(sorted(grandes))}: arquivo acima do limite de "
-                    f"{settings.MAX_UPLOAD_CSV_MB} MB."
+                    "detail": f"Envio de {total / 1024 / 1024:.1f} MB acima do limite de "
+                    f"{settings.MAX_UPLOAD_CARGA_MB} MB somando todos os arquivos."
                 }
             )
         return enviados

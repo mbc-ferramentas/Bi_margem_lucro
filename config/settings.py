@@ -116,9 +116,15 @@ CORS_ALLOW_CREDENTIALS = True
 # --- Upload dos CSVs do Protheus -------------------------------------------
 # A carga e disparada pelo administrador na tela do BI, sincronamente. Os limites
 # ficam explicitos porque o default do Django (2,5 MB) esta na mesma ordem de
-# grandeza dos arquivos reais (2,4-4,7 MB): depender dele seria funcionar por acaso.
-MAX_UPLOAD_CSV_MB = config("MAX_UPLOAD_CSV_MB", default=50, cast=int)
-FILE_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_CSV_MB * 1024 * 1024
+# grandeza dos arquivos reais e depender dele seria funcionar por acaso.
+# Teto do envio inteiro (soma dos CSVs), verificado na CargaView.
+MAX_UPLOAD_CARGA_MB = config("MAX_UPLOAD_CARGA_MB", default=400, cast=int)
+
+# Teto de memoria, nao de tamanho: acima disso o Django escreve o upload em arquivo
+# temporario em vez de segurar na RAM. Fica desacoplado do teto do envio de
+# proposito — a carga completa passa de 176 MB somados, e a view le tudo por
+# `chunks()`, entao acompanhar MAX_UPLOAD_CARGA_MB so serviria para estourar a RAM.
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 DATA_UPLOAD_MAX_MEMORY_SIZE = FILE_UPLOAD_MAX_MEMORY_SIZE
 DATA_UPLOAD_MAX_NUMBER_FILES = 5
 

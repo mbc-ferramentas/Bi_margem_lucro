@@ -85,8 +85,9 @@ reverso da VPS (fora desta stack) faz TLS e roteamento.
    e `/static/`; ele nao faz proxy da API.
 
    O upload dos CSVs passa por esse proxy: garanta `client_max_body_size` maior
-   que `MAX_UPLOAD_CSV_MB` e `proxy_read_timeout` acima de 60s, senao a carga e
-   cortada no meio.
+   que a **soma** dos arquivos enviados de uma vez (os cinco CSVs passam de
+   176 MB; `MAX_UPLOAD_CARGA_MB=400` e o teto do envio inteiro) e `proxy_read_timeout`
+   acima de 60s, senao a carga e cortada no meio.
 
 ### Deploy
 
