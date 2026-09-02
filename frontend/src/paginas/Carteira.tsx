@@ -261,33 +261,6 @@ export function Carteira() {
           </Select>
         </Campo>
 
-        <Campo id="c-vendedor" rotulo="Vendedor">
-          <Select
-            value={filtros.vendedor ?? TODOS}
-            onValueChange={(valor) => mudarFiltro("vendedor", valor)}
-          >
-            <SelectTrigger id="c-vendedor" size="sm" className="min-w-40">
-              <SelectValue>
-                {rotuloSelecao(
-                  "Todos",
-                  (codigo) =>
-                    opcoes?.vendedores.find((v) => v.codigo === codigo)?.nome ?? codigo,
-                )}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value={TODOS}>Todos</SelectItem>
-                {opcoes?.vendedores.map((v) => (
-                  <SelectItem key={v.codigo} value={v.codigo}>
-                    {v.nome ?? v.codigo}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Campo>
-
         {/* Armazem antes de grupo: a ordem na barra e a hierarquia da analise. */}
         <SeletorMulti
           id="c-armazem"
@@ -309,6 +282,20 @@ export function Carteira() {
           aoMudar={(grupos) => {
             setOffset(0);
             setFiltros({ ...filtros, grupo: grupos });
+          }}
+        />
+
+        {/* A API chama de `nome` o que o seletor le como `rotulo`. */}
+        <SeletorMulti
+          id="c-vendedor"
+          rotulo="Vendedores"
+          substantivo="vendedor"
+          plural="vendedores"
+          opcoes={opcoes?.vendedores.map((v) => ({ codigo: v.codigo, rotulo: v.nome }))}
+          valor={filtros.vendedor}
+          aoMudar={(codigos) => {
+            setOffset(0);
+            setFiltros({ ...filtros, vendedor: codigos });
           }}
         />
 

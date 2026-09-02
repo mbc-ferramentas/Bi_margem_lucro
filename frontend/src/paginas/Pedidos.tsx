@@ -90,9 +90,12 @@ export function Pedidos() {
   const [itensPorPagina, setItensPorPagina] = useState(25);
 
   const consulta = escreverFiltros(filtros);
-  // O armazem da rota vira lista de um item: o filtro e multi-valor desde que
-  // virou menu suspenso de marcacao.
-  const recorte = { ...filtros, ...(porArmazem ? { armazem: [armazem] } : { vendedor }) };
+  // A dimensao da rota vira lista de um item: os dois filtros sao multi-valor
+  // desde que viraram menu suspenso de marcacao.
+  const recorte = {
+    ...filtros,
+    ...(porArmazem ? { armazem: [armazem] } : { vendedor: [vendedor] }),
+  };
   const base = porArmazem
     ? `/armazens/${armazem}/pedidos`
     : `/vendedores/${encodeURIComponent(vendedor)}/pedidos`;
@@ -230,6 +233,7 @@ export function Pedidos() {
           setFiltros(novos);
         }}
         ocultarArmazem={porArmazem}
+        ocultarVendedor={!porArmazem}
         ocultarCanal={!porArmazem}
       />
 

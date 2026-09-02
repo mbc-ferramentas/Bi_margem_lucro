@@ -6,8 +6,8 @@
  *  De quebra, a tela vira linkavel — mandar "olha o Barracao 02 em julho" passa
  *  a ser copiar a barra de enderecos.
  *
- *  O formato e o mesmo que `paraQuery` ja escreve (grupo e armazem separados por
- *  virgula),
+ *  O formato e o mesmo que `paraQuery` ja escreve (grupo, armazem e vendedor
+ *  separados por virgula),
  *  entao a URL da tela e a URL da chamada da API falam a mesma lingua.
  */
 
@@ -16,7 +16,7 @@ import { useSearchParams } from "react-router";
 
 import type { Filtros } from "./api/tipos";
 
-const SIMPLES = ["data_inicio", "data_fim", "canal", "vendedor", "busca"] as const;
+const SIMPLES = ["data_inicio", "data_fim", "canal", "busca"] as const;
 
 /** Nomes antigos do periodo, de quando o filtro era competencia mensal. A API
  *  ainda os aceita (apps/api/filtros.py); aqui eles sao lidos e reescritos nos
@@ -29,7 +29,7 @@ const ALIAS: Record<string, (typeof SIMPLES)[number]> = {
 
 /** Dimensoes multi-valor: na URL vao separadas por virgula, do mesmo jeito que
  *  `paraQuery` escreve para a API. */
-const LISTAS = ["grupo", "armazem"] as const;
+const LISTAS = ["grupo", "armazem", "vendedor"] as const;
 
 /** "2026-07" -> "2026-07-31". */
 function ultimoDiaDoMes(competencia: string): string {

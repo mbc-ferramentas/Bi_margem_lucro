@@ -553,12 +553,12 @@ export type Filtros = {
   data_inicio?: string;
   data_fim?: string;
   canal?: string;
-  /** Multi-selecao: grupo e armazem sao marcadores, nao selects de escolha
-   *  unica. Vazio = todos. A API aceita `?grupo=A,B` e `?armazem=01,02` desde
-   *  sempre (apps/api/filtros.py). */
+  /** Multi-selecao: grupo, armazem e vendedor sao marcadores, nao selects de
+   *  escolha unica. Vazio = todos. A API aceita `?grupo=A,B`, `?armazem=01,02` e
+   *  `?vendedor=01,02` desde sempre (apps/api/filtros.py). */
   grupo?: string[];
   armazem?: string[];
-  vendedor?: string;
+  vendedor?: string[];
   /** Exclusivos da carteira. */
   situacao?: "atrasados" | "a_vencer";
   busca?: string;

@@ -30,7 +30,7 @@ const ROTULOS_FILTRO: Partial<Record<keyof Filtros, string>> = {
   data_fim: "Até",
   canal: "Canal",
   armazem: "Armazém",
-  vendedor: "Vendedor",
+  vendedor: "Vendedores",
   grupo: "Grupos",
   situacao: "Situação",
   busca: "Busca",

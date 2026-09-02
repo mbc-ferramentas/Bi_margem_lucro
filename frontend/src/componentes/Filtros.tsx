@@ -22,6 +22,9 @@ type Props = {
   /** Na lista de pedidos o armazem vem da rota: um select que discordasse da URL
    *  daria duas verdades para o mesmo recorte. */
   ocultarArmazem?: boolean;
+  /** Mesma razao do armazem, na outra metade do drill-down: o vendedor da rota
+   *  ja trava o recorte. */
+  ocultarVendedor?: boolean;
 };
 
 /** Sentinela do "sem filtro". O Select do Base UI trata "" como ausencia de
@@ -47,7 +50,13 @@ function Campo({ children }: { children: React.ReactNode }) {
   return <div className="flex flex-col gap-1.5">{children}</div>;
 }
 
-export function BarraFiltros({ valor, aoMudar, ocultarCanal, ocultarArmazem }: Props) {
+export function BarraFiltros({
+  valor,
+  aoMudar,
+  ocultarCanal,
+  ocultarArmazem,
+  ocultarVendedor,
+}: Props) {
   // As opcoes vem recortadas pelos filtros ativos: escolher um armazem reduz a
   // lista de grupos aos que existem nele. Por isso o proprio `valor` entra aqui.
   const { data } = useOpcoes(valor);
@@ -62,6 +71,13 @@ export function BarraFiltros({ valor, aoMudar, ocultarCanal, ocultarArmazem }: P
         [chave]: !escolhido || escolhido === TODOS ? undefined : escolhido,
       });
   }
+
+  // A API chama de `nome` o que o seletor le como `rotulo`: o mesmo campo com
+  // dois nomes, e nao vale um tipo novo so por isso.
+  const vendedores = opcoes?.vendedores.map((v) => ({
+    codigo: v.codigo,
+    rotulo: v.nome,
+  }));
 
   // Trocar de armazem pode deixar o grupo escolhido fora do recorte novo. Manter
   // o grupo antigo devolveria tela vazia sem explicar por que.
@@ -126,6 +142,21 @@ export function BarraFiltros({ valor, aoMudar, ocultarCanal, ocultarArmazem }: P
           valor={valor.grupo}
           aoMudar={(grupos) => aoMudar({ ...valor, grupo: grupos })}
         />
+
+        {/* Vendedor depois do grupo: e um recorte de quem vendeu, nao um nivel da
+            hierarquia armazem > grupo. A lista ja chega restrita ao escopo do
+            usuario — um vendedor nao enxerga os colegas nem aqui. */}
+        {!ocultarVendedor && (
+          <SeletorMulti
+            id="f-vendedor"
+            rotulo="Vendedores"
+            substantivo="vendedor"
+            plural="vendedores"
+            opcoes={vendedores}
+            valor={valor.vendedor}
+            aoMudar={(codigos) => aoMudar({ ...valor, vendedor: codigos })}
+          />
+        )}
       </div>
 
       <ChipsFiltros valor={valor} aoMudar={aoMudar} />
