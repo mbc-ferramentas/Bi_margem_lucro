@@ -40,8 +40,13 @@ export const kpisSchema = z.object({
 });
 export type Kpis = z.infer<typeof kpisSchema>["kpis"];
 
+/** Como o eixo do tempo e agregado. Espelha `GRANULARIDADE_COLUNA` em
+ *  apps/api/queries.py — a semana e a segunda-feira do date_trunc do Postgres. */
+export const GRANULARIDADES = ["dia", "semana", "mes"] as const;
+export type Granularidade = (typeof GRANULARIDADES)[number];
+
 export const serieSchema = z.object({
-  granularidade: z.enum(["dia", "mes"]),
+  granularidade: z.enum(GRANULARIDADES),
   serie: z.array(
     z.object({
       periodo: z.string(),
@@ -281,7 +286,14 @@ export const filtrosSchema = z.object({
     tes: z.array(
       z.object({ codigo: z.string(), conta_como_venda: z.boolean() }),
     ),
-    competencias: z.array(z.string()),
+    /** Extremos do que existe na base (ISO AAAA-MM-DD), ja recortados pelo
+     *  escopo do usuario. Limitam o calendario e dizem qual e a janela real
+     *  quando o filtro de periodo esta aberto — e o que sustenta a comparacao
+     *  com o periodo anterior na Visao geral. */
+    periodo: z.object({
+      inicio: z.string().nullable(),
+      fim: z.string().nullable(),
+    }),
   }),
   escopo: escopoSchema,
 });
@@ -535,10 +547,11 @@ export type Uploads = z.infer<typeof uploadsSchema>;
 export type ResultadoArquivo = Uploads["arquivos"][number];
 
 export type Filtros = {
-  /** Na carteira estas duas recortam a **data de entrega**, nao a competencia:
+  /** Intervalo de datas em ISO (AAAA-MM-DD), inclusivo nas duas pontas. Nas
+   *  telas de margem recorta a **emissao**; na carteira, a **data de entrega** —
    *  a view nao tem competencia, e o que interessa la e o prazo prometido. */
-  competencia_inicio?: string;
-  competencia_fim?: string;
+  data_inicio?: string;
+  data_fim?: string;
   canal?: string;
   /** Multi-selecao: grupo e armazem sao marcadores, nao selects de escolha
    *  unica. Vazio = todos. A API aceita `?grupo=A,B` e `?armazem=01,02` desde

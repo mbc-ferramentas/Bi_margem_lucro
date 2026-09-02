@@ -10,9 +10,14 @@
  */
 
 import type { EChartsOption } from "echarts";
+import { useMemo } from "react";
 
 import { useKpis, useOpcoes, useSerie } from "../api/hooks";
-import type { Filtros } from "../api/tipos";
+import {
+  GRANULARIDADES,
+  type Filtros,
+  type Granularidade,
+} from "../api/tipos";
 import { Label } from "@/componentes/ui/label";
 import {
   Select,
@@ -25,9 +30,21 @@ import {
 import { Grafico, baseDoTema, corDaSerie, useOpcaoGrafico } from "../componentes/Grafico";
 import { AvisoMarketplace, Erro, Vazio } from "../componentes/Layout";
 import { SkeletonGrafico, SkeletonTiles } from "../componentes/Skeleton";
-import { CabecalhoPagina, CartaoKpi, GradeKpis, Secao } from "../componentes/Visual";
-import { useFiltrosUrl } from "../filtrosUrl";
-import { dataCurta, inteiro, moeda, moedaCurta, percentual } from "../formato";
+import { SeletorPeriodo } from "../componentes/SeletorPeriodo";
+import {
+  CabecalhoPagina,
+  CartaoKpi,
+  GradeKpis,
+  Secao,
+  Segmentado,
+} from "../componentes/Visual";
+import { useEscolhaUrl, useFiltrosUrl } from "../filtrosUrl";
+import { inteiro, moeda, moedaCurta, percentual, rotuloPeriodo } from "../formato";
+import {
+  granularidadeEfetiva,
+  granularidadesPermitidas,
+  janelaEfetiva,
+} from "../periodo";
 
 export function Canais() {
   const { data: opcoes } = useOpcoes();
@@ -38,10 +55,26 @@ export function Canais() {
   const [filtrosUrl, setFiltros] = useFiltrosUrl();
 
   const canalAtivo = filtrosUrl.canal ?? canais[0] ?? null;
-  const filtros: Filtros = canalAtivo ? { canal: canalAtivo } : {};
+  // O periodo da URL segue valendo: descartado, o grafico mostrava a base
+  // inteira enquanto o resto do BI mostrava o recorte — dois numeros para o
+  // mesmo filtro.
+  const filtros: Filtros = useMemo(
+    () => ({ ...filtrosUrl, canal: canalAtivo ?? undefined }),
+    [filtrosUrl, canalAtivo],
+  );
+
+  const janela = useMemo(
+    () => janelaEfetiva(filtros, opcoes?.opcoes.periodo),
+    [filtros, opcoes],
+  );
+  const [escolhida, setGranularidade] = useEscolhaUrl<Granularidade>(
+    "granularidade",
+    GRANULARIDADES,
+  );
+  const granularidade = granularidadeEfetiva(janela, escolhida);
 
   const kpis = useKpis(filtros);
-  const serie = useSerie(filtros, "dia");
+  const serie = useSerie(filtros, granularidade);
 
   // useOpcaoGrafico injeta o tema resolvido nas deps: baseDoTema() e
   // corDaSerie() leem as variaveis CSS no momento do calculo.
@@ -57,7 +90,7 @@ export function Canais() {
       xAxis: {
         ...base.xAxis,
         type: "category",
-        data: pontos.map((p) => dataCurta(p.periodo)),
+        data: pontos.map((p) => rotuloPeriodo(p.periodo, granularidade)),
       },
       yAxis: {
         ...base.yAxis,
@@ -74,7 +107,7 @@ export function Canais() {
         },
       ],
     };
-  }, [serie.data]);
+  }, [serie.data, granularidade]);
 
   const k = kpis.data?.kpis;
   const ehMarketplace = canalAtivo === "Marketplace";
@@ -90,13 +123,16 @@ export function Canais() {
         <AvisoMarketplace texto={kpis.data.escopo.aviso_marketplace} />
       )}
 
-      <div className="mb-4 flex flex-col gap-1.5">
+      <div className="mb-4 flex flex-wrap items-end gap-2.5">
+        <div className="flex flex-col gap-1.5">
         <Label htmlFor="sel-canal" className="text-[11px] tracking-wider text-muted-foreground uppercase">
           Canal
         </Label>
         <Select
           value={canalAtivo ?? ""}
-          onValueChange={(valor) => setFiltros(valor ? { canal: valor } : {})}
+          onValueChange={(valor) =>
+            setFiltros({ ...filtrosUrl, canal: valor || undefined })
+          }
         >
           <SelectTrigger id="sel-canal" size="sm" className="min-w-44">
             <SelectValue placeholder="Selecione um canal" />
@@ -111,6 +147,17 @@ export function Canais() {
             </SelectGroup>
           </SelectContent>
         </Select>
+        </div>
+
+        <SeletorPeriodo
+          id="canais-periodo"
+          inicio={filtrosUrl.data_inicio}
+          fim={filtrosUrl.data_fim}
+          base={opcoes?.opcoes.periodo}
+          aoMudar={({ inicio, fim }) =>
+            setFiltros({ ...filtrosUrl, data_inicio: inicio, data_fim: fim })
+          }
+        />
       </div>
 
       {kpis.isError && <Erro mensagem={(kpis.error as Error).message} />}
@@ -143,13 +190,28 @@ export function Canais() {
           <Vazio mensagem="Nenhum faturamento neste canal no período." />
         ) : (
           <Secao
-            titulo={`Margem bruta diária — ${canalAtivo}`}
+            titulo={`Margem bruta — ${canalAtivo}`}
             nota="Somente este canal. Nenhuma outra série no gráfico."
+            acao={
+              <Segmentado
+                valor={granularidade}
+                aoMudar={setGranularidade}
+                rotulo="Agregação do tempo"
+                desabilitadas={GRANULARIDADES.filter(
+                  (g) => !granularidadesPermitidas(janela).includes(g),
+                )}
+                opcoes={[
+                  ["dia", "Dia"],
+                  ["semana", "Semana"],
+                  ["mes", "Mês"],
+                ]}
+              />
+            }
           >
             <Grafico
               opcao={opcao}
               altura={280}
-              rotuloAcessivel={`Margem bruta diária do canal ${canalAtivo}.`}
+              rotuloAcessivel={`Margem bruta do canal ${canalAtivo}, agregada por ${granularidade}.`}
             />
           </Secao>
         ))}

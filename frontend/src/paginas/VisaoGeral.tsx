@@ -30,7 +30,13 @@ import {
   useSerie,
   useSkus,
 } from "../api/hooks";
-import type { Filtros, ItemSku, PontoSerie } from "../api/tipos";
+import {
+  GRANULARIDADES,
+  type Filtros,
+  type Granularidade,
+  type ItemSku,
+  type PontoSerie,
+} from "../api/tipos";
 import { Button } from "@/componentes/ui/button";
 import { BarraFiltros } from "../componentes/Filtros";
 import {
@@ -57,17 +63,23 @@ import {
   Secao,
   Segmentado,
 } from "../componentes/Visual";
-import { escreverFiltros, useFiltrosUrl } from "../filtrosUrl";
+import { escreverFiltros, useEscolhaUrl, useFiltrosUrl } from "../filtrosUrl";
 import {
-  competencia,
   dataCurta,
   inteiro,
   moeda,
   moedaCurta,
   numeroBruto,
   percentual,
+  rotuloPeriodo,
 } from "../formato";
-import { periodoAnterior, rotuloJanela } from "../periodo";
+import {
+  granularidadeEfetiva,
+  granularidadesPermitidas,
+  janelaEfetiva,
+  periodoAnterior,
+  rotuloJanela,
+} from "../periodo";
 
 /** `numeroBruto` devolve 0 para nulo, o que serve para somar e atrapalha para
  *  comparar: variação contra uma base ausente não é queda de 100%, é ausência
@@ -89,6 +101,14 @@ const METRICAS: Record<Metrica, { rotulo: string; formatar: (v: number) => strin
 const TOPO_ARMAZEM = 6;
 const TOPO_SKU = 5;
 
+/** Cabecalho da primeira coluna da tabela da serie: o que cada linha representa
+ *  muda com a agregacao. */
+const ROTULO_PERIODO: Record<Granularidade, string> = {
+  dia: "Dia",
+  semana: "Semana (segunda)",
+  mes: "Competência",
+};
+
 export function VisaoGeral() {
   // Filtros na URL como nas demais telas: com useState local, o link da visao
   // geral filtrada nao carregava o recorte para quem o recebia.
@@ -100,28 +120,34 @@ export function VisaoGeral() {
   const navegar = useNavigate();
   const consulta = escreverFiltros(filtros);
 
-  // Sem filtros de proposito: e a lista completa de competencias da base que
-  // permite descobrir a janela do recorte aberto (`janelaEfetiva`). Recortada
-  // pelo proprio periodo, ela devolveria o periodo de volta.
+  // Sem filtros de proposito: sao os extremos da base que permitem descobrir a
+  // janela do recorte aberto (`janelaEfetiva`). Recortados pelo proprio periodo,
+  // eles devolveriam o periodo de volta.
   const opcoes = useOpcoes();
-  const competencias = opcoes.data?.opcoes.competencias ?? [];
+  const periodoBase = opcoes.data?.opcoes.periodo;
 
-  const anterior = useMemo(
-    () => periodoAnterior(filtros, competencias),
-    [filtros, competencias],
+  const janela = useMemo(() => janelaEfetiva(filtros, periodoBase), [filtros, periodoBase]);
+  const anterior = useMemo(() => periodoAnterior(filtros, periodoBase), [filtros, periodoBase]);
+
+  // Sem escolha do usuario a agregacao acompanha o tamanho da janela: um mes vem
+  // em dias, um semestre em semanas, um ano em meses.
+  const [escolhida, setGranularidade] = useEscolhaUrl<Granularidade>(
+    "granularidade",
+    GRANULARIDADES,
   );
+  const granularidade = granularidadeEfetiva(janela, escolhida);
 
   const kpis = useKpis(filtros);
   const kpisAnterior = useKpis(anterior ?? {}, Boolean(anterior));
-  const serie = useSerie(filtros, "mes");
+  const serie = useSerie(filtros, granularidade);
   const armazens = useArmazens(filtros, "-margem");
   const melhores = useSkus(filtros, "-margem", 0, TOPO_SKU);
   const piores = useSkus(filtros, "margem", 0, TOPO_SKU);
-  // A carteira ignora a competencia de proposito: la o periodo recorta **data
-  // de entrega**, nao competencia. Herdar um mes ja faturado mostraria uma
+  // A carteira ignora o periodo de proposito: la a data filtrada e a **entrega
+  // prometida**, nao a emissao da nota. Herdar um mes ja faturado mostraria uma
   // carteira vazia sem explicar por que. As demais dimensoes seguem valendo.
   const filtrosCarteira = useMemo(
-    () => ({ ...filtros, competencia_inicio: undefined, competencia_fim: undefined }),
+    () => ({ ...filtros, data_inicio: undefined, data_fim: undefined }),
     [filtros],
   );
   // Uma linha so: a tela usa apenas o `resumo`, que a API calcula sobre o
@@ -142,7 +168,7 @@ export function VisaoGeral() {
     [serie.data],
   );
 
-  /** Margem total por competencia, somando os canais — a linha da sparkline. */
+  /** Margem total por periodo, somando os canais — a linha da sparkline. */
   const tendencia = useMemo(
     () =>
       periodos.map((p) =>
@@ -165,7 +191,11 @@ export function VisaoGeral() {
       color: canais.map((_, i) => corDaSerie(i)),
       legend: { ...base.legend, data: canais },
       tooltip: { ...base.tooltip, valueFormatter: (v) => formatar(v as number) },
-      xAxis: { ...base.xAxis, type: "category", data: periodos.map(competencia) },
+      xAxis: {
+        ...base.xAxis,
+        type: "category",
+        data: periodos.map((p) => rotuloPeriodo(p, granularidade)),
+      },
       yAxis: {
         ...base.yAxis,
         type: "value",
@@ -200,7 +230,7 @@ export function VisaoGeral() {
         }),
       })),
     };
-  }, [canais, periodos, serie.data, metrica]);
+  }, [canais, periodos, serie.data, metrica, granularidade]);
 
   /** Margem por armazem, somando os grupos: a API devolve um par armazem x
    *  grupo por linha, e aqui so o total do armazem interessa. */
@@ -382,7 +412,12 @@ export function VisaoGeral() {
 
   const colunas: readonly Coluna<PontoSerie>[] = useMemo(
     () => [
-      { chave: null, rotulo: "Competência", fixa: true, celula: (p) => competencia(p.periodo) },
+      {
+        chave: null,
+        rotulo: ROTULO_PERIODO[granularidade],
+        fixa: true,
+        celula: (p) => rotuloPeriodo(p.periodo, granularidade),
+      },
       {
         chave: null,
         rotulo: "Canal",
@@ -410,11 +445,11 @@ export function VisaoGeral() {
       },
       { chave: null, rotulo: "Margem %", num: true, celula: (p) => percentual(p.margem_pct) },
     ],
-    [canais],
+    [canais, granularidade],
   );
 
   const resumoCarteira = carteira.data?.resumo;
-  const janela = rotuloJanela(filtros);
+  const rotuloDoRecorte = rotuloJanela(filtros);
 
   return (
     <>
@@ -423,7 +458,7 @@ export function VisaoGeral() {
         descricao="Margem bruta = receita − (quantidade × custo unitário). O custo vem congelado na nota (D2_CUSTO1)."
         contexto={
           <>
-            <Badge tom="info">{janela ?? "Todo o período carregado"}</Badge>
+            <Badge tom="info">{rotuloDoRecorte ?? "Todo o período carregado"}</Badge>
             {escopo && <Badge>{escopo.rotulo}</Badge>}
           </>
         }
@@ -566,10 +601,25 @@ export function VisaoGeral() {
 
         {serie.data && (
           <Secao
-            titulo="Evolução por competência"
+            titulo="Evolução no tempo"
             nota="Cada canal é uma série independente, na mesma escala e num eixo só. A margem do Marketplace não desconta comissão."
             acao={
               <div className="flex flex-wrap justify-end gap-2">
+                {/* A agregacao acompanha o periodo escolhido; o alternador so
+                    existe para quem quer outra visada do mesmo recorte. */}
+                <Segmentado
+                  valor={granularidade}
+                  aoMudar={setGranularidade}
+                  rotulo="Agregação do tempo"
+                  desabilitadas={GRANULARIDADES.filter(
+                    (g) => !granularidadesPermitidas(janela).includes(g),
+                  )}
+                  opcoes={[
+                    ["dia", "Dia"],
+                    ["semana", "Semana"],
+                    ["mes", "Mês"],
+                  ]}
+                />
                 <Segmentado
                   valor={metrica}
                   aoMudar={setMetrica}
@@ -600,7 +650,7 @@ export function VisaoGeral() {
                 linhas={serie.data.serie}
                 colunas={colunas}
                 chaveLinha={(p) => `${p.periodo}-${p.canal}`}
-                rotuloAcessivel="Margem bruta por competência e canal"
+                rotuloAcessivel="Margem bruta por período e canal"
                 paginacao={{
                   modo: "cliente",
                   total: serie.data.serie.length,
@@ -617,7 +667,7 @@ export function VisaoGeral() {
               <Grafico
                 opcao={opcao}
                 altura={320}
-                rotuloAcessivel={`${METRICAS[metrica].rotulo} por competência, uma linha por canal de venda.`}
+                rotuloAcessivel={`${METRICAS[metrica].rotulo} por período, uma linha por canal de venda.`}
               />
             )}
           </Secao>

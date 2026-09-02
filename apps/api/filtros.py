@@ -7,7 +7,7 @@ saem de listas fixas — nunca da query string.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from rest_framework.exceptions import ValidationError
 
@@ -31,16 +31,41 @@ class Clausula:
         return f"WHERE {' AND '.join(partes)}" if partes else ""
 
 
-def _data(valor: str | None, campo: str) -> date | None:
+# Nomes antigos do par de datas. O filtro era competencia mensal e virou intervalo
+# de datas; os aliases ficam porque a tela guarda o recorte na URL — links de
+# drill-down ja compartilhados continuariam abrindo, mas sem periodo nenhum.
+ALIAS_DATA = {"data_inicio": "competencia_inicio", "data_fim": "competencia_fim"}
+
+
+def _data(valor: str | None, campo: str, *, fim: bool = False) -> date | None:
+    """Aceita AAAA-MM-DD e AAAA-MM.
+
+    Em AAAA-MM o mes vira o intervalo inteiro: o inicio cai no dia 1 e o fim no
+    ultimo dia. Truncar os dois no dia 1 so nao dava erro visivel enquanto a
+    coluna filtrada era `competencia`, que ja nasce no dia 1 — em `emissao` ou
+    `dt_entrega`, `2026-07` como fim descartava 30 dos 31 dias.
+    """
     if not valor:
         return None
-    for formato in ("%Y-%m-%d", "%Y-%m"):
-        try:
-            d = datetime.strptime(valor, formato).date()
-            return d.replace(day=1) if formato == "%Y-%m" else d
-        except ValueError:
-            continue
-    raise ValidationError({campo: "Use AAAA-MM ou AAAA-MM-DD."})
+    try:
+        return datetime.strptime(valor, "%Y-%m-%d").date()
+    except ValueError:
+        pass
+    try:
+        d = datetime.strptime(valor, "%Y-%m").date()
+    except ValueError as exc:
+        raise ValidationError({campo: "Use AAAA-MM ou AAAA-MM-DD."}) from exc
+    return _ultimo_dia(d) if fim else d
+
+
+def _ultimo_dia(primeiro: date) -> date:
+    proximo_mes = primeiro.replace(day=28) + timedelta(days=4)
+    return proximo_mes.replace(day=1) - timedelta(days=1)
+
+
+def _param_data(params, campo: str) -> str | None:
+    """Valor da data pelo nome novo, caindo no alias antigo."""
+    return params.get(campo) or params.get(ALIAS_DATA[campo])
 
 
 def _lista(params, chave: str) -> list[str]:
@@ -80,10 +105,10 @@ def montar(
     params = request.query_params
 
     periodo = "competencia" not in ignorar
-    inicio = _data(params.get("competencia_inicio"), "competencia_inicio")
-    fim = _data(params.get("competencia_fim"), "competencia_fim")
+    inicio = _data(_param_data(params, "data_inicio"), "data_inicio")
+    fim = _data(_param_data(params, "data_fim"), "data_fim", fim=True)
     if inicio and fim and inicio > fim:
-        raise ValidationError("competencia_inicio nao pode ser maior que competencia_fim.")
+        raise ValidationError("data_inicio nao pode ser maior que data_fim.")
     if inicio and periodo:
         c.e(f"{coluna_data} >= %s", inicio)
     if fim and periodo:

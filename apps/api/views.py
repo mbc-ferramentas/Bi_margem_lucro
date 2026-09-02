@@ -29,6 +29,7 @@ from apps.api.permissions import (
     escopo_de,
     perfis,
 )
+from apps.api.queries import GRANULARIDADES
 from apps.etl import servicos
 from apps.etl.schemas import ARQUIVOS
 
@@ -53,7 +54,10 @@ ESCOPO_CALCULO = {
 
 class BaseBI(APIView):
     permission_classes = [IsAuthenticated, PodeVerBI]
-    coluna_data = "competencia"
+    # O recorte da tela e um intervalo de datas, nao um par de competencias: a
+    # emissao e a unica coluna que responde a "de 15/07 a 20/08". A competencia
+    # continua nas views, mas so como atalho de agregacao mensal.
+    coluna_data = "emissao"
 
     def contexto(self, request: Request):
         escopo = escopo_de(request.user)
@@ -77,10 +81,11 @@ class SerieView(BaseBI):
 
     def get(self, request: Request) -> Response:
         granularidade = request.query_params.get("granularidade", "mes")
-        if granularidade not in ("dia", "mes"):
-            raise ValidationError({"granularidade": "Use 'dia' ou 'mes'."})
+        if granularidade not in GRANULARIDADES:
+            raise ValidationError(
+                {"granularidade": f"Use um de: {', '.join(GRANULARIDADES)}."}
+            )
 
-        self.coluna_data = "emissao" if granularidade == "dia" else "competencia"
         _, clausula = self.contexto(request)
         return self.responder(
             {

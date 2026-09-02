@@ -7,6 +7,7 @@
 import { ArrowDownRightIcon, ArrowRightIcon, ArrowUpRightIcon, InfoIcon, XIcon } from "lucide-react";
 
 import type { Filtros } from "../api/tipos";
+import { dataLonga } from "../formato";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/componentes/ui/alert";
 import { Badge as BadgeUi } from "@/componentes/ui/badge";
@@ -25,8 +26,8 @@ import { ToggleGroup, ToggleGroupItem } from "@/componentes/ui/toggle-group";
 import { SeletorTema } from "./SeletorTema";
 
 const ROTULOS_FILTRO: Partial<Record<keyof Filtros, string>> = {
-  competencia_inicio: "De",
-  competencia_fim: "Até",
+  data_inicio: "De",
+  data_fim: "Até",
   canal: "Canal",
   armazem: "Armazém",
   vendedor: "Vendedor",
@@ -46,6 +47,13 @@ const FAIXA_TOM: Record<Tom, string> = {
   atencao: "bg-status-atencao",
   critico: "bg-status-critico",
 };
+
+/** O valor do chip como o usuario escreveu na tela: a data vai em ISO para a API,
+ *  mas ninguem le "2026-07-01" como 1o de julho. */
+function textoDoChip(chave: keyof Filtros, item: string | string[]): string {
+  if (Array.isArray(item)) return item.join(", ");
+  return chave === "data_inicio" || chave === "data_fim" ? dataLonga(item) : item;
+}
 
 export function ChipsFiltros({ valor, aoMudar }: { valor: Filtros; aoMudar: (filtros: Filtros) => void }) {
   const ativos = Object.entries(valor).filter(([, item]) =>
@@ -78,7 +86,7 @@ export function ChipsFiltros({ valor, aoMudar }: { valor: Filtros; aoMudar: (fil
           className="cursor-pointer gap-1 hover:border-ring"
         >
           <span className="font-semibold text-foreground">{ROTULOS_FILTRO[chave] ?? chave}:</span>
-          <span className="max-w-40 truncate">{Array.isArray(item) ? item.join(", ") : item}</span>
+          <span className="max-w-40 truncate">{textoDoChip(chave, item)}</span>
           <XIcon aria-hidden="true" />
         </BadgeUi>
       ))}
@@ -570,11 +578,17 @@ export function Segmentado<T extends string>({
   opcoes,
   aoMudar,
   rotulo,
+  desabilitadas,
 }: {
   valor: T;
   opcoes: readonly (readonly [T, string])[];
   aoMudar: (valor: T) => void;
   rotulo: string;
+  /** Opcoes que existem mas nao cabem no estado atual — a granularidade diaria
+   *  num recorte de um ano, por exemplo. Ficam apagadas em vez de sumir: a fila
+   *  de botoes mudaria de tamanho a cada troca de periodo, e um botao que se move
+   *  e mais confuso que um botao desabilitado. */
+  desabilitadas?: readonly T[];
 }) {
   return (
     <ToggleGroup
@@ -590,7 +604,11 @@ export function Segmentado<T extends string>({
       aria-label={rotulo}
     >
       {opcoes.map(([chave, texto]) => (
-        <ToggleGroupItem key={chave} value={chave}>
+        <ToggleGroupItem
+          key={chave}
+          value={chave}
+          disabled={desabilitadas?.includes(chave)}
+        >
           {texto}
         </ToggleGroupItem>
       ))}

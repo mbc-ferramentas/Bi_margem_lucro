@@ -21,6 +21,7 @@ import {
   vendedoresSchema,
   type Filtros,
   type FormularioUsuario,
+  type Granularidade,
 } from "./tipos";
 
 export function useEu() {
@@ -43,7 +44,7 @@ export function useKpis(f: Filtros, ativo = true) {
   });
 }
 
-export function useSerie(f: Filtros, granularidade: "dia" | "mes") {
+export function useSerie(f: Filtros, granularidade: Granularidade) {
   return useQuery({
     queryKey: ["serie", f, granularidade],
     queryFn: () =>

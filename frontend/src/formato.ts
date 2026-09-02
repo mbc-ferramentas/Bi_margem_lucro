@@ -5,6 +5,8 @@
  *  de exibicao — nunca em calculo.
  */
 
+import type { Granularidade } from "./api/tipos";
+
 const MOEDA = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
@@ -62,6 +64,31 @@ export function numeroBruto(valor: Valor): number {
 export function competencia(iso: string): string {
   const [ano, mes] = iso.split("-");
   return `${mes}/${ano}`;
+}
+
+/** "2026-07-01" -> "01/07/2026". A data cheia, para quando o ano importa —
+ *  filtro de periodo e chips, onde `dataCurta` (ano com 2 digitos) ficaria
+ *  ambigua. */
+export function dataLonga(iso: string): string {
+  const [ano, mes, dia] = iso.split("-");
+  return `${dia}/${mes}/${ano}`;
+}
+
+/** "01/07/2026 – 15/08/2026", com travessao. Rotulo do seletor de periodo. */
+export function intervaloData(inicio?: string, fim?: string): string | null {
+  if (!inicio && !fim) return null;
+  if (inicio && fim) return `${dataLonga(inicio)} – ${dataLonga(fim)}`;
+  return inicio ? `A partir de ${dataLonga(inicio)}` : `Até ${dataLonga(fim as string)}`;
+}
+
+/** Rotulo do ponto no eixo do tempo, conforme a agregacao do grafico.
+ *
+ *  Dia e semana viram "01/07" (a semana e rotulada pela segunda-feira, que e o
+ *  que o date_trunc do Postgres devolve); mes vira "07/2026", porque a serie
+ *  mensal costuma atravessar a virada do ano. */
+export function rotuloPeriodo(iso: string, granularidade: Granularidade): string {
+  const [ano, mes, dia] = iso.split("-");
+  return granularidade === "mes" ? `${mes}/${ano}` : `${dia}/${mes}`;
 }
 
 export function dataCurta(iso: string): string {

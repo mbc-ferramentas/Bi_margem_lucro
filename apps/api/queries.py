@@ -173,9 +173,20 @@ def kpis(clausula) -> dict[str, Any]:
     }
 
 
+# Como o eixo do tempo e agregado. A semana e a segunda-feira do `date_trunc`
+# do Postgres (ISO); o mes usa a coluna `competencia`, que e o mesmo
+# date_trunc('month', emissao) gravado pelo ETL — mas indexado.
+GRANULARIDADE_COLUNA = {
+    "dia": "emissao",
+    "semana": "date_trunc('week', emissao)::date",
+    "mes": "competencia",
+}
+GRANULARIDADES = tuple(GRANULARIDADE_COLUNA)
+
+
 def serie(clausula, granularidade: str) -> list[dict[str, Any]]:
     """Evolucao temporal por canal. `granularidade` ja vem validada pela view."""
-    coluna = {"dia": "emissao", "mes": "competencia"}[granularidade]
+    coluna = GRANULARIDADE_COLUNA[granularidade]
     return _linhas(
         f"""
         SELECT {coluna} AS periodo,
@@ -454,8 +465,16 @@ def opcoes(faceta) -> dict[str, Any]:
             """,
             faceta(None).parametros,
         ),
-        "competencias": _valores(
-            "competencia", "mv_margem_item", faceta("competencia")
+        # Extremos do que existe na base, nao a lista de competencias: o seletor
+        # de periodo e um calendario, e a tela precisa saber ate onde pode ir —
+        # e qual e a janela real quando o filtro esta aberto (e o que sustenta a
+        # comparacao com o periodo anterior na Visao geral).
+        "periodo": _um(
+            f"""
+            SELECT min(emissao) AS inicio, max(emissao) AS fim
+            FROM mv_margem_item {faceta("competencia").where()}
+            """,
+            faceta("competencia").parametros,
         ),
     }
 

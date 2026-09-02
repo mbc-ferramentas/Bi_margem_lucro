@@ -168,10 +168,10 @@ def test_busca_por_pedido_e_sku(carga):
 
 
 def test_recorte_de_data_e_a_entrega(carga):
-    """Na carteira o filtro de periodo olha `dt_entrega`, nao competencia."""
+    """Na carteira o filtro de periodo olha `dt_entrega`, nao a emissao."""
     c = _cliente("cart_data", "gerente")
-    dentro = c.get(f"{ROTA}?competencia_inicio=2026-07&limite=1").json()
-    fora = c.get(f"{ROTA}?competencia_fim=2020-01&limite=1").json()
+    dentro = c.get(f"{ROTA}?data_inicio=2026-07-01&limite=1").json()
+    fora = c.get(f"{ROTA}?data_fim=2020-01-31&limite=1").json()
 
     assert dentro["total"] > 0
     assert fora["total"] == 0

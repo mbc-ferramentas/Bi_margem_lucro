@@ -5,6 +5,7 @@ canal Marketplace, por nenhum endpoint — incluindo agregados, listas de filtro
 contagens.
 """
 
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -201,16 +202,16 @@ def test_kpis_conferem_com_o_baseline(carga):
 # Validacao de entrada
 # --------------------------------------------------------------------------- #
 
-def test_competencia_invalida_retorna_400(carga):
+def test_data_invalida_retorna_400(carga):
     usuario = cria_usuario("ger4", "gerente")
-    resposta = cliente(usuario).get("/api/v1/kpis?competencia_inicio=julho")
+    resposta = cliente(usuario).get("/api/v1/kpis?data_inicio=julho")
     assert resposta.status_code == 400
 
 
 def test_periodo_invertido_retorna_400(carga):
     usuario = cria_usuario("ger5", "gerente")
     resposta = cliente(usuario).get(
-        "/api/v1/kpis?competencia_inicio=2026-08&competencia_fim=2026-07"
+        "/api/v1/kpis?data_inicio=2026-08-01&data_fim=2026-07-31"
     )
     assert resposta.status_code == 400
 
@@ -222,14 +223,56 @@ def test_ordenacao_desconhecida_retorna_400(carga):
     assert resposta.status_code == 400
 
 
-def test_filtro_por_competencia_funciona(carga):
+def test_filtro_por_periodo_funciona(carga):
     usuario = cria_usuario("ger7", "gerente")
     c = cliente(usuario)
-    dentro = c.get("/api/v1/kpis?competencia_inicio=2026-07&competencia_fim=2026-07")
-    fora = c.get("/api/v1/kpis?competencia_inicio=2026-09")
+    dentro = c.get("/api/v1/kpis?data_inicio=2026-07-01&data_fim=2026-07-31")
+    fora = c.get("/api/v1/kpis?data_inicio=2026-09-01")
 
     assert dentro.json()["kpis"]["linhas"] > 0
     assert fora.json()["kpis"]["linhas"] == 0
+
+
+def test_mes_como_fim_cobre_o_mes_inteiro(carga):
+    """`data_fim=2026-07` e 31/07, nao 01/07.
+
+    Enquanto o filtro batia em `competencia` (sempre dia 1) truncar os dois lados
+    no dia 1 nao aparecia; em `emissao` isso descartava 30 dos 31 dias.
+    """
+    c = cliente(cria_usuario("ger7b", "gerente"))
+    mes = c.get("/api/v1/kpis?data_inicio=2026-07&data_fim=2026-07").json()
+    dia_1 = c.get("/api/v1/kpis?data_inicio=2026-07-01&data_fim=2026-07-01").json()
+    completo = c.get("/api/v1/kpis?data_inicio=2026-07-01&data_fim=2026-07-31").json()
+
+    assert mes["kpis"]["linhas"] == completo["kpis"]["linhas"]
+    assert dia_1["kpis"]["linhas"] < mes["kpis"]["linhas"]
+
+
+def test_nomes_antigos_do_periodo_continuam_valendo(carga):
+    """`competencia_inicio`/`competencia_fim` sobrevivem em links ja compartilhados."""
+    c = cliente(cria_usuario("ger7c", "gerente"))
+    novo = c.get("/api/v1/kpis?data_inicio=2026-07-01&data_fim=2026-07-31").json()
+    antigo = c.get("/api/v1/kpis?competencia_inicio=2026-07&competencia_fim=2026-07")
+
+    assert antigo.json()["kpis"]["linhas"] == novo["kpis"]["linhas"]
+
+
+def test_serie_por_semana(carga):
+    """A semana e a segunda-feira do date_trunc: menos pontos que o dia, mais que o mes."""
+    c = cliente(cria_usuario("ger7d", "gerente"))
+    rota = "/api/v1/margem/serie?data_inicio=2026-07-01&data_fim=2026-07-31"
+
+    dias = c.get(f"{rota}&granularidade=dia").json()
+    semanas = c.get(f"{rota}&granularidade=semana").json()
+    meses = c.get(f"{rota}&granularidade=mes").json()
+
+    assert semanas["granularidade"] == "semana"
+    periodos = {linha["periodo"] for linha in semanas["serie"]}
+    assert all(date.fromisoformat(p).weekday() == 0 for p in periodos)
+    assert len({linha["periodo"] for linha in meses["serie"]}) <= len(periodos)
+    assert len(periodos) <= len({linha["periodo"] for linha in dias["serie"]})
+
+    assert c.get(f"{rota}&granularidade=quinzena").status_code == 400
 
 
 def test_filtro_por_grupo_particiona_o_kpi(carga):

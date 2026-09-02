@@ -1,6 +1,5 @@
 import { useOpcoes } from "../api/hooks";
 import type { Filtros } from "../api/tipos";
-import { competencia } from "../formato";
 import {
   Select,
   SelectContent,
@@ -11,6 +10,7 @@ import {
 } from "@/componentes/ui/select";
 import { Label } from "@/componentes/ui/label";
 import { SeletorMulti } from "./SeletorMulti";
+import { SeletorPeriodo } from "./SeletorPeriodo";
 import { ChipsFiltros } from "./Visual";
 
 type Props = {
@@ -30,7 +30,7 @@ type Props = {
  *
  *  Ela e so o valor interno: o `Select.Value` do Base UI imprime o valor cru
  *  quando nao recebe uma funcao de formatacao, e era assim que o "__todos__"
- *  vazava para a tela (junto com a competencia em AAAA-MM). Por isso todo
+ *  vazava para a tela. Por isso todo
  *  `SelectValue` daqui recebe um rotulo explicito. */
 const TODOS = "__todos__";
 
@@ -69,61 +69,17 @@ export function BarraFiltros({ valor, aoMudar, ocultarCanal, ocultarArmazem }: P
     aoMudar({ ...valor, armazem: armazens, grupo: [] });
   }
 
-  // As competencias sao AAAA-MM zero-padded: comparar como string ja ordena por
-  // data, o que basta para bloquear um intervalo invertido antes do 400 da API.
-  const inicio = valor.competencia_inicio ?? "";
-  const fim = valor.competencia_fim ?? "";
-
   return (
     <div className="mb-4 flex flex-col gap-2.5">
       <div className="flex flex-wrap items-end gap-2.5">
-        <Campo>
-          <span className={ROTULO}>Período</span>
-          <div className="flex items-center gap-1.5" role="group" aria-label="Período">
-            <Select
-              value={inicio || TODOS}
-              onValueChange={definir("competencia_inicio")}
-            >
-              <SelectTrigger size="sm" aria-label="Competência inicial">
-                <SelectValue>{rotuloSelecao("Início", competencia)}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value={TODOS}>Início</SelectItem>
-                  {opcoes?.competencias.map((c) => (
-                    <SelectItem
-                      key={c}
-                      value={c.slice(0, 7)}
-                      disabled={!!fim && c.slice(0, 7) > fim}
-                    >
-                      {competencia(c)}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <span className="text-xs text-muted-foreground">até</span>
-            <Select value={fim || TODOS} onValueChange={definir("competencia_fim")}>
-              <SelectTrigger size="sm" aria-label="Competência final">
-                <SelectValue>{rotuloSelecao("Fim", competencia)}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value={TODOS}>Fim</SelectItem>
-                  {opcoes?.competencias.map((c) => (
-                    <SelectItem
-                      key={c}
-                      value={c.slice(0, 7)}
-                      disabled={!!inicio && c.slice(0, 7) < inicio}
-                    >
-                      {competencia(c)}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-        </Campo>
+        <SeletorPeriodo
+          inicio={valor.data_inicio}
+          fim={valor.data_fim}
+          base={opcoes?.periodo}
+          aoMudar={({ inicio, fim }) =>
+            aoMudar({ ...valor, data_inicio: inicio, data_fim: fim })
+          }
+        />
 
         {!ocultarCanal && (
           <Campo>

@@ -8,6 +8,8 @@ como tela em branco, nao como aviso.
 Cada teste aqui espelha um schema do arquivo acima.
 """
 
+from datetime import date
+
 import pytest
 from django.contrib.auth.models import Group
 from rest_framework.test import APIClient
@@ -58,7 +60,7 @@ def test_kpis(gerente):
 
 def test_serie(gerente):
     corpo = gerente.get("/api/v1/margem/serie").json()
-    assert corpo["granularidade"] in ("dia", "mes")
+    assert corpo["granularidade"] in ("dia", "semana", "mes")
     assert {
         "periodo",
         "canal",
@@ -76,6 +78,13 @@ def test_serie(gerente):
 def test_serie_diaria(gerente):
     corpo = gerente.get("/api/v1/margem/serie?granularidade=dia").json()
     assert corpo["granularidade"] == "dia"
+    assert len(corpo["serie"]) > 0
+
+
+def test_serie_semanal(gerente):
+    """`Granularidade` em tipos.ts tem tres valores — a semana e o meio termo."""
+    corpo = gerente.get("/api/v1/margem/serie?granularidade=semana").json()
+    assert corpo["granularidade"] == "semana"
     assert len(corpo["serie"]) > 0
 
 
@@ -240,8 +249,14 @@ def test_filtros(gerente):
         "armazens",
         "vendedores",
         "tes",
-        "competencias",
+        "periodo",
     } <= set(opcoes)
+    # Extremos da base em ISO: e o que `periodo.ts` usa para descobrir a janela
+    # efetiva quando o filtro de data esta aberto, e o que limita o calendario.
+    assert {"inicio", "fim"} == set(opcoes["periodo"])
+    assert date.fromisoformat(opcoes["periodo"]["inicio"]) <= date.fromisoformat(
+        opcoes["periodo"]["fim"]
+    )
     assert {"codigo", "conta_como_venda"} <= set(opcoes["tes"][0])
     # `sem_movimento` marca o grupo que so existe no cadastro (espelha
     # `filtrosSchema.opcoes.grupos` em tipos.ts).
