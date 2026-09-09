@@ -8,6 +8,9 @@ bloco para rotular as telas e para impedir comparacao entre canais.
 
 from __future__ import annotations
 
+import logging
+import os
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -32,6 +35,8 @@ from apps.api.permissions import (
 from apps.api.queries import GRANULARIDADES
 from apps.etl import servicos
 from apps.etl.schemas import ARQUIVOS
+
+logger = logging.getLogger(__name__)
 
 ESCOPO_CALCULO = {
     "tipo": "margem_bruta",
@@ -364,6 +369,11 @@ class Conflito(APIException):
     status_code = status.HTTP_409_CONFLICT
 
 
+class FalhaCarga(APIException):
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    default_detail = "Falha inesperada ao processar os arquivos."
+
+
 def _resumo(registros) -> list[dict]:
     return [
         {
@@ -382,7 +392,7 @@ class CargaView(APIView):
     """Upload dos CSVs exportados do Protheus.
 
     Quem alimenta o BI e o administrador, enviando os arquivos por esta tela. O
-    processamento e sincrono (~5-10s no volume atual) para que ele veja na hora se
+    processamento e sincrono (minutos, no volume real de ~200 MB) para que ele veja na hora se
     o arquivo foi aceito: uma carga que falha silenciosamente e pior que uma que
     demora, porque o BI segue exibindo o mes anterior como se fosse o atual.
 
@@ -401,10 +411,7 @@ class CargaView(APIView):
             for nome, arquivo in enviados.items():
                 # Gravado com o nome canonico do spec (SB2.csv...), que e como o
                 # reader localiza o arquivo — o nome que o usuario deu e irrelevante.
-                destino = origem / ARQUIVOS[nome].arquivo
-                with destino.open("wb") as saida:
-                    for pedaco in arquivo.chunks():
-                        saida.write(pedaco)
+                self._materializar(arquivo, origem / ARQUIVOS[nome].arquivo)
 
             try:
                 with servicos.travar():
@@ -415,8 +422,39 @@ class CargaView(APIView):
                 raise ValidationError(
                     {"detail": str(exc), "arquivos": _resumo(exc.registros)}
                 ) from exc
+            except Exception as exc:
+                # Sem isto a falha vira um 500 mudo: some da tela e some do log da
+                # aplicacao, sobrando so a linha de acesso do gunicorn. O
+                # administrador precisa saber o que quebrou para decidir se reenvia.
+                logger.exception("Falha inesperada na carga dos CSVs do Protheus")
+                raise FalhaCarga(
+                    f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
+                ) from exc
 
         return Response({"arquivos": _resumo(registros)})
+
+    @staticmethod
+    def _materializar(arquivo, destino: Path) -> None:
+        """Coloca o upload em `destino` sem uma segunda copia de centenas de MB.
+
+        Acima de `FILE_UPLOAD_MAX_MEMORY_SIZE` o Django ja gravou o arquivo em disco;
+        copiar por `chunks()` dobraria a escrita (a carga real passa de 200 MB somados)
+        e e justamente o disco que falta primeiro no container.
+        """
+        caminho_temp = getattr(arquivo, "temporary_file_path", None)
+        if caminho_temp is not None:
+            origem = caminho_temp()
+            try:
+                os.link(origem, destino)
+                return
+            except OSError:
+                # Dispositivos diferentes: nao da para linkar, entao move.
+                shutil.move(origem, destino)
+                return
+
+        with destino.open("wb") as saida:
+            for pedaco in arquivo.chunks():
+                saida.write(pedaco)
 
     def _validar(self, request: Request) -> dict:
         desconhecidos = sorted(set(request.FILES) - set(ARQUIVOS))
