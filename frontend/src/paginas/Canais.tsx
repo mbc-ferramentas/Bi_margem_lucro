@@ -29,13 +29,13 @@ import { SkeletonGrafico, SkeletonTiles } from "@compartilhado/ui/moleculas/Skel
 import { SeletorPeriodo } from "@compartilhado/ui/moleculas/SeletorPeriodo";
 import { AvisoMarketplace, CartaoKpi, Erro, GradeKpis, Secao, Segmentado, Vazio } from "@compartilhado/ui";
 import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
-import { useEscolhaUrl, useFiltrosUrl } from "../filtrosUrl";
+import { useEscolhaUrl, useFiltrosUrl } from "@entidades/filtros";
 import { inteiro, moeda, moedaCurta, percentual, rotuloPeriodo } from "@compartilhado/lib/formato";
 import {
   granularidadeEfetiva,
   granularidadesPermitidas,
   janelaEfetiva,
-} from "../periodo";
+} from "@entidades/filtros";
 
 export function Canais() {
   const { data: opcoes } = useOpcoes();

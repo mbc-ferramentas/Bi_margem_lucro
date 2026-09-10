@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  fatiaDoPeriodo,
+  fimDaFatia,
   granularidadeAuto,
   granularidadeEfetiva,
   granularidadesPermitidas,
@@ -90,14 +92,17 @@ describe("periodoAnterior", () => {
 });
 
 describe("granularidadeAuto", () => {
-  it("um mes vem em dias", () => {
-    expect(granularidadeAuto({ inicio: "2026-07-01", fim: "2026-07-31" })).toBe("dia");
+  it("um mes vem em semanas", () => {
+    expect(granularidadeAuto({ inicio: "2026-07-01", fim: "2026-07-31" })).toBe("semana");
   });
 
-  it("troca para semana quando passa do teto diario", () => {
-    // 45 dias e o ultimo recorte que ainda cabe em barras diarias.
-    expect(granularidadeAuto({ inicio: "2026-07-01", fim: "2026-08-14" })).toBe("dia");
-    expect(granularidadeAuto({ inicio: "2026-07-01", fim: "2026-08-15" })).toBe("semana");
+  it("duas semanas vem em semanas — S1 e S2, nao 14 barras", () => {
+    expect(granularidadeAuto({ inicio: "2026-07-06", fim: "2026-07-19" })).toBe("semana");
+  });
+
+  it("dia so quando o recorte cabe numa semana", () => {
+    expect(granularidadeAuto({ inicio: "2026-07-06", fim: "2026-07-12" })).toBe("dia");
+    expect(granularidadeAuto({ inicio: "2026-07-06", fim: "2026-07-13" })).toBe("semana");
   });
 
   it("troca para mes quando passa do teto semanal", () => {
@@ -115,7 +120,7 @@ describe("granularidadeEfetiva", () => {
   const ano = { inicio: "2026-01-01", fim: "2026-12-31" };
 
   it("sem escolha, segue o automatico", () => {
-    expect(granularidadeEfetiva(mes, null)).toBe("dia");
+    expect(granularidadeEfetiva(mes, null)).toBe("semana");
   });
 
   it("respeita a escolha do usuario quando ela cabe na janela", () => {
@@ -145,5 +150,56 @@ describe("rotuloJanela", () => {
 
   it("devolve null sem janela fechada", () => {
     expect(rotuloJanela({})).toBeNull();
+  });
+});
+
+describe("fimDaFatia", () => {
+  it("dia é ele mesmo", () => {
+    expect(fimDaFatia("2026-07-15", "dia")).toBe("2026-07-15");
+  });
+
+  it("semana fecha no domingo, atravessando a virada do mês", () => {
+    expect(fimDaFatia("2026-07-06", "semana")).toBe("2026-07-12");
+    expect(fimDaFatia("2026-07-27", "semana")).toBe("2026-08-02");
+  });
+
+  it("mês fecha no último dia, inclusive fevereiro bissexto", () => {
+    expect(fimDaFatia("2026-07-01", "mes")).toBe("2026-07-31");
+    expect(fimDaFatia("2024-02-01", "mes")).toBe("2024-02-29");
+    expect(fimDaFatia("2026-02-01", "mes")).toBe("2026-02-28");
+  });
+});
+
+describe("fatiaDoPeriodo", () => {
+  const janela = { inicio: "2026-07-15", fim: "2026-07-31" };
+
+  it("grampeia a primeira semana, que começa antes do filtro", () => {
+    // A serie devolve a segunda-feira (13/07), anterior ao recorte: sem clamp o
+    // clique ampliaria o periodo em vez de detalhar.
+    expect(fatiaDoPeriodo("2026-07-13", "semana", janela)).toEqual({
+      inicio: "2026-07-15",
+      fim: "2026-07-19",
+    });
+  });
+
+  it("grampeia a última semana, que termina depois do filtro", () => {
+    expect(fatiaDoPeriodo("2026-07-27", "semana", janela)).toEqual({
+      inicio: "2026-07-27",
+      fim: "2026-07-31",
+    });
+  });
+
+  it("mantém a fatia inteira quando ela cabe na janela", () => {
+    expect(fatiaDoPeriodo("2026-07-20", "semana", janela)).toEqual({
+      inicio: "2026-07-20",
+      fim: "2026-07-26",
+    });
+  });
+
+  it("sem janela, devolve a fatia crua", () => {
+    expect(fatiaDoPeriodo("2026-07-01", "mes", null)).toEqual({
+      inicio: "2026-07-01",
+      fim: "2026-07-31",
+    });
   });
 });

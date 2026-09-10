@@ -11,10 +11,12 @@
  *  entao a URL da tela e a URL da chamada da API falam a mesma lingua.
  */
 
+import { Filtros } from "@compartilhado/api/filtros";
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router";
 
-import type { Filtros } from "./api/tipos";
+import { ultimoDiaDoMes } from "./modelo/periodo";
+
 
 const SIMPLES = ["data_inicio", "data_fim", "canal", "busca"] as const;
 
@@ -30,13 +32,6 @@ const ALIAS: Record<string, (typeof SIMPLES)[number]> = {
 /** Dimensoes multi-valor: na URL vao separadas por virgula, do mesmo jeito que
  *  `paraQuery` escreve para a API. */
 const LISTAS = ["grupo", "armazem", "vendedor"] as const;
-
-/** "2026-07" -> "2026-07-31". */
-function ultimoDiaDoMes(competencia: string): string {
-  const [ano, mes] = competencia.split("-").map(Number);
-  const ultimo = new Date(Date.UTC(ano, mes, 0));
-  return ultimo.toISOString().slice(0, 10);
-}
 
 export function lerFiltros(params: URLSearchParams): Filtros {
   const filtros: Filtros = {};

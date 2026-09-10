@@ -27,7 +27,7 @@ import { SkeletonTabela } from "@compartilhado/ui/moleculas/Skeleton";
 import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
 import { Abas, CartaoKpi, Erro, GradeKpis, Secao, Segmentado, Vazio } from "@compartilhado/ui";
 import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
-import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
+import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "@entidades/filtros";
 import { inteiro, moeda, moedaCurta, numeroBruto, percentual } from "@compartilhado/lib/formato";
 
 type Bloco = {

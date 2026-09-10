@@ -10,7 +10,7 @@ import { SkeletonTabela } from "@compartilhado/ui/moleculas/Skeleton";
 import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
 import { Erro, Secao, Vazio } from "@compartilhado/ui";
 import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
-import { escreverFiltros, useFiltrosUrl } from "../filtrosUrl";
+import { escreverFiltros, useFiltrosUrl } from "@entidades/filtros";
 import { inteiro, moeda, numeroBruto, percentual } from "@compartilhado/lib/formato";
 
 export function Skus() {

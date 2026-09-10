@@ -31,7 +31,7 @@ import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
 import { Abas, Badge, BarraComposicao, CartaoKpi, Erro, GradeInsights, GradeKpis, Nota, PainelInsight, Secao, Segmentado, Vazio } from "@compartilhado/ui";
 import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
 import { ChipsFiltros } from "@widgets/barra-filtros";
-import { useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
+import { useAbaUrl, useFiltrosUrl } from "@entidades/filtros";
 import { dataCurta, inteiro, moeda, numeroBruto, percentual } from "@compartilhado/lib/formato";
 
 

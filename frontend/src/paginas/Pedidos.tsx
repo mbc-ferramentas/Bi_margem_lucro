@@ -27,7 +27,7 @@ import { SkeletonTabela, SkeletonTiles } from "@compartilhado/ui/moleculas/Skele
 import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
 import { Abas, Badge, BarraComposicao, CartaoKpi, Erro, GradeInsights, GradeKpis, Nota, PainelInsight, Secao, Vazio } from "@compartilhado/ui";
 import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
-import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
+import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "@entidades/filtros";
 import { dataCurta, inteiro, moeda, numeroBruto, percentual, rotuloNota } from "@compartilhado/lib/formato";
 
 

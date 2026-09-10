@@ -16,7 +16,8 @@
  *  31/12.
  */
 
-import type { Filtros, Granularidade } from "./api/tipos";
+import { Filtros } from "@compartilhado/api/filtros";
+import { Granularidade } from "@compartilhado/config";
 
 const MS_POR_DIA = 86_400_000;
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
@@ -91,13 +92,18 @@ export function rotuloJanela(filtros: Filtros): string | null {
   return inicio === fim ? formatar(inicio) : `${formatar(inicio)} a ${formatar(fim)}`;
 }
 
-/** Ate quantos dias cada granularidade continua legivel no eixo do tempo.
+/** Ate quantos dias cada granularidade e a **primeira** leitura de uma janela.
  *
- *  Sao tetos de quantidade de pontos, nao regra de negocio: ~45 barras diarias e
- *  ~27 semanais e o limite em que o rotulo do eixo ainda cabe na largura util do
- *  grafico. */
+ *  Nao sao tetos de legibilidade (esses sao o TETO_MANUAL): sao o nivel em que a
+ *  janela abre. A tela comeca sempre no grao mais grosso que ainda mostra
+ *  variacao dentro do recorte, e o detalhe vem do clique — quem filtra duas
+ *  semanas quer comparar S1 com S2, e quem filtra o mes quer as semanas do mes;
+ *  em ambos os casos, 14 ou 31 barras diarias respondem a pergunta errada.
+ *
+ *  Dia so quando o recorte ja cabe numa semana, porque ai nao ha grao acima que
+ *  nao vire uma barra so. */
 const TETO_AUTOMATICO: Record<Granularidade, number> = {
-  dia: 45,
+  dia: 7,
   semana: 186,
   mes: Infinity,
 };
@@ -141,4 +147,32 @@ export function granularidadeEfetiva(
   const automatica = granularidadeAuto(janela);
   if (!escolhida) return automatica;
   return granularidadesPermitidas(janela).includes(escolhida) ? escolhida : automatica;
+}
+
+export function ultimoDiaDoMes(competencia: string): string {
+  const [ano, mes] = competencia.split("-").map(Number);
+  return new Date(Date.UTC(ano, mes, 0)).toISOString().slice(0, 10);
+}
+
+/** O ultimo dia coberto por um ponto do eixo do tempo.
+ *  A serie devolve o **inicio** de cada fatia (o `date_trunc` do backend: o dia,
+ *  a segunda-feira, o dia 1). Para transformar um clique em recorte e preciso a
+ *  outra ponta. */
+export function fimDaFatia(inicio: string, granularidade: Granularidade): string {
+  if (granularidade === "dia") return inicio;
+  if (granularidade === "semana") return paraData(paraDia(inicio) + 6);
+  return ultimoDiaDoMes(inicio.slice(0, 7));
+}
+
+export function fatiaDoPeriodo(
+  inicio: string,
+  granularidade: Granularidade,
+  janela: Janela | null,
+): Janela {
+  const fim = fimDaFatia(inicio, granularidade);
+  if (!janela) return { inicio, fim };
+  return {
+    inicio: paraDia(inicio) < paraDia(janela.inicio) ? janela.inicio : inicio,
+    fim: paraDia(fim) > paraDia(janela.fim) ? janela.fim : fim,
+  };
 }

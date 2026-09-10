@@ -35,41 +35,41 @@ function stubDeHooks(real: Record<string, unknown>) {
   };
   return Object.fromEntries(
     Object.entries(real).map(([nome, valor]) =>
-      // Só o que é hook vira stub: o barril da entidade também exporta os
-      // schemas Zod, e trocá-los por uma função quebraria a validação.
+      // Só o que começa com `use` vira stub, por segurança: se um módulo de
+      // hooks passar a exportar uma constante, ela atravessa intacta.
       nome.startsWith("use") ? [nome, () => consulta] : [nome, valor],
     ),
   );
 }
 
-vi.mock("@entidades/armazem", async (importOriginal) =>
+vi.mock("@entidades/armazem/api/hooks", async (importOriginal) =>
   stubDeHooks((await importOriginal()) as Record<string, unknown>),
 );
-vi.mock("@entidades/carga", async (importOriginal) =>
+vi.mock("@entidades/carga/api/hooks", async (importOriginal) =>
   stubDeHooks((await importOriginal()) as Record<string, unknown>),
 );
-vi.mock("@entidades/carteira", async (importOriginal) =>
+vi.mock("@entidades/carteira/api/hooks", async (importOriginal) =>
   stubDeHooks((await importOriginal()) as Record<string, unknown>),
 );
-vi.mock("@entidades/filtros", async (importOriginal) =>
+vi.mock("@entidades/filtros/api/hooks", async (importOriginal) =>
   stubDeHooks((await importOriginal()) as Record<string, unknown>),
 );
-vi.mock("@entidades/margem", async (importOriginal) =>
+vi.mock("@entidades/margem/api/hooks", async (importOriginal) =>
   stubDeHooks((await importOriginal()) as Record<string, unknown>),
 );
-vi.mock("@entidades/pedido", async (importOriginal) =>
+vi.mock("@entidades/pedido/api/hooks", async (importOriginal) =>
   stubDeHooks((await importOriginal()) as Record<string, unknown>),
 );
-vi.mock("@entidades/sessao", async (importOriginal) =>
+vi.mock("@entidades/sessao/api/hooks", async (importOriginal) =>
   stubDeHooks((await importOriginal()) as Record<string, unknown>),
 );
-vi.mock("@entidades/sku", async (importOriginal) =>
+vi.mock("@entidades/sku/api/hooks", async (importOriginal) =>
   stubDeHooks((await importOriginal()) as Record<string, unknown>),
 );
-vi.mock("@entidades/usuario", async (importOriginal) =>
+vi.mock("@entidades/usuario/api/hooks", async (importOriginal) =>
   stubDeHooks((await importOriginal()) as Record<string, unknown>),
 );
-vi.mock("@entidades/vendedor", async (importOriginal) =>
+vi.mock("@entidades/vendedor/api/hooks", async (importOriginal) =>
   stubDeHooks((await importOriginal()) as Record<string, unknown>),
 );
 

@@ -25,7 +25,7 @@ import { SkeletonTabela } from "@compartilhado/ui/moleculas/Skeleton";
 import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
 import { Abas, AvisoMarketplace, Badge, Erro, Nota, Secao, Vazio } from "@compartilhado/ui";
 import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
-import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
+import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "@entidades/filtros";
 import {
   competencia,
   dataCurta,

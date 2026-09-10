@@ -35,7 +35,7 @@ import { SkeletonGrafico, SkeletonTiles } from "@compartilhado/ui/moleculas/Skel
 import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
 import { AvisoMarketplace, Badge, BarraComposicao, CartaoDestaque, CartaoKpi, Cascata, Delta, Erro, GradeKpis, Nota, Secao, Segmentado, Vazio } from "@compartilhado/ui";
 import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
-import { escreverFiltros, useFiltrosUrl } from "../filtrosUrl";
+import { escreverFiltros, useFiltrosUrl } from "@entidades/filtros";
 import {
   dataCurta,
   inteiro,
@@ -52,7 +52,7 @@ import {
   janelaEfetiva,
   periodoAnterior,
   rotuloJanela,
-} from "../periodo";
+} from "@entidades/filtros";
 
 /** `numeroBruto` devolve 0 para nulo, o que serve para somar e atrapalha para
  *  comparar: variação contra uma base ausente não é queda de 100%, é ausência
