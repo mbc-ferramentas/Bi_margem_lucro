@@ -22,7 +22,7 @@ import { Link, useParams } from "react-router";
 
 import { usePedidos } from "../api/hooks";
 import type { LinhaPedido, ResumoPedidos } from "../api/tipos";
-import { Button } from "@/componentes/ui/button";
+import { Button } from "@compartilhado/ui/atomos/button";
 import { BarraFiltros } from "../componentes/Filtros";
 import { Erro, Vazio } from "../componentes/Layout";
 import { SkeletonTabela, SkeletonTiles } from "../componentes/Skeleton";
@@ -40,7 +40,7 @@ import {
   Secao,
 } from "../componentes/Visual";
 import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
-import { dataCurta, inteiro, moeda, numeroBruto, percentual, rotuloNota } from "../formato";
+import { dataCurta, inteiro, moeda, numeroBruto, percentual, rotuloNota } from "@compartilhado/lib/formato";
 
 
 function Resumo({ resumo }: { resumo: ResumoPedidos }) {

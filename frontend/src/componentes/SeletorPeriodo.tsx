@@ -3,12 +3,12 @@ import { CalendarIcon } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 
-import { Button } from "@/componentes/ui/button";
-import { Calendar } from "@/componentes/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/componentes/ui/popover";
-import { Label } from "@/componentes/ui/label";
-import { Separator } from "@/componentes/ui/separator";
-import { intervaloData } from "../formato";
+import { Button } from "@compartilhado/ui/atomos/button";
+import { Calendar } from "@compartilhado/ui/atomos/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@compartilhado/ui/atomos/popover";
+import { Label } from "@compartilhado/ui/atomos/label";
+import { Separator } from "@compartilhado/ui/atomos/separator";
+import { intervaloData } from "@compartilhado/lib/formato";
 
 type Props = {
   /** Sufixo do id do campo — a mesma barra aparece em telas diferentes. */

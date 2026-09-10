@@ -18,13 +18,13 @@ import { PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
-import { ErroApi } from "../api/cliente";
+import { ErroApi } from "@compartilhado/api/cliente";
 import { useEu, useRedefinirSenha, useRemoverUsuario, useUsuarios } from "../api/hooks";
 import type { Usuario } from "../api/tipos";
-import { Alert, AlertDescription } from "@/componentes/ui/alert";
-import { Button } from "@/componentes/ui/button";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/componentes/ui/field";
-import { Input } from "@/componentes/ui/input";
+import { Alert, AlertDescription } from "@compartilhado/ui/atomos/alert";
+import { Button } from "@compartilhado/ui/atomos/button";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@compartilhado/ui/atomos/field";
+import { Input } from "@compartilhado/ui/atomos/input";
 import { Erro, Vazio } from "../componentes/Layout";
 import { AcoesModal, Modal } from "../componentes/Modal";
 import { SkeletonTabela } from "../componentes/Skeleton";

@@ -21,7 +21,7 @@ import { Link, useParams } from "react-router";
 
 import { useSku } from "../api/hooks";
 import type { CompraSku, EstoqueSku, PedidoDoSku, VendedorDoSku } from "../api/tipos";
-import { Button } from "@/componentes/ui/button";
+import { Button } from "@compartilhado/ui/atomos/button";
 import { AvisoMarketplace, Erro, Vazio } from "../componentes/Layout";
 import { SkeletonTabela } from "../componentes/Skeleton";
 import { Tabela, type Coluna } from "../componentes/Tabela";
@@ -41,7 +41,7 @@ import {
   numeroBruto,
   percentual,
   rotuloNota,
-} from "../formato";
+} from "@compartilhado/lib/formato";
 
 /** Rotulo de cada degrau da cascata de custo (Regra 3) — o mesmo mapa que o
  *  detalhe do pedido usa: e ele que explica quase toda margem fora do esperado. */

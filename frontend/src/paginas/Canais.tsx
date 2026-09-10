@@ -18,7 +18,7 @@ import {
   type Filtros,
   type Granularidade,
 } from "../api/tipos";
-import { Label } from "@/componentes/ui/label";
+import { Label } from "@compartilhado/ui/atomos/label";
 import {
   Select,
   SelectContent,
@@ -26,7 +26,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/componentes/ui/select";
+} from "@compartilhado/ui/atomos/select";
 import { Grafico, baseDoTema, corDaSerie, useOpcaoGrafico } from "../componentes/Grafico";
 import { AvisoMarketplace, Erro, Vazio } from "../componentes/Layout";
 import { SkeletonGrafico, SkeletonTiles } from "../componentes/Skeleton";
@@ -39,7 +39,7 @@ import {
   Segmentado,
 } from "../componentes/Visual";
 import { useEscolhaUrl, useFiltrosUrl } from "../filtrosUrl";
-import { inteiro, moeda, moedaCurta, percentual, rotuloPeriodo } from "../formato";
+import { inteiro, moeda, moedaCurta, percentual, rotuloPeriodo } from "@compartilhado/lib/formato";
 import {
   granularidadeEfetiva,
   granularidadesPermitidas,

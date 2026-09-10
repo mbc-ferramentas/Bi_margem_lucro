@@ -1,6 +1,6 @@
 import { Navigate, Outlet, Route, Routes } from "react-router";
 
-import { tokens } from "./api/cliente";
+import { tokens } from "@compartilhado/api/cliente";
 import { Layout } from "./componentes/Layout";
 import { Armazens } from "./paginas/Armazens";
 import { CadastroUsuario } from "./paginas/CadastroUsuario";

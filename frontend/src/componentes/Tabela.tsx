@@ -27,7 +27,7 @@ import {
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { useMemo } from "react";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@compartilhado/lib/utils";
 import {
   Table,
   TableBody,
@@ -35,7 +35,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/componentes/ui/table";
+} from "@compartilhado/ui/atomos/table";
 import { Paginacao } from "./Paginacao";
 import { SkeletonTabela } from "./Skeleton";
 import { Vazio } from "./Layout";

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../tema", () => ({ useTema: () => ({ tema: "sistema", definirTema: vi.fn(), resolvido: "claro" }) }));
+vi.mock("@compartilhado/lib/tema", () => ({ useTema: () => ({ tema: "sistema", definirTema: vi.fn(), resolvido: "claro" }) }));
 
 import { Abas, BarraComposicao } from "./Visual";
 

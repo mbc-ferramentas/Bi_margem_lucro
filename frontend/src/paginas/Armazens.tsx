@@ -16,13 +16,13 @@ import { Link } from "react-router";
 
 import { useArmazens } from "../api/hooks";
 import type { LinhaArmazem } from "../api/tipos";
-import { Button } from "@/componentes/ui/button";
+import { Button } from "@compartilhado/ui/atomos/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/componentes/ui/collapsible";
-import { cn } from "@/lib/utils";
+} from "@compartilhado/ui/atomos/collapsible";
+import { cn } from "@compartilhado/lib/utils";
 import { BarraFiltros } from "../componentes/Filtros";
 import { Grafico, baseDoTema, corDaSerie, token, useOpcaoGrafico } from "../componentes/Grafico";
 import { Erro, Vazio } from "../componentes/Layout";
@@ -37,7 +37,7 @@ import {
   Segmentado,
 } from "../componentes/Visual";
 import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
-import { inteiro, moeda, moedaCurta, numeroBruto, percentual } from "../formato";
+import { inteiro, moeda, moedaCurta, numeroBruto, percentual } from "@compartilhado/lib/formato";
 
 type Bloco = {
   codigo: string;

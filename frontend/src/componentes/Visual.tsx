@@ -7,11 +7,11 @@
 import { ArrowDownRightIcon, ArrowRightIcon, ArrowUpRightIcon, InfoIcon, XIcon } from "lucide-react";
 
 import type { Filtros } from "../api/tipos";
-import { dataLonga } from "../formato";
-import { cn } from "@/lib/utils";
-import { Alert, AlertDescription } from "@/componentes/ui/alert";
-import { Badge as BadgeUi } from "@/componentes/ui/badge";
-import { Button } from "@/componentes/ui/button";
+import { dataLonga } from "@compartilhado/lib/formato";
+import { cn } from "@compartilhado/lib/utils";
+import { Alert, AlertDescription } from "@compartilhado/ui/atomos/alert";
+import { Badge as BadgeUi } from "@compartilhado/ui/atomos/badge";
+import { Button } from "@compartilhado/ui/atomos/button";
 import {
   Card,
   CardAction,
@@ -19,10 +19,10 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/componentes/ui/card";
-import { Progress, ProgressTrack, ProgressIndicator } from "@/componentes/ui/progress";
-import { Tabs, TabsList, TabsTrigger } from "@/componentes/ui/tabs";
-import { ToggleGroup, ToggleGroupItem } from "@/componentes/ui/toggle-group";
+} from "@compartilhado/ui/atomos/card";
+import { Progress, ProgressTrack, ProgressIndicator } from "@compartilhado/ui/atomos/progress";
+import { Tabs, TabsList, TabsTrigger } from "@compartilhado/ui/atomos/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@compartilhado/ui/atomos/toggle-group";
 import { SeletorTema } from "./SeletorTema";
 
 const ROTULOS_FILTRO: Partial<Record<keyof Filtros, string>> = {

@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
-import { entrar } from "../api/cliente";
-import { Alert, AlertDescription } from "@/componentes/ui/alert";
-import { Button } from "@/componentes/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/componentes/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/componentes/ui/field";
-import { Input } from "@/componentes/ui/input";
-import { Spinner } from "@/componentes/ui/spinner";
+import { entrar } from "@compartilhado/api/cliente";
+import { Alert, AlertDescription } from "@compartilhado/ui/atomos/alert";
+import { Button } from "@compartilhado/ui/atomos/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@compartilhado/ui/atomos/card";
+import { Field, FieldGroup, FieldLabel } from "@compartilhado/ui/atomos/field";
+import { Input } from "@compartilhado/ui/atomos/input";
+import { Spinner } from "@compartilhado/ui/atomos/spinner";
 
 export function Login() {
   const navegar = useNavigate();

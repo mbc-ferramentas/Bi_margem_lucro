@@ -17,7 +17,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/componentes/ui/dialog";
+} from "@compartilhado/ui/atomos/dialog";
 
 export function Modal({
   titulo,

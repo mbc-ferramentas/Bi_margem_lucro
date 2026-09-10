@@ -8,9 +8,9 @@
  *  ouve "carregando", nao a descricao de dezenas de retangulos.
  */
 
-import { Card, CardContent } from "@/componentes/ui/card";
-import { Skeleton as SkeletonUi } from "@/componentes/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/componentes/ui/table";
+import { Card, CardContent } from "@compartilhado/ui/atomos/card";
+import { Skeleton as SkeletonUi } from "@compartilhado/ui/atomos/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@compartilhado/ui/atomos/table";
 
 type Props = { largura?: string; altura?: string; raio?: string };
 

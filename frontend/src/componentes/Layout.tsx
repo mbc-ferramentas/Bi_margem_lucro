@@ -13,11 +13,11 @@ import {
 } from "lucide-react";
 import { Navigate, NavLink, Outlet, useNavigate } from "react-router";
 
-import { ErroApi, tokens } from "../api/cliente";
+import { ErroApi, tokens } from "@compartilhado/api/cliente";
 import { useEu } from "../api/hooks";
-import { Alert, AlertDescription, AlertTitle } from "@/componentes/ui/alert";
-import { Button } from "@/componentes/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/componentes/ui/empty";
+import { Alert, AlertDescription, AlertTitle } from "@compartilhado/ui/atomos/alert";
+import { Button } from "@compartilhado/ui/atomos/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@compartilhado/ui/atomos/empty";
 import {
   Sidebar,
   SidebarContent,
@@ -32,7 +32,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarSeparator,
-} from "@/componentes/ui/sidebar";
+} from "@compartilhado/ui/atomos/sidebar";
 import { Barra } from "./Skeleton";
 
 type ItemMenu = { para: string; rotulo: string; fim?: boolean; Icone: typeof PackageIcon };

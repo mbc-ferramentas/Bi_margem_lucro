@@ -30,14 +30,8 @@ import {
   useSerie,
   useSkus,
 } from "../api/hooks";
-import {
-  GRANULARIDADES,
-  type Filtros,
-  type Granularidade,
-  type ItemSku,
-  type PontoSerie,
-} from "../api/tipos";
-import { Button } from "@/componentes/ui/button";
+import type { Filtros, Granularidade, ItemSku, PontoSerie } from "../api/tipos";
+import { Button } from "@compartilhado/ui/atomos/button";
 import { BarraFiltros } from "../componentes/Filtros";
 import {
   Grafico,
@@ -63,7 +57,7 @@ import {
   Secao,
   Segmentado,
 } from "../componentes/Visual";
-import { escreverFiltros, useEscolhaUrl, useFiltrosUrl } from "../filtrosUrl";
+import { escreverFiltros, useFiltrosUrl } from "../filtrosUrl";
 import {
   dataCurta,
   inteiro,
@@ -71,11 +65,12 @@ import {
   moedaCurta,
   numeroBruto,
   percentual,
-  rotuloPeriodo,
-} from "../formato";
+  rotulosDoPeriodo,
+} from "@compartilhado/lib/formato";
 import {
-  granularidadeEfetiva,
-  granularidadesPermitidas,
+  type Janela,
+  fatiaDoPeriodo,
+  granularidadeAuto,
   janelaEfetiva,
   periodoAnterior,
   rotuloJanela,
@@ -105,7 +100,7 @@ const TOPO_SKU = 5;
  *  muda com a agregacao. */
 const ROTULO_PERIODO: Record<Granularidade, string> = {
   dia: "Dia",
-  semana: "Semana (segunda)",
+  semana: "Semana",
   mes: "Competência",
 };
 
@@ -120,22 +115,15 @@ export function VisaoGeral() {
   const navegar = useNavigate();
   const consulta = escreverFiltros(filtros);
 
-  // Sem filtros de proposito: sao os extremos da base que permitem descobrir a
-  // janela do recorte aberto (`janelaEfetiva`). Recortados pelo proprio periodo,
-  // eles devolveriam o periodo de volta.
   const opcoes = useOpcoes();
   const periodoBase = opcoes.data?.opcoes.periodo;
 
   const janela = useMemo(() => janelaEfetiva(filtros, periodoBase), [filtros, periodoBase]);
   const anterior = useMemo(() => periodoAnterior(filtros, periodoBase), [filtros, periodoBase]);
 
-  // Sem escolha do usuario a agregacao acompanha o tamanho da janela: um mes vem
-  // em dias, um semestre em semanas, um ano em meses.
-  const [escolhida, setGranularidade] = useEscolhaUrl<Granularidade>(
-    "granularidade",
-    GRANULARIDADES,
-  );
-  const granularidade = granularidadeEfetiva(janela, escolhida);
+  const granularidade = granularidadeAuto(janela);
+
+  const [pilhaZoom, setPilhaZoom] = useState<(Janela | null)[]>([]);
 
   const kpis = useKpis(filtros);
   const kpisAnterior = useKpis(anterior ?? {}, Boolean(anterior));
@@ -168,6 +156,12 @@ export function VisaoGeral() {
     [serie.data],
   );
 
+  /** "S1", "S2"... na agregacao semanal; a data nas demais. */
+  const rotulos = useMemo(
+    () => rotulosDoPeriodo(periodos, granularidade),
+    [periodos, granularidade],
+  );
+
   /** Margem total por periodo, somando os canais — a linha da sparkline. */
   const tendencia = useMemo(
     () =>
@@ -190,12 +184,32 @@ export function VisaoGeral() {
       ...base,
       color: canais.map((_, i) => corDaSerie(i)),
       legend: { ...base.legend, data: canais },
-      tooltip: { ...base.tooltip, valueFormatter: (v) => formatar(v as number) },
-      xAxis: {
-        ...base.xAxis,
-        type: "category",
-        data: periodos.map((p) => rotuloPeriodo(p, granularidade)),
+      tooltip: {
+        ...base.tooltip,
+        // Formatter proprio, e nao `valueFormatter`: com "S1" no eixo, o
+        // cabecalho padrao do tooltip perderia a unica pista de **qual** semana
+        // esta sob o cursor. Aqui ele carrega a data junto.
+        formatter: (params: unknown) => {
+          const pontos = params as {
+            dataIndex: number;
+            seriesName: string;
+            marker: string;
+            value: number | null;
+          }[];
+          const indice = pontos[0]?.dataIndex ?? 0;
+          const fatia = fatiaDoPeriodo(periodos[indice], granularidade, janela);
+          const intervalo = rotuloJanela({ data_inicio: fatia.inicio, data_fim: fatia.fim });
+          const cabecalho =
+            granularidade === "semana" && intervalo
+              ? `${rotulos[indice]} · ${intervalo}`
+              : rotulos[indice];
+          const linhas = pontos
+            .filter((x) => x.value !== null && x.value !== undefined)
+            .map((x) => `${x.marker}${x.seriesName}: ${formatar(x.value as number)}`);
+          return [cabecalho, ...linhas].join("<br/>");
+        },
       },
+      xAxis: { ...base.xAxis, type: "category", data: rotulos },
       yAxis: {
         ...base.yAxis,
         type: "value",
@@ -230,7 +244,7 @@ export function VisaoGeral() {
         }),
       })),
     };
-  }, [canais, periodos, serie.data, metrica, granularidade]);
+  }, [canais, periodos, rotulos, serie.data, metrica, granularidade, janela]);
 
   /** Margem por armazem, somando os grupos: a API devolve um par armazem x
    *  grupo por linha, e aqui so o total do armazem interessa. */
@@ -410,13 +424,39 @@ export function VisaoGeral() {
     [navegar, consulta],
   );
 
+  // Detalhar e estreitar o recorte da pagina inteira, e nao so o grafico: os
+  // KPIs, a cascata e os rankings passam a falar da mesma semana que o usuario
+  // clicou. A agregacao desce sozinha porque a janela encolheu.
+  const detalharPeriodo = useCallback(
+    ({ indice }: { indice: number }) => {
+      const inicio = periodos[indice];
+      if (!inicio) return;
+      const fatia = fatiaDoPeriodo(inicio, granularidade, janela);
+      setPilhaZoom((pilha) => [...pilha, janela]);
+      setOffsetTabela(0);
+      setFiltros({ ...filtros, data_inicio: fatia.inicio, data_fim: fatia.fim });
+    },
+    [periodos, granularidade, janela, filtros, setFiltros],
+  );
+
+  const voltarPeriodo = useCallback(() => {
+    const anterior = pilhaZoom[pilhaZoom.length - 1];
+    setPilhaZoom((pilha) => pilha.slice(0, -1));
+    setOffsetTabela(0);
+    setFiltros({
+      ...filtros,
+      data_inicio: anterior?.inicio,
+      data_fim: anterior?.fim,
+    });
+  }, [pilhaZoom, filtros, setFiltros]);
+
   const colunas: readonly Coluna<PontoSerie>[] = useMemo(
     () => [
       {
         chave: null,
         rotulo: ROTULO_PERIODO[granularidade],
         fixa: true,
-        celula: (p) => rotuloPeriodo(p.periodo, granularidade),
+        celula: (p) => rotulos[periodos.indexOf(p.periodo)] ?? p.periodo,
       },
       {
         chave: null,
@@ -445,7 +485,7 @@ export function VisaoGeral() {
       },
       { chave: null, rotulo: "Margem %", num: true, celula: (p) => percentual(p.margem_pct) },
     ],
-    [canais, granularidade],
+    [canais, granularidade, periodos, rotulos],
   );
 
   const resumoCarteira = carteira.data?.resumo;
@@ -602,24 +642,18 @@ export function VisaoGeral() {
         {serie.data && (
           <Secao
             titulo="Evolução no tempo"
-            nota="Cada canal é uma série independente, na mesma escala e num eixo só. A margem do Marketplace não desconta comissão."
+            nota={`Cada canal é uma série independente, na mesma escala e num eixo só. A margem do Marketplace não desconta comissão.${
+              granularidade === "dia"
+                ? ""
+                : " A agregação segue o período filtrado — clique num ponto para abrir o detalhe."
+            }`}
             acao={
-              <div className="flex flex-wrap justify-end gap-2">
-                {/* A agregacao acompanha o periodo escolhido; o alternador so
-                    existe para quem quer outra visada do mesmo recorte. */}
-                <Segmentado
-                  valor={granularidade}
-                  aoMudar={setGranularidade}
-                  rotulo="Agregação do tempo"
-                  desabilitadas={GRANULARIDADES.filter(
-                    (g) => !granularidadesPermitidas(janela).includes(g),
-                  )}
-                  opcoes={[
-                    ["dia", "Dia"],
-                    ["semana", "Semana"],
-                    ["mes", "Mês"],
-                  ]}
-                />
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {pilhaZoom.length > 0 && (
+                  <Button variant="link" size="sm" onClick={voltarPeriodo}>
+                    Voltar ao período anterior
+                  </Button>
+                )}
                 <Segmentado
                   valor={metrica}
                   aoMudar={setMetrica}
@@ -668,6 +702,9 @@ export function VisaoGeral() {
                 opcao={opcao}
                 altura={320}
                 rotuloAcessivel={`${METRICAS[metrica].rotulo} por período, uma linha por canal de venda.`}
+                // Sem clique no nivel diario: nao ha nada abaixo dele, e o
+                // cursor de mao prometeria um drill-down que nao acontece.
+                aoClicar={granularidade === "dia" ? undefined : detalharPeriodo}
               />
             )}
           </Secao>

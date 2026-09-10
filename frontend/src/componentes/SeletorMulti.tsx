@@ -1,7 +1,7 @@
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 
-import { cn } from "@/lib/utils";
-import { Button } from "@/componentes/ui/button";
+import { cn } from "@compartilhado/lib/utils";
+import { Button } from "@compartilhado/ui/atomos/button";
 import {
   Command,
   CommandEmpty,
@@ -10,9 +10,9 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "@/componentes/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/componentes/ui/popover";
-import { Label } from "@/componentes/ui/label";
+} from "@compartilhado/ui/atomos/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@compartilhado/ui/atomos/popover";
+import { Label } from "@compartilhado/ui/atomos/label";
 
 export type OpcaoMulti = {
   codigo: string;

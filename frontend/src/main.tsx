@@ -4,8 +4,8 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router";
 
 import { App } from "./App";
-import { ErroApi } from "./api/cliente";
-import { iniciarTema } from "./tema";
+import { ErroApi } from "@compartilhado/api/cliente";
+import { iniciarTema } from "@compartilhado/lib/tema";
 import "./index.css";
 
 // Antes do render: aplicar o data-theme so depois da primeira pintura faria a

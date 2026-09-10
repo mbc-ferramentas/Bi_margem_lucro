@@ -14,17 +14,17 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
-import { ErroApi } from "../api/cliente";
+import { ErroApi } from "@compartilhado/api/cliente";
 import { useSalvarUsuario, useUsuarios } from "../api/hooks";
 import { PERFIS, type Perfil } from "../api/tipos";
-import { Button } from "@/componentes/ui/button";
+import { Button } from "@compartilhado/ui/atomos/button";
 import {
   Field,
   FieldDescription,
   FieldGroup,
   FieldLabel,
-} from "@/componentes/ui/field";
-import { Input } from "@/componentes/ui/input";
+} from "@compartilhado/ui/atomos/field";
+import { Input } from "@compartilhado/ui/atomos/input";
 import {
   Select,
   SelectContent,
@@ -32,7 +32,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/componentes/ui/select";
+} from "@compartilhado/ui/atomos/select";
 import { Erro } from "../componentes/Layout";
 import { SkeletonTabela } from "../componentes/Skeleton";
 import { CabecalhoPagina, Secao } from "../componentes/Visual";

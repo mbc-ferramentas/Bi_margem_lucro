@@ -1,5 +1,17 @@
 import { z } from "zod";
 
+// GRANULARIDADES e PERFIS vivem em `compartilhado/config`: sao constantes sem
+// dependencia, e a camada de formatacao precisa delas sem conhecer a API.
+// Reexportados aqui para nao quebrar quem ja os importava de `api/tipos`.
+import {
+  GRANULARIDADES,
+  PERFIS,
+  type Granularidade,
+  type Perfil,
+} from "@compartilhado/config";
+
+export { GRANULARIDADES, PERFIS, type Granularidade, type Perfil };
+
 /** Valores monetarios chegam como string: a API serializa Decimal como texto
  *  para nao perder centavos em float. Converta so na exibicao. */
 const dinheiro = z.string().nullable();
@@ -40,10 +52,6 @@ export const kpisSchema = z.object({
 });
 export type Kpis = z.infer<typeof kpisSchema>["kpis"];
 
-/** Como o eixo do tempo e agregado. Espelha `GRANULARIDADE_COLUNA` em
- *  apps/api/queries.py — a semana e a segunda-feira do date_trunc do Postgres. */
-export const GRANULARIDADES = ["dia", "semana", "mes"] as const;
-export type Granularidade = (typeof GRANULARIDADES)[number];
 
 export const serieSchema = z.object({
   granularidade: z.enum(GRANULARIDADES),
@@ -564,10 +572,6 @@ export type Filtros = {
   busca?: string;
 };
 
-/** Perfis do BI. A API aceita um unico perfil por conta — 'gerente + vendedor'
- *  nao significa nada, porque o escopo mais amplo engole o outro. */
-export const PERFIS = ["admin", "gerente", "vendedor"] as const;
-export type Perfil = (typeof PERFIS)[number];
 
 export const usuarioSchema = z.object({
   id: z.number(),

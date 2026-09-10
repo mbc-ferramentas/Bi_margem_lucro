@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { SeletorTema } from "./SeletorTema";
-import { definirTema, iniciarTema } from "../tema";
+import { definirTema, iniciarTema } from "@compartilhado/lib/tema";
 
 afterEach(() => {
   cleanup();

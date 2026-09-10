@@ -1,6 +1,6 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
-import { Button } from "@/componentes/ui/button";
+import { Button } from "@compartilhado/ui/atomos/button";
 import {
   Select,
   SelectContent,
@@ -8,8 +8,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/componentes/ui/select";
-import { inteiro } from "../formato";
+} from "@compartilhado/ui/atomos/select";
+import { inteiro } from "@compartilhado/lib/formato";
 
 export const OPCOES_ITENS_POR_PAGINA = [25, 50, 100, 150, 200] as const;
 

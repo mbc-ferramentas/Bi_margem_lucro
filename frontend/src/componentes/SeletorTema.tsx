@@ -1,6 +1,6 @@
 import { ChevronDownIcon, MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
 
-import { Button } from "@/componentes/ui/button";
+import { Button } from "@compartilhado/ui/atomos/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,9 +8,9 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from "@/componentes/ui/dropdown-menu";
-import { useTema } from "../tema";
-import type { Tema } from "../tema";
+} from "@compartilhado/ui/atomos/dropdown-menu";
+import { useTema } from "@compartilhado/lib/tema";
+import type { Tema } from "@compartilhado/lib/tema";
 
 const OPCOES: { valor: Tema; rotulo: string; Icone: typeof SunIcon }[] = [
   { valor: "sistema", rotulo: "Sistema", Icone: MonitorIcon },

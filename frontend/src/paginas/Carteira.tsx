@@ -15,8 +15,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useCarteira, useOpcoesCarteira } from "../api/hooks";
 import type { Filtros, ItemCarteira, ResumoCarteira } from "../api/tipos";
-import { Input } from "@/componentes/ui/input";
-import { Label } from "@/componentes/ui/label";
+import { Input } from "@compartilhado/ui/atomos/input";
+import { Label } from "@compartilhado/ui/atomos/label";
 import {
   Select,
   SelectContent,
@@ -24,7 +24,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/componentes/ui/select";
+} from "@compartilhado/ui/atomos/select";
 import { Erro, Vazio } from "../componentes/Layout";
 import { SeletorMulti } from "../componentes/SeletorMulti";
 import { SkeletonTabela, SkeletonTiles } from "../componentes/Skeleton";
@@ -44,7 +44,7 @@ import {
   Segmentado,
 } from "../componentes/Visual";
 import { useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
-import { dataCurta, inteiro, moeda, numeroBruto, percentual } from "../formato";
+import { dataCurta, inteiro, moeda, numeroBruto, percentual } from "@compartilhado/lib/formato";
 
 
 /** Sentinela do "sem filtro": ver a nota em Filtros.tsx. Como la, ela e valor

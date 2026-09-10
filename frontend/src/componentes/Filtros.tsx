@@ -7,8 +7,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/componentes/ui/select";
-import { Label } from "@/componentes/ui/label";
+} from "@compartilhado/ui/atomos/select";
+import { Label } from "@compartilhado/ui/atomos/label";
 import { SeletorMulti } from "./SeletorMulti";
 import { SeletorPeriodo } from "./SeletorPeriodo";
 import { ChipsFiltros } from "./Visual";

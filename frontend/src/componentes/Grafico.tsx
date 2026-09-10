@@ -21,7 +21,7 @@ import * as echarts from "echarts/core";
 import { SVGRenderer } from "echarts/renderers";
 import { useEffect, useMemo, useRef } from "react";
 
-import { useTema } from "../tema";
+import { useTema } from "@compartilhado/lib/tema";
 
 import type { EChartsOption } from "echarts";
 

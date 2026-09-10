@@ -15,7 +15,7 @@ import { Link, useParams } from "react-router";
 
 import { usePedido } from "../api/hooks";
 import type { ItemPedido } from "../api/tipos";
-import { Button } from "@/componentes/ui/button";
+import { Button } from "@compartilhado/ui/atomos/button";
 import { AvisoMarketplace, Erro } from "../componentes/Layout";
 import { SkeletonTabela } from "../componentes/Skeleton";
 import { Tabela, type Coluna } from "../componentes/Tabela";
@@ -39,7 +39,7 @@ import {
   numeroBruto,
   percentual,
   rotuloNota,
-} from "../formato";
+} from "@compartilhado/lib/formato";
 
 /** Rótulo de cada degrau da cascata de custo (Regra 3). O código cru não diz nada
  *  para quem lê a tela, e a diferença entre 'saida' e 'ultima_compra' é

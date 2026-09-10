@@ -4,14 +4,14 @@ import { Link } from "react-router";
 
 import { useSkus } from "../api/hooks";
 import type { Filtros, ItemSku } from "../api/tipos";
-import { Button } from "@/componentes/ui/button";
+import { Button } from "@compartilhado/ui/atomos/button";
 import { BarraFiltros } from "../componentes/Filtros";
 import { Erro, Vazio } from "../componentes/Layout";
 import { SkeletonTabela } from "../componentes/Skeleton";
 import { Tabela, type Coluna } from "../componentes/Tabela";
 import { CabecalhoPagina, Secao } from "../componentes/Visual";
 import { escreverFiltros, useFiltrosUrl } from "../filtrosUrl";
-import { inteiro, moeda, numeroBruto, percentual } from "../formato";
+import { inteiro, moeda, numeroBruto, percentual } from "@compartilhado/lib/formato";
 
 export function Skus() {
   // O recorte vive na URL, e nao em `useState`: e o que faz o filtro sobreviver

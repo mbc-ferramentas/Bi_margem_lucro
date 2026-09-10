@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 
-import { buscar, enviar, escrever, paraQuery } from "./cliente";
+import { buscar, enviar, escrever, paraQuery } from "@compartilhado/api/cliente";
 import {
   armazensSchema,
   carteiraFiltrosSchema,

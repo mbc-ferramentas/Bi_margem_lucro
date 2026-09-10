@@ -11,17 +11,17 @@
 import { CheckIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
-import { ErroApi } from "../api/cliente";
+import { ErroApi } from "@compartilhado/api/cliente";
 import { useUploads } from "../api/hooks";
 import type { ResultadoArquivo } from "../api/tipos";
-import { Button } from "@/componentes/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/componentes/ui/field";
-import { Input } from "@/componentes/ui/input";
-import { Spinner } from "@/componentes/ui/spinner";
+import { Button } from "@compartilhado/ui/atomos/button";
+import { Field, FieldGroup, FieldLabel } from "@compartilhado/ui/atomos/field";
+import { Input } from "@compartilhado/ui/atomos/input";
+import { Spinner } from "@compartilhado/ui/atomos/spinner";
 import { Erro } from "../componentes/Layout";
 import { Tabela, type Coluna } from "../componentes/Tabela";
 import { CabecalhoPagina, Secao } from "../componentes/Visual";
-import { inteiro } from "../formato";
+import { inteiro } from "@compartilhado/lib/formato";
 
 const CAMPOS = [
   { nome: "SB2", rotulo: "SB2 — Saldos e custo de estoque" },
