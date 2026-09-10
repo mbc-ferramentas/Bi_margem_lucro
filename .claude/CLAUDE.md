@@ -28,9 +28,10 @@ make web-build  # build de produção do SPA
 make web-sh     # shell no container do frontend
 ```
 
-O `node_modules` do frontend é um **volume nomeado** que cobre o da imagem: `npm` e
-`npx` (inclusive `npx shadcn@latest add`) só funcionam **de dentro do container**.
-`package.json`/`package-lock.json` são bind mount e voltam para o host sozinhos; os
+O gerenciador e o runtime do frontend são o **Bun**. O `node_modules` é um **volume
+nomeado** que cobre o da imagem: `bun` e `bunx` (inclusive `bunx shadcn@latest add`) só
+funcionam **de dentro do container**.
+`package.json`/`bun.lock` são bind mount e voltam para o host sozinhos; os
 arquivos gerados dentro do container nascem com dono `root` — devolva a posse com
 `chown -R 1000:1000 /app/src` antes de editá-los pelo host.
 
@@ -167,7 +168,7 @@ Alterar `ParamOutlier`, `MapaCanal`, `MapaGrupo`, `MapaArmazem`, `MapaTES` ou
 - `tests/test_contrato_frontend.py` amarra o contrato da API com o frontend: mudar o payload
   exige atualizar o schema Zod da entidade correspondente em
   `frontend/src/entidades/<entidade>/modelo/tipos.ts`.
-- Dependências Python via `uv` (`uv.lock`); frontend via npm.
+- Dependências Python via `uv` (`uv.lock`); frontend via `bun` (`bun.lock`).
 
 ## Não faça
 
