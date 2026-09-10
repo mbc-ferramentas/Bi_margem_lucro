@@ -15,7 +15,7 @@ import { Filtros } from "@compartilhado/api/filtros";
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router";
 
-import { ultimoDiaDoMes } from "./modelo/periodo";
+import { mesAtual, ultimoDiaDoMes } from "./modelo/periodo";
 
 
 const SIMPLES = ["data_inicio", "data_fim", "canal", "busca"] as const;
@@ -32,6 +32,14 @@ const ALIAS: Record<string, (typeof SIMPLES)[number]> = {
 /** Dimensoes multi-valor: na URL vao separadas por virgula, do mesmo jeito que
  *  `paraQuery` escreve para a API. */
 const LISTAS = ["grupo", "armazem", "vendedor"] as const;
+
+/** Marca na URL a escolha explicita de "Todo o periodo".
+ *
+ *  Sem periodo na URL a tela abre no mes corrente (ver `mesAtual`), entao a
+ *  ausencia de datas nao pode mais significar "sem recorte" — precisaria de um
+ *  sinal proprio, ou o botao "Todo o periodo" seria desfeito pelo padrao no
+ *  quadro seguinte. */
+const SEM_RECORTE = "periodo";
 
 export function lerFiltros(params: URLSearchParams): Filtros {
   const filtros: Filtros = {};
@@ -54,6 +62,13 @@ export function lerFiltros(params: URLSearchParams): Filtros {
   for (const chave of LISTAS) {
     const bruto = params.get(chave);
     if (bruto) filtros[chave] = bruto.split(",").filter(Boolean);
+  }
+  // O padrao do periodo mora aqui, e nao em cada tela: `useFiltrosUrl` e o unico
+  // caminho pelo qual filtro chega a uma pagina.
+  if (!filtros.data_inicio && !filtros.data_fim && params.get(SEM_RECORTE) !== "tudo") {
+    const mes = mesAtual();
+    filtros.data_inicio = mes.inicio;
+    filtros.data_fim = mes.fim;
   }
   const situacao = params.get("situacao");
   if (situacao === "atrasados" || situacao === "a_vencer") filtros.situacao = situacao;
@@ -83,9 +98,18 @@ export function useFiltrosUrl(): [Filtros, (f: Filtros) => void] {
       // do browser percorreria cada select que o usuario tocou antes de sair
       // da tela.
       const seguintes = new URLSearchParams(params);
-      for (const chave of [...SIMPLES, ...LISTAS, ...Object.keys(ALIAS), "situacao"]) {
+      for (const chave of [
+        ...SIMPLES,
+        ...LISTAS,
+        ...Object.keys(ALIAS),
+        "situacao",
+        SEM_RECORTE,
+      ]) {
         seguintes.delete(chave);
       }
+      // Limpar as duas datas e um pedido de historico completo, nao um retorno
+      // ao padrao: fica gravado para sobreviver ao recarregamento.
+      if (!novos.data_inicio && !novos.data_fim) seguintes.set(SEM_RECORTE, "tudo");
       const filtrosSerializados = new URLSearchParams(escreverFiltros(novos));
       filtrosSerializados.forEach((valor, chave) => seguintes.set(chave, valor));
       setParams(seguintes, { replace: true });

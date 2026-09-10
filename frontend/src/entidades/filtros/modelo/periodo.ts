@@ -176,3 +176,20 @@ export function fatiaDoPeriodo(
     fim: paraDia(fim) > paraDia(janela.fim) ? janela.fim : fim,
   };
 }
+
+/** O mes corrente, do dia 1 ao ultimo dia, em ISO.
+ *
+ *  E o recorte com que toda tela de periodo abre. "Todo o periodo" como padrao
+ *  misturava competencias antigas no mesmo KPI e deixava a comparacao com o
+ *  periodo anterior sem sentido — quem abre o BI quer o mes, e o historico e uma
+ *  escolha deliberada (a opcao continua no seletor, e sobrevive na URL como
+ *  `periodo=tudo`). */
+export function mesAtual(hoje: Date = new Date()): Janela {
+  const ano = hoje.getFullYear();
+  const mes = hoje.getMonth();
+  const iso = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate(),
+    ).padStart(2, "0")}`;
+  return { inicio: iso(new Date(ano, mes, 1)), fim: iso(new Date(ano, mes + 1, 0)) };
+}
