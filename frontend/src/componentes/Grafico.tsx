@@ -115,7 +115,10 @@ export function useOpcaoGrafico<T extends EChartsOption = EChartsOption>(
   deps: unknown[],
 ): T {
   const { resolvido } = useTema();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // A lista dinamica de dependencias e justamente o que este hook oferece: quem
+  // chama passa as suas deps e o tema entra por conta propria. As duas regras
+  // abaixo pedem uma lista literal, que aqui seria impossivel.
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/use-memo
   return useMemo(fabrica, [...deps, resolvido]);
 }
 

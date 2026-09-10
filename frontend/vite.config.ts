@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vitest/config";
 
+const src = (p: string) => fileURLToPath(new URL(p, import.meta.url));
+
 export default defineConfig({
   base: process.env.VITE_BASE_PATH ?? "/",
   plugins: [react(), tailwindcss()],
@@ -10,8 +12,19 @@ export default defineConfig({
   // TypeScript. Sem o alias aqui o Vite nao resolve os imports `@/` que o
   // shadcn gera. `import.meta.url` porque o pacote e ESM: `__dirname` nao
   // existe neste arquivo.
+  // Um alias por camada da arquitetura (FSD). Sao redundantes com `@/`, que
+  // continua resolvendo tudo, mas nomear a camada no import e o que deixa uma
+  // violacao de fronteira visivel na leitura — e permite mover as pastas em
+  // fatias sem reescrever import nenhum.
   resolve: {
-    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+    alias: {
+      "@app": src("./src/app"),
+      "@paginas": src("./src/paginas"),
+      "@widgets": src("./src/widgets"),
+      "@entidades": src("./src/entidades"),
+      "@compartilhado": src("./src/compartilhado"),
+      "@": src("./src"),
+    },
   },
   server: {
     host: "0.0.0.0",
