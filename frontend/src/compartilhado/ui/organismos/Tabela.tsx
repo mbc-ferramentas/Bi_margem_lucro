@@ -36,9 +36,9 @@ import {
   TableHeader,
   TableRow,
 } from "@compartilhado/ui/atomos/table";
-import { Paginacao } from "./Paginacao";
-import { SkeletonTabela } from "./Skeleton";
-import { Vazio } from "./Layout";
+import { Paginacao } from "@compartilhado/ui/moleculas/Paginacao";
+import { SkeletonTabela } from "@compartilhado/ui/moleculas/Skeleton";
+import { Vazio } from "@compartilhado/ui/moleculas/Estados";
 
 export type Coluna<T> = {
   /** Chave de ordenacao mandada a API. `null` marca coluna nao-ordenavel. */

@@ -9,7 +9,6 @@
  *  eles — a barra de filtros recorta o grafico junto.
  */
 
-import type { EChartsOption } from "echarts";
 import { ChevronRightIcon, EyeIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
@@ -23,12 +22,11 @@ import {
   CollapsibleTrigger,
 } from "@compartilhado/ui/atomos/collapsible";
 import { cn } from "@compartilhado/lib/utils";
-import { BarraFiltros } from "../componentes/Filtros";
-import { Grafico, baseDoTema, corDaSerie, token, useOpcaoGrafico } from "../componentes/Grafico";
-import { Erro, Vazio } from "../componentes/Layout";
-import { SkeletonTabela } from "../componentes/Skeleton";
-import { Tabela, type Coluna } from "../componentes/Tabela";
-import { Abas, CartaoKpi, GradeKpis, Secao, Segmentado } from "@compartilhado/ui";
+import { BarraFiltros } from "@widgets/barra-filtros";
+import { Grafico, baseDoTema, corDaSerie, token, type EChartsOption, useOpcaoGrafico } from "@compartilhado/grafico";
+import { SkeletonTabela } from "@compartilhado/ui/moleculas/Skeleton";
+import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
+import { Abas, CartaoKpi, Erro, GradeKpis, Secao, Segmentado, Vazio } from "@compartilhado/ui";
 import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
 import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
 import { inteiro, moeda, moedaCurta, numeroBruto, percentual } from "@compartilhado/lib/formato";

@@ -25,11 +25,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@compartilhado/ui/atomos/select";
-import { Erro, Vazio } from "../componentes/Layout";
-import { SeletorMulti } from "../componentes/SeletorMulti";
-import { SkeletonTabela, SkeletonTiles } from "../componentes/Skeleton";
-import { Tabela, type Coluna } from "../componentes/Tabela";
-import { Abas, Badge, BarraComposicao, CartaoKpi, GradeInsights, GradeKpis, Nota, PainelInsight, Secao, Segmentado } from "@compartilhado/ui";
+import { SeletorMulti } from "@compartilhado/ui/moleculas/SeletorMulti";
+import { SkeletonTabela, SkeletonTiles } from "@compartilhado/ui/moleculas/Skeleton";
+import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
+import { Abas, Badge, BarraComposicao, CartaoKpi, Erro, GradeInsights, GradeKpis, Nota, PainelInsight, Secao, Segmentado, Vazio } from "@compartilhado/ui";
 import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
 import { ChipsFiltros } from "@widgets/barra-filtros";
 import { useAbaUrl, useFiltrosUrl } from "../filtrosUrl";

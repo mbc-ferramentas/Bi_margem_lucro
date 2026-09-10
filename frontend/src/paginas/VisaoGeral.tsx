@@ -18,7 +18,6 @@
  *  por isso que o aviso fica no topo e se repete na nota do gráfico por canal.
  */
 
-import type { EChartsOption } from "echarts";
 import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 
@@ -32,19 +31,11 @@ import {
 } from "../api/hooks";
 import type { Filtros, Granularidade, ItemSku, PontoSerie } from "../api/tipos";
 import { Button } from "@compartilhado/ui/atomos/button";
-import { BarraFiltros } from "../componentes/Filtros";
-import {
-  Grafico,
-  Sparkline,
-  baseDoTema,
-  corDaSerie,
-  token,
-  useOpcaoGrafico,
-} from "../componentes/Grafico";
-import { AvisoMarketplace, Erro, Vazio } from "../componentes/Layout";
-import { SkeletonGrafico, SkeletonTiles } from "../componentes/Skeleton";
-import { Tabela, type Coluna } from "../componentes/Tabela";
-import { Badge, BarraComposicao, CartaoDestaque, CartaoKpi, Cascata, Delta, GradeKpis, Nota, Secao, Segmentado } from "@compartilhado/ui";
+import { BarraFiltros } from "@widgets/barra-filtros";
+import { Grafico, Sparkline, baseDoTema, corDaSerie, token, type EChartsOption, useOpcaoGrafico } from "@compartilhado/grafico";
+import { SkeletonGrafico, SkeletonTiles } from "@compartilhado/ui/moleculas/Skeleton";
+import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
+import { AvisoMarketplace, Badge, BarraComposicao, CartaoDestaque, CartaoKpi, Cascata, Delta, Erro, GradeKpis, Nota, Secao, Segmentado, Vazio } from "@compartilhado/ui";
 import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
 import { escreverFiltros, useFiltrosUrl } from "../filtrosUrl";
 import {

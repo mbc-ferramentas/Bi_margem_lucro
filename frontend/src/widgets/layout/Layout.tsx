@@ -6,7 +6,6 @@ import {
   LogOutIcon,
   PackageIcon,
   StoreIcon,
-  TriangleAlertIcon,
   UploadIcon,
   UsersIcon,
   UsersRoundIcon,
@@ -14,10 +13,8 @@ import {
 import { Navigate, NavLink, Outlet, useNavigate } from "react-router";
 
 import { ErroApi, tokens } from "@compartilhado/api/cliente";
-import { useEu } from "../api/hooks";
-import { Alert, AlertDescription, AlertTitle } from "@compartilhado/ui/atomos/alert";
+import { useEu } from "@/api/hooks";
 import { Button } from "@compartilhado/ui/atomos/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@compartilhado/ui/atomos/empty";
 import {
   Sidebar,
   SidebarContent,
@@ -33,7 +30,8 @@ import {
   SidebarProvider,
   SidebarSeparator,
 } from "@compartilhado/ui/atomos/sidebar";
-import { Barra } from "./Skeleton";
+import { Erro } from "@compartilhado/ui/moleculas/Estados";
+import { Barra } from "@compartilhado/ui/moleculas/Skeleton";
 
 type ItemMenu = { para: string; rotulo: string; fim?: boolean; Icone: typeof PackageIcon };
 
@@ -216,38 +214,5 @@ export function Layout() {
     >
       <Outlet />
     </Moldura>
-  );
-}
-
-/** Aviso de escopo. Obrigatorio em toda tela que exibe o canal Marketplace:
- *  a comissao de 12-19% ainda nao esta lancada, e sem o rotulo o numero engana. */
-export function AvisoMarketplace({ texto }: { texto: string }) {
-  return (
-    <Alert role="note" className="mb-4 border-status-atencao/40 bg-status-atencao/10">
-      <TriangleAlertIcon className="text-status-atencao" />
-      <AlertTitle className="sr-only">Atenção</AlertTitle>
-      <AlertDescription className="text-foreground">{texto}</AlertDescription>
-    </Alert>
-  );
-}
-
-export function Erro({ mensagem }: { mensagem: string }) {
-  return (
-    <Alert variant="destructive" role="alert">
-      <TriangleAlertIcon />
-      <AlertTitle>Não foi possível carregar</AlertTitle>
-      <AlertDescription>{mensagem}</AlertDescription>
-    </Alert>
-  );
-}
-
-export function Vazio({ mensagem }: { mensagem: string }) {
-  return (
-    <Empty>
-      <EmptyHeader>
-        <EmptyTitle>Nada para mostrar</EmptyTitle>
-        <EmptyDescription>{mensagem}</EmptyDescription>
-      </EmptyHeader>
-    </Empty>
   );
 }

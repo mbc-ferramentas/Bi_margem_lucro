@@ -22,10 +22,9 @@ import { Link, useParams } from "react-router";
 import { useSku } from "../api/hooks";
 import type { CompraSku, EstoqueSku, PedidoDoSku, VendedorDoSku } from "../api/tipos";
 import { Button } from "@compartilhado/ui/atomos/button";
-import { AvisoMarketplace, Erro, Vazio } from "../componentes/Layout";
-import { SkeletonTabela } from "../componentes/Skeleton";
-import { Tabela, type Coluna } from "../componentes/Tabela";
-import { Abas, Badge, Nota, Secao } from "@compartilhado/ui";
+import { SkeletonTabela } from "@compartilhado/ui/moleculas/Skeleton";
+import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
+import { Abas, AvisoMarketplace, Badge, Erro, Nota, Secao, Vazio } from "@compartilhado/ui";
 import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
 import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
 import {

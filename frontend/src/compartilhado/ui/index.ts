@@ -16,6 +16,7 @@ export { BarraComposicao } from "./moleculas/BarraComposicao";
 export { CartaoDestaque } from "./moleculas/CartaoDestaque";
 export { CartaoKpi } from "./moleculas/CartaoKpi";
 export { Delta } from "./moleculas/Delta";
+export { AvisoMarketplace, Erro, Vazio } from "./moleculas/Estados";
 export { GradeInsights, GradeKpis } from "./moleculas/Grades";
 export { Nota } from "./moleculas/Nota";
 export { Secao } from "./moleculas/Secao";

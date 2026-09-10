@@ -1,2 +1,2 @@
-export { BarraFiltros } from "@/componentes/Filtros";
+export { BarraFiltros } from "./BarraFiltros";
 export { ChipsFiltros } from "./ChipsFiltros";

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { SeletorPeriodo } from "./SeletorPeriodo";
+import { SeletorPeriodo } from "@compartilhado/ui/moleculas/SeletorPeriodo";
 
 afterEach(cleanup);
 

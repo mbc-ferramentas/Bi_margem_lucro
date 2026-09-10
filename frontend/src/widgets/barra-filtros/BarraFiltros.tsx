@@ -1,5 +1,5 @@
-import { useOpcoes } from "../api/hooks";
-import type { Filtros } from "../api/tipos";
+import { useOpcoes } from "@/api/hooks";
+import type { Filtros } from "@/api/tipos";
 import {
   Select,
   SelectContent,
@@ -9,9 +9,9 @@ import {
   SelectValue,
 } from "@compartilhado/ui/atomos/select";
 import { Label } from "@compartilhado/ui/atomos/label";
-import { SeletorMulti } from "./SeletorMulti";
-import { SeletorPeriodo } from "./SeletorPeriodo";
-import { ChipsFiltros } from "@widgets/barra-filtros/ChipsFiltros";
+import { SeletorMulti } from "@compartilhado/ui/moleculas/SeletorMulti";
+import { SeletorPeriodo } from "@compartilhado/ui/moleculas/SeletorPeriodo";
+import { ChipsFiltros } from "./ChipsFiltros";
 
 type Props = {
   valor: Filtros;

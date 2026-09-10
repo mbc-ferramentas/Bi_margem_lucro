@@ -9,7 +9,6 @@
  *  comparacao entra na fase 2, junto com a comissao.
  */
 
-import type { EChartsOption } from "echarts";
 import { useMemo } from "react";
 
 import { useKpis, useOpcoes, useSerie } from "../api/hooks";
@@ -27,11 +26,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@compartilhado/ui/atomos/select";
-import { Grafico, baseDoTema, corDaSerie, useOpcaoGrafico } from "../componentes/Grafico";
-import { AvisoMarketplace, Erro, Vazio } from "../componentes/Layout";
-import { SkeletonGrafico, SkeletonTiles } from "../componentes/Skeleton";
-import { SeletorPeriodo } from "../componentes/SeletorPeriodo";
-import { CartaoKpi, GradeKpis, Secao, Segmentado } from "@compartilhado/ui";
+import { Grafico, baseDoTema, corDaSerie, type EChartsOption, useOpcaoGrafico } from "@compartilhado/grafico";
+import { SkeletonGrafico, SkeletonTiles } from "@compartilhado/ui/moleculas/Skeleton";
+import { SeletorPeriodo } from "@compartilhado/ui/moleculas/SeletorPeriodo";
+import { AvisoMarketplace, CartaoKpi, Erro, GradeKpis, Secao, Segmentado, Vazio } from "@compartilhado/ui";
 import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
 import { useEscolhaUrl, useFiltrosUrl } from "../filtrosUrl";
 import { inteiro, moeda, moedaCurta, percentual, rotuloPeriodo } from "@compartilhado/lib/formato";

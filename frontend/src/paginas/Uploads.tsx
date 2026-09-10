@@ -18,9 +18,8 @@ import { Button } from "@compartilhado/ui/atomos/button";
 import { Field, FieldGroup, FieldLabel } from "@compartilhado/ui/atomos/field";
 import { Input } from "@compartilhado/ui/atomos/input";
 import { Spinner } from "@compartilhado/ui/atomos/spinner";
-import { Erro } from "../componentes/Layout";
-import { Tabela, type Coluna } from "../componentes/Tabela";
-import { Secao } from "@compartilhado/ui";
+import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
+import { Erro, Secao } from "@compartilhado/ui";
 import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
 import { inteiro } from "@compartilhado/lib/formato";
 

@@ -33,9 +33,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@compartilhado/ui/atomos/select";
-import { Erro } from "../componentes/Layout";
-import { SkeletonTabela } from "../componentes/Skeleton";
-import { Secao } from "@compartilhado/ui";
+import { SkeletonTabela } from "@compartilhado/ui/moleculas/Skeleton";
+import { Erro, Secao } from "@compartilhado/ui";
 import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
 
 const ROTULO_PERFIL: Record<Perfil, string> = {

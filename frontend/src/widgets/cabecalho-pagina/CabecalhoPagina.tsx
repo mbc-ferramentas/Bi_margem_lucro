@@ -1,4 +1,4 @@
-import { SeletorTema } from "@/componentes/SeletorTema";
+import { SeletorTema } from "@widgets/seletor-tema";
 
 export function CabecalhoPagina({
   titulo,

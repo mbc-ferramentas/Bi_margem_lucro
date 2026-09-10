@@ -16,10 +16,9 @@ import { Link, useParams } from "react-router";
 import { usePedido } from "../api/hooks";
 import type { ItemPedido } from "../api/tipos";
 import { Button } from "@compartilhado/ui/atomos/button";
-import { AvisoMarketplace, Erro } from "../componentes/Layout";
-import { SkeletonTabela } from "../componentes/Skeleton";
-import { Tabela, type Coluna } from "../componentes/Tabela";
-import { Abas, Badge, CartaoKpi, Cascata, GradeKpis, Nota, Secao, Segmentado } from "@compartilhado/ui";
+import { SkeletonTabela } from "@compartilhado/ui/moleculas/Skeleton";
+import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
+import { Abas, AvisoMarketplace, Badge, CartaoKpi, Cascata, Erro, GradeKpis, Nota, Secao, Segmentado } from "@compartilhado/ui";
 import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
 import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
 import {

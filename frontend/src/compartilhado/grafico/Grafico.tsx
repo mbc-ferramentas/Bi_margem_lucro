@@ -19,9 +19,10 @@ import {
 } from "echarts/components";
 import * as echarts from "echarts/core";
 import { SVGRenderer } from "echarts/renderers";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 
-import { useTema } from "@compartilhado/lib/tema";
+import { corDaSerie } from "./tema";
+import { useOpcaoGrafico } from "./useOpcaoGrafico";
 
 import type { EChartsOption } from "echarts";
 
@@ -36,91 +37,6 @@ echarts.use([
   MarkLineComponent,
   SVGRenderer,
 ]);
-
-/** Slots categoricos, na ordem fixa validada. A ordem e o mecanismo de
- *  seguranca para daltonismo — nao e enfeite. Ciclar para uma sexta serie e
- *  proibido: agrupe em "Outros" ou quebre em pequenos multiplos. */
-export const SERIES = [
-  "--chart-1",
-  "--chart-2",
-  "--chart-3",
-  "--chart-4",
-  "--chart-5",
-] as const;
-
-/** Le um token da raiz ja resolvido. O SVGRenderer do ECharts nao resolve
- *  `var(--x)` dentro de uma string de cor — passar "var(--grid)" direto para a
- *  opcao produz uma marca sem cor, silenciosamente. Sempre passe por aqui. */
-export function token(nome: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
-}
-
-export function corDaSerie(indice: number): string {
-  return token(SERIES[indice % SERIES.length]);
-}
-
-export function baseDoTema() {
-  return {
-    textStyle: { fontFamily: "inherit" },
-    grid: { left: 8, right: 24, top: 28, bottom: 8, containLabel: true },
-    tooltip: {
-      trigger: "axis" as const,
-      axisPointer: { type: "line" as const, lineStyle: { color: token("--axis") } },
-      backgroundColor: token("--popover"),
-      borderColor: token("--border"),
-      textStyle: { color: token("--popover-foreground"), fontSize: 12 },
-      // O tooltip sai do container e vai para o <body>. Dentro do cartao ele e
-      // um filho absoluto de uma caixa `overflow-hidden` com cantos
-      // arredondados: mover essa caixa a cada pixel do mouse fazia o navegador
-      // deixar de repintar o SVG por baixo, e o grafico "sumia" no rastro do
-      // cursor, mostrando o fundo do cartao.
-      appendTo: () => document.body,
-      // Sem a animacao de deslizar: e ela que arrasta a area suja do repaint
-      // junto com o ponteiro. O tooltip aparece direto no lugar certo.
-      transitionDuration: 0,
-    },
-    legend: {
-      top: 0,
-      left: 0,
-      icon: "roundRect",
-      itemWidth: 9,
-      itemHeight: 9,
-      itemGap: 16,
-      textStyle: { color: token("--muted-foreground"), fontSize: 12 },
-    },
-    xAxis: {
-      axisLine: { lineStyle: { color: token("--axis") } },
-      axisTick: { show: false },
-      axisLabel: { color: token("--muted-foreground"), fontSize: 11 },
-      splitLine: { show: false },
-    },
-    yAxis: {
-      axisLine: { show: false },
-      axisTick: { show: false },
-      axisLabel: { color: token("--muted-foreground"), fontSize: 11 },
-      splitLine: { lineStyle: { color: token("--grid"), width: 1 } },
-    },
-  };
-}
-
-/** Memoiza a opcao do grafico ja incluindo o tema resolvido nas dependencias.
- *
- *  Isso existe porque `baseDoTema()` e `token()` leem `getComputedStyle`: sao
- *  valores capturados no momento do render, nao referencias vivas. Um `useMemo`
- *  que esquecesse o tema deixaria o grafico com as cores do modo anterior ate
- *  algum outro filtro mudar — um bug que so aparece ao alternar claro/escuro, e
- *  que ja custou caro. Com este hook nao da para esquecer. */
-export function useOpcaoGrafico<T extends EChartsOption = EChartsOption>(
-  fabrica: () => T,
-  deps: unknown[],
-): T {
-  const { resolvido } = useTema();
-  // A lista dinamica de dependencias e justamente o que este hook oferece: quem
-  // chama passa as suas deps e o tema entra por conta propria. As duas regras
-  // abaixo pedem uma lista literal, que aqui seria impossivel.
-  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/use-memo
-  return useMemo(fabrica, [...deps, resolvido]);
-}
 
 type Props = {
   opcao: EChartsOption;
