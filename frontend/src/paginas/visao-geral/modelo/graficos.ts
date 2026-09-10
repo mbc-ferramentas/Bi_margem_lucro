@@ -93,32 +93,44 @@ export function opcaoEvolucao({
         // em R$ e margem em % nunca dividem o mesmo desenho.
         axisLabel: { ...base.yAxis.axisLabel, formatter: (v: number) => eixo(v) },
       },
-      series: canais.map((canal, i) => ({
-        name: canal,
-        type: "line" as const,
-        smooth: false,
-        symbolSize: 8,
-        lineStyle: { width: 2 },
-        // Rotulo direto na ponta: exigido pela regra de relevo, porque tres tons
-        // da paleta ficam abaixo de 3:1 no modo claro.
-        endLabel: {
+      series: canais.map((canal, i) => {
+        const valores = periodos.map((p) => {
+          const ponto = serie.find((x) => x.periodo === p && x.canal === canal);
+          return ponto ? valorOuNulo(ponto[metrica]) : null;
+        });
+        // O rotulo direto vai na ultima marca *existente*, e nao no fim do eixo.
+        // Com `endLabel` o ECharts ancora no ultimo ponto da serie mesmo quando
+        // ele e null — um canal que parou de vender antes do fim do recorte
+        // rendia `transform="translate(x NaN)"` no <text> e o navegador recusava
+        // o atributo inteiro.
+        const ultimo = valores.reduce((acc, v, idx) => (v === null ? acc : idx), -1);
+        const rotuloDaPonta = {
           show: true,
+          position: "right" as const,
           formatter: canal,
           color: corDaSerie(i),
           fontSize: 11,
           distance: 6,
-        },
-        // Sem `focus: "series"`: com o tooltip por eixo, apontar um ponto
-        // aplicava blur em todas as outras series ao mesmo tempo em que o
-        // tooltip listava os valores delas. Na pratica as linhas somiam sob o
-        // cursor e sobrava so a grade — e a informacao que o usuario queria
-        // comparar era justamente a que desaparecia.
-        emphasis: { focus: "none" as const },
-        data: periodos.map((p) => {
-          const ponto = serie.find((x) => x.periodo === p && x.canal === canal);
-          return ponto ? valorOuNulo(ponto[metrica]) : null;
-        }),
-      })),
+        };
+        return {
+          name: canal,
+          type: "line" as const,
+          smooth: false,
+          symbolSize: 8,
+          lineStyle: { width: 2 },
+          // Sem `focus: "series"`: com o tooltip por eixo, apontar um ponto
+          // aplicava blur em todas as outras series ao mesmo tempo em que o
+          // tooltip listava os valores delas. Na pratica as linhas somiam sob o
+          // cursor e sobrava so a grade — e a informacao que o usuario queria
+          // comparar era justamente a que desaparecia.
+          emphasis: { focus: "none" as const },
+          // Rotulo direto na ponta: exigido pela regra de relevo, porque tres tons
+          // da paleta ficam abaixo de 3:1 no modo claro.
+          data: valores.map((valor, idx) =>
+            idx === ultimo ? { value: valor, label: rotuloDaPonta } : valor,
+          ),
+        };
+      }),
     };
 }
 
