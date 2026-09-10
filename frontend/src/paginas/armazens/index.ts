@@ -1,0 +1,1 @@
+export { Armazens } from "./Armazens";

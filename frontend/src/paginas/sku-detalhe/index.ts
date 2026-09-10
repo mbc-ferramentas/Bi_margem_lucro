@@ -1,0 +1,1 @@
+export { SkuDetalhe } from "./SkuDetalhe";

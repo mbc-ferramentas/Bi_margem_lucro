@@ -1,0 +1,1 @@
+export { VisaoGeral } from "./VisaoGeral";

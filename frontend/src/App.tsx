@@ -2,19 +2,19 @@ import { Navigate, Outlet, Route, Routes } from "react-router";
 
 import { tokens } from "@compartilhado/api/cliente";
 import { Layout } from "@widgets/layout";
-import { Armazens } from "./paginas/Armazens";
-import { CadastroUsuario } from "./paginas/CadastroUsuario";
-import { Canais } from "./paginas/Canais";
-import { Carteira } from "./paginas/Carteira";
-import { Login } from "./paginas/Login";
-import { PedidoDetalhe } from "./paginas/PedidoDetalhe";
-import { Pedidos } from "./paginas/Pedidos";
-import { SkuDetalhe } from "./paginas/SkuDetalhe";
-import { Skus } from "./paginas/Skus";
-import { Uploads } from "./paginas/Uploads";
-import { Usuarios } from "./paginas/Usuarios";
-import { Vendedores } from "./paginas/Vendedores";
-import { VisaoGeral } from "./paginas/VisaoGeral";
+import { Armazens } from "@paginas/armazens";
+import { CadastroUsuario } from "@paginas/cadastro-usuario";
+import { Canais } from "@paginas/canais";
+import { Carteira } from "@paginas/carteira";
+import { Login } from "@paginas/login";
+import { PedidoDetalhe } from "@paginas/pedido-detalhe";
+import { Pedidos } from "@paginas/pedidos";
+import { SkuDetalhe } from "@paginas/sku-detalhe";
+import { Skus } from "@paginas/skus";
+import { Uploads } from "@paginas/uploads";
+import { Usuarios } from "@paginas/usuarios";
+import { Vendedores } from "@paginas/vendedores";
+import { VisaoGeral } from "@paginas/visao-geral";
 
 function Protegido() {
   return tokens.access ? <Outlet /> : <Navigate to="/login" replace />;

@@ -75,19 +75,19 @@ vi.mock("@entidades/vendedor/api/hooks", async (importOriginal) =>
 
 import { useKpis } from "@entidades/margem";
 
-import { Armazens } from "./Armazens";
-import { CadastroUsuario } from "./CadastroUsuario";
-import { Canais } from "./Canais";
-import { Carteira } from "./Carteira";
-import { Login } from "./Login";
-import { PedidoDetalhe } from "./PedidoDetalhe";
-import { Pedidos } from "./Pedidos";
-import { SkuDetalhe } from "./SkuDetalhe";
-import { Skus } from "./Skus";
-import { Uploads } from "./Uploads";
-import { Usuarios } from "./Usuarios";
-import { Vendedores } from "./Vendedores";
-import { VisaoGeral } from "./VisaoGeral";
+import { Armazens } from "./armazens";
+import { CadastroUsuario } from "./cadastro-usuario";
+import { Canais } from "./canais";
+import { Carteira } from "./carteira";
+import { Login } from "./login";
+import { PedidoDetalhe } from "./pedido-detalhe";
+import { Pedidos } from "./pedidos";
+import { SkuDetalhe } from "./sku-detalhe";
+import { Skus } from "./skus";
+import { Uploads } from "./uploads";
+import { Usuarios } from "./usuarios";
+import { Vendedores } from "./vendedores";
+import { VisaoGeral } from "./visao-geral";
 
 afterEach(cleanup);
 
