@@ -15,12 +15,11 @@
  *  como nas demais telas de detalhe.
  */
 
+import { CompraSku, EstoqueSku, PedidoDoSku, VendedorDoSku, useSku } from "@entidades/sku";
 import { ArrowLeftIcon, EyeIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 
-import { useSku } from "../api/hooks";
-import type { CompraSku, EstoqueSku, PedidoDoSku, VendedorDoSku } from "../api/tipos";
 import { Button } from "@compartilhado/ui/atomos/button";
 import { SkeletonTabela } from "@compartilhado/ui/moleculas/Skeleton";
 import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";

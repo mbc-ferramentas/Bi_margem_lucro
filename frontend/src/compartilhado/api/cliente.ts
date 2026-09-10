@@ -1,6 +1,6 @@
+import { Filtros } from "@compartilhado/api/filtros";
 import type { ZodSchema } from "zod";
 
-import type { Filtros } from "@/api/tipos";
 
 const BASE = import.meta.env.VITE_API_URL ?? "/api/v1";
 const CHAVE_ACCESS = "bi.access";

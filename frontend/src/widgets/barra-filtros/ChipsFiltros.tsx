@@ -1,6 +1,6 @@
+import { Filtros } from "@compartilhado/api/filtros";
 import { XIcon } from "lucide-react";
 
-import type { Filtros } from "@/api/tipos";
 import { dataLonga } from "@compartilhado/lib/formato";
 import { Badge as BadgeUi } from "@compartilhado/ui/atomos/badge";
 import { Button } from "@compartilhado/ui/atomos/button";

@@ -9,12 +9,11 @@
  *  eles — a barra de filtros recorta o grafico junto.
  */
 
+import { LinhaArmazem, useArmazens } from "@entidades/armazem";
 import { ChevronRightIcon, EyeIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 
-import { useArmazens } from "../api/hooks";
-import type { LinhaArmazem } from "../api/tipos";
 import { Button } from "@compartilhado/ui/atomos/button";
 import {
   Collapsible,

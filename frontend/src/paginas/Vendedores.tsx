@@ -1,9 +1,9 @@
+import { Filtros } from "@compartilhado/api/filtros";
+import { useVendedores } from "@entidades/vendedor";
 import { EyeIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 
-import { useVendedores } from "../api/hooks";
-import type { Filtros } from "../api/tipos";
 import { Button } from "@compartilhado/ui/atomos/button";
 import { BarraFiltros } from "@widgets/barra-filtros";
 import { Grafico, baseDoTema, corDaSerie, token, type EChartsOption, useOpcaoGrafico } from "@compartilhado/grafico";

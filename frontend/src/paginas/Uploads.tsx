@@ -8,12 +8,11 @@
  *  nao e enfeite: sem ele o usuario reenvia achando que travou.
  */
 
+import { ResultadoArquivo, useUploads } from "@entidades/carga";
 import { CheckIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
 import { ErroApi } from "@compartilhado/api/cliente";
-import { useUploads } from "../api/hooks";
-import type { ResultadoArquivo } from "../api/tipos";
 import { Button } from "@compartilhado/ui/atomos/button";
 import { Field, FieldGroup, FieldLabel } from "@compartilhado/ui/atomos/field";
 import { Input } from "@compartilhado/ui/atomos/input";

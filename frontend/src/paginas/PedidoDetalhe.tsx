@@ -9,12 +9,11 @@
  *  desconto à parte: `Vlr.Total` continua sendo quantidade × unitário.
  */
 
+import { ItemPedido, usePedido } from "@entidades/pedido";
 import { ArrowLeftIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 
-import { usePedido } from "../api/hooks";
-import type { ItemPedido } from "../api/tipos";
 import { Button } from "@compartilhado/ui/atomos/button";
 import { SkeletonTabela } from "@compartilhado/ui/moleculas/Skeleton";
 import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";

@@ -9,14 +9,12 @@
  *  comparacao entra na fase 2, junto com a comissao.
  */
 
+import { type Filtros } from "@compartilhado/api/filtros";
+import { GRANULARIDADES, type Granularidade } from "@compartilhado/config";
+import { useOpcoes } from "@entidades/filtros";
+import { useKpis, useSerie } from "@entidades/margem";
 import { useMemo } from "react";
 
-import { useKpis, useOpcoes, useSerie } from "../api/hooks";
-import {
-  GRANULARIDADES,
-  type Filtros,
-  type Granularidade,
-} from "../api/tipos";
 import { Label } from "@compartilhado/ui/atomos/label";
 import {
   Select,

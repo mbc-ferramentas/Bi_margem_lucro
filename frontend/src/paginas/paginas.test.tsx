@@ -16,11 +16,16 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// Um stub só para todos os hooks: nenhum deles chega a devolver dado aqui.
-// O vitest confere a lista de exports contra o módulo real, então ela é lida
-// dele — assim um hook novo entra no stub sem ninguém precisar lembrar.
-vi.mock("../api/hooks", async (importOriginal) => {
-  const real = (await importOriginal()) as Record<string, unknown>;
+// Um stub só para todos os hooks de dados: nenhum deles chega a devolver dado
+// aqui. A lista de exports é lida do módulo real, então um hook novo entra no
+// stub sem ninguém precisar lembrar.
+//
+// É um mock por entidade, e não um só: desde que os hooks foram fatiados por
+// domínio, `api/hooks` não existe mais. Um `vi.mock` apontando para um módulo
+// que ninguém importa é ignorado em silêncio — as páginas passariam a montar
+// com os hooks de verdade e este arquivo deixaria de testar o que diz testar,
+// sem ficar vermelho.
+function stubDeHooks(real: Record<string, unknown>) {
   const consulta = {
     data: undefined,
     isPending: true,
@@ -28,8 +33,47 @@ vi.mock("../api/hooks", async (importOriginal) => {
     error: null,
     mutate: vi.fn(),
   };
-  return Object.fromEntries(Object.keys(real).map((nome) => [nome, () => consulta]));
-});
+  return Object.fromEntries(
+    Object.entries(real).map(([nome, valor]) =>
+      // Só o que é hook vira stub: o barril da entidade também exporta os
+      // schemas Zod, e trocá-los por uma função quebraria a validação.
+      nome.startsWith("use") ? [nome, () => consulta] : [nome, valor],
+    ),
+  );
+}
+
+vi.mock("@entidades/armazem", async (importOriginal) =>
+  stubDeHooks((await importOriginal()) as Record<string, unknown>),
+);
+vi.mock("@entidades/carga", async (importOriginal) =>
+  stubDeHooks((await importOriginal()) as Record<string, unknown>),
+);
+vi.mock("@entidades/carteira", async (importOriginal) =>
+  stubDeHooks((await importOriginal()) as Record<string, unknown>),
+);
+vi.mock("@entidades/filtros", async (importOriginal) =>
+  stubDeHooks((await importOriginal()) as Record<string, unknown>),
+);
+vi.mock("@entidades/margem", async (importOriginal) =>
+  stubDeHooks((await importOriginal()) as Record<string, unknown>),
+);
+vi.mock("@entidades/pedido", async (importOriginal) =>
+  stubDeHooks((await importOriginal()) as Record<string, unknown>),
+);
+vi.mock("@entidades/sessao", async (importOriginal) =>
+  stubDeHooks((await importOriginal()) as Record<string, unknown>),
+);
+vi.mock("@entidades/sku", async (importOriginal) =>
+  stubDeHooks((await importOriginal()) as Record<string, unknown>),
+);
+vi.mock("@entidades/usuario", async (importOriginal) =>
+  stubDeHooks((await importOriginal()) as Record<string, unknown>),
+);
+vi.mock("@entidades/vendedor", async (importOriginal) =>
+  stubDeHooks((await importOriginal()) as Record<string, unknown>),
+);
+
+import { useKpis } from "@entidades/margem";
 
 import { Armazens } from "./Armazens";
 import { CadastroUsuario } from "./CadastroUsuario";
@@ -75,6 +119,14 @@ function montar(Pagina: () => JSX.Element) {
 }
 
 describe("páginas", () => {
+  // Guarda o proprio andaime: um `vi.mock` apontando para um modulo que ninguem
+  // importa nao da erro, so deixa de valer. Sem esta assercao, renomear uma
+  // entidade faria as 13 paginas montarem contra a API de verdade e este arquivo
+  // continuaria verde, testando outra coisa.
+  it("os hooks de dados estão realmente trocados pelo stub", () => {
+    expect(useKpis({})).toMatchObject({ isPending: true, data: undefined });
+  });
+
   it.each(PAGINAS)("%s monta sem erro", (_nome, Pagina) => {
     expect(() => montar(Pagina)).not.toThrow();
   });

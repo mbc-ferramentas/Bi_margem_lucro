@@ -18,18 +18,16 @@
  *  por isso que o aviso fica no topo e se repete na nota do gráfico por canal.
  */
 
+import { Filtros } from "@compartilhado/api/filtros";
+import { Granularidade } from "@compartilhado/config";
+import { useArmazens } from "@entidades/armazem";
+import { useCarteira } from "@entidades/carteira";
+import { useOpcoes } from "@entidades/filtros";
+import { PontoSerie, useKpis, useSerie } from "@entidades/margem";
+import { ItemSku, useSkus } from "@entidades/sku";
 import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 
-import {
-  useArmazens,
-  useCarteira,
-  useKpis,
-  useOpcoes,
-  useSerie,
-  useSkus,
-} from "../api/hooks";
-import type { Filtros, Granularidade, ItemSku, PontoSerie } from "../api/tipos";
 import { Button } from "@compartilhado/ui/atomos/button";
 import { BarraFiltros } from "@widgets/barra-filtros";
 import { Grafico, Sparkline, baseDoTema, corDaSerie, token, type EChartsOption, useOpcaoGrafico } from "@compartilhado/grafico";

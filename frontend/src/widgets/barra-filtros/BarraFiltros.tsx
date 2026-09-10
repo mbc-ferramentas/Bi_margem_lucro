@@ -1,5 +1,5 @@
-import { useOpcoes } from "@/api/hooks";
-import type { Filtros } from "@/api/tipos";
+import { Filtros } from "@compartilhado/api/filtros";
+import { useOpcoes } from "@entidades/filtros";
 import {
   Select,
   SelectContent,

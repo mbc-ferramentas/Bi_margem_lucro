@@ -146,7 +146,8 @@ Alterar `ParamOutlier`, `MapaCanal`, `MapaGrupo`, `MapaArmazem`, `MapaTES` ou
   ETL contra os CSVs reais. Os números esperados são o baseline de 07/2026 — se um teste de
   valor quebra, verifique se o dado mudou antes de mudar o teste.
 - `tests/test_contrato_frontend.py` amarra o contrato da API com o frontend: mudar o payload
-  exige atualizar os tipos em `frontend/src/api/tipos.ts`.
+  exige atualizar o schema Zod da entidade correspondente em
+  `frontend/src/entidades/<entidade>/modelo/tipos.ts`.
 - Dependências Python via `uv` (`uv.lock`); frontend via npm.
 
 ## Não faça

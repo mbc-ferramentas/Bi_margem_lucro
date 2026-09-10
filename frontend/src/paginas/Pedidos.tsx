@@ -16,12 +16,11 @@
  *  errada.
  */
 
+import { LinhaPedido, ResumoPedidos, usePedidos } from "@entidades/pedido";
 import { ArrowLeftIcon, EyeIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 
-import { usePedidos } from "../api/hooks";
-import type { LinhaPedido, ResumoPedidos } from "../api/tipos";
 import { Button } from "@compartilhado/ui/atomos/button";
 import { BarraFiltros } from "@widgets/barra-filtros";
 import { SkeletonTabela, SkeletonTiles } from "@compartilhado/ui/moleculas/Skeleton";

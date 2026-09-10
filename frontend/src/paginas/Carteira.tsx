@@ -11,10 +11,10 @@
  *  esses avisos o usuario conclui que o BI perdeu vendedor.
  */
 
+import { Filtros } from "@compartilhado/api/filtros";
+import { ItemCarteira, ResumoCarteira, useCarteira, useOpcoesCarteira } from "@entidades/carteira";
 import { useEffect, useMemo, useState } from "react";
 
-import { useCarteira, useOpcoesCarteira } from "../api/hooks";
-import type { Filtros, ItemCarteira, ResumoCarteira } from "../api/tipos";
 import { Input } from "@compartilhado/ui/atomos/input";
 import { Label } from "@compartilhado/ui/atomos/label";
 import {

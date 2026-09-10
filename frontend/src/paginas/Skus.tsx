@@ -1,9 +1,9 @@
+import { Filtros } from "@compartilhado/api/filtros";
+import { ItemSku, useSkus } from "@entidades/sku";
 import { EyeIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 
-import { useSkus } from "../api/hooks";
-import type { Filtros, ItemSku } from "../api/tipos";
 import { Button } from "@compartilhado/ui/atomos/button";
 import { BarraFiltros } from "@widgets/barra-filtros";
 import { SkeletonTabela } from "@compartilhado/ui/moleculas/Skeleton";

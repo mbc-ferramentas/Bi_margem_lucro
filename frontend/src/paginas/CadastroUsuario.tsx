@@ -11,12 +11,12 @@
  *  acesso de alguem por engano.
  */
 
+import { PERFIS, type Perfil } from "@compartilhado/config";
+import { useSalvarUsuario, useUsuarios } from "@entidades/usuario";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { ErroApi } from "@compartilhado/api/cliente";
-import { useSalvarUsuario, useUsuarios } from "../api/hooks";
-import { PERFIS, type Perfil } from "../api/tipos";
 import { Button } from "@compartilhado/ui/atomos/button";
 import {
   Field,

@@ -1,3 +1,4 @@
+import { useEu } from "@entidades/sessao";
 import {
   BoxesIcon,
   ChartLineIcon,
@@ -13,7 +14,6 @@ import {
 import { Navigate, NavLink, Outlet, useNavigate } from "react-router";
 
 import { ErroApi, tokens } from "@compartilhado/api/cliente";
-import { useEu } from "@/api/hooks";
 import { Button } from "@compartilhado/ui/atomos/button";
 import {
   Sidebar,

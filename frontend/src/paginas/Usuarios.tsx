@@ -14,13 +14,13 @@
  *  - o proprio usuario logado nao se remove.
  */
 
+import { useEu } from "@entidades/sessao";
+import { Usuario, useRedefinirSenha, useRemoverUsuario, useUsuarios } from "@entidades/usuario";
 import { PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { ErroApi } from "@compartilhado/api/cliente";
-import { useEu, useRedefinirSenha, useRemoverUsuario, useUsuarios } from "../api/hooks";
-import type { Usuario } from "../api/tipos";
 import { Alert, AlertDescription } from "@compartilhado/ui/atomos/alert";
 import { Button } from "@compartilhado/ui/atomos/button";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@compartilhado/ui/atomos/field";
