@@ -27,18 +27,8 @@ import { BarraFiltros } from "../componentes/Filtros";
 import { Erro, Vazio } from "../componentes/Layout";
 import { SkeletonTabela, SkeletonTiles } from "../componentes/Skeleton";
 import { Tabela, type Coluna } from "../componentes/Tabela";
-import {
-  Abas,
-  Badge,
-  BarraComposicao,
-  CabecalhoPagina,
-  CartaoKpi,
-  GradeInsights,
-  GradeKpis,
-  Nota,
-  PainelInsight,
-  Secao,
-} from "../componentes/Visual";
+import { Abas, Badge, BarraComposicao, CartaoKpi, GradeInsights, GradeKpis, Nota, PainelInsight, Secao } from "@compartilhado/ui";
+import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
 import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
 import { dataCurta, inteiro, moeda, numeroBruto, percentual, rotuloNota } from "@compartilhado/lib/formato";
 

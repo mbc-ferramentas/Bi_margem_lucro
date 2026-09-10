@@ -19,17 +19,8 @@ import { Button } from "@compartilhado/ui/atomos/button";
 import { AvisoMarketplace, Erro } from "../componentes/Layout";
 import { SkeletonTabela } from "../componentes/Skeleton";
 import { Tabela, type Coluna } from "../componentes/Tabela";
-import {
-  Abas,
-  Badge,
-  CabecalhoPagina,
-  CartaoKpi,
-  Cascata,
-  GradeKpis,
-  Nota,
-  Secao,
-  Segmentado,
-} from "../componentes/Visual";
+import { Abas, Badge, CartaoKpi, Cascata, GradeKpis, Nota, Secao, Segmentado } from "@compartilhado/ui";
+import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
 import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
 import {
   competencia,

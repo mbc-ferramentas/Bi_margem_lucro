@@ -9,7 +9,8 @@ import { BarraFiltros } from "../componentes/Filtros";
 import { Erro, Vazio } from "../componentes/Layout";
 import { SkeletonTabela } from "../componentes/Skeleton";
 import { Tabela, type Coluna } from "../componentes/Tabela";
-import { CabecalhoPagina, Secao } from "../componentes/Visual";
+import { Secao } from "@compartilhado/ui";
+import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
 import { escreverFiltros, useFiltrosUrl } from "../filtrosUrl";
 import { inteiro, moeda, numeroBruto, percentual } from "@compartilhado/lib/formato";
 

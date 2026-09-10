@@ -11,16 +11,8 @@ import { Grafico, baseDoTema, corDaSerie, token, useOpcaoGrafico } from "../comp
 import { Erro, Vazio } from "../componentes/Layout";
 import { SkeletonTabela } from "../componentes/Skeleton";
 import { Tabela, type Coluna } from "../componentes/Tabela";
-import {
-  Abas,
-  CabecalhoPagina,
-  CartaoKpi,
-  GradeInsights,
-  GradeKpis,
-  PainelInsight,
-  Secao,
-  Segmentado,
-} from "../componentes/Visual";
+import { Abas, CartaoKpi, GradeInsights, GradeKpis, PainelInsight, Secao, Segmentado } from "@compartilhado/ui";
+import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
 import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
 import { inteiro, moeda, moedaCurta, numeroBruto, percentual } from "@compartilhado/lib/formato";
 

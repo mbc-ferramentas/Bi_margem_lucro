@@ -25,13 +25,8 @@ import { Button } from "@compartilhado/ui/atomos/button";
 import { AvisoMarketplace, Erro, Vazio } from "../componentes/Layout";
 import { SkeletonTabela } from "../componentes/Skeleton";
 import { Tabela, type Coluna } from "../componentes/Tabela";
-import {
-  Abas,
-  Badge,
-  CabecalhoPagina,
-  Nota,
-  Secao,
-} from "../componentes/Visual";
+import { Abas, Badge, Nota, Secao } from "@compartilhado/ui";
+import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
 import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
 import {
   competencia,

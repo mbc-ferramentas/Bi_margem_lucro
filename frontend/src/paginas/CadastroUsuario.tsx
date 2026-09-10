@@ -35,7 +35,8 @@ import {
 } from "@compartilhado/ui/atomos/select";
 import { Erro } from "../componentes/Layout";
 import { SkeletonTabela } from "../componentes/Skeleton";
-import { CabecalhoPagina, Secao } from "../componentes/Visual";
+import { Secao } from "@compartilhado/ui";
+import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
 
 const ROTULO_PERFIL: Record<Perfil, string> = {
   admin: "Administrador",

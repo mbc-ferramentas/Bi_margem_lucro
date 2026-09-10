@@ -29,20 +29,9 @@ import { Erro, Vazio } from "../componentes/Layout";
 import { SeletorMulti } from "../componentes/SeletorMulti";
 import { SkeletonTabela, SkeletonTiles } from "../componentes/Skeleton";
 import { Tabela, type Coluna } from "../componentes/Tabela";
-import {
-  Abas,
-  Badge,
-  BarraComposicao,
-  CabecalhoPagina,
-  CartaoKpi,
-  ChipsFiltros,
-  GradeInsights,
-  GradeKpis,
-  Nota,
-  PainelInsight,
-  Secao,
-  Segmentado,
-} from "../componentes/Visual";
+import { Abas, Badge, BarraComposicao, CartaoKpi, GradeInsights, GradeKpis, Nota, PainelInsight, Secao, Segmentado } from "@compartilhado/ui";
+import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
+import { ChipsFiltros } from "@widgets/barra-filtros";
 import { useAbaUrl, useFiltrosUrl } from "../filtrosUrl";
 import { dataCurta, inteiro, moeda, numeroBruto, percentual } from "@compartilhado/lib/formato";
 

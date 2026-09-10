@@ -20,7 +20,8 @@ import { Input } from "@compartilhado/ui/atomos/input";
 import { Spinner } from "@compartilhado/ui/atomos/spinner";
 import { Erro } from "../componentes/Layout";
 import { Tabela, type Coluna } from "../componentes/Tabela";
-import { CabecalhoPagina, Secao } from "../componentes/Visual";
+import { Secao } from "@compartilhado/ui";
+import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
 import { inteiro } from "@compartilhado/lib/formato";
 
 const CAMPOS = [

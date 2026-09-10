@@ -44,19 +44,8 @@ import {
 import { AvisoMarketplace, Erro, Vazio } from "../componentes/Layout";
 import { SkeletonGrafico, SkeletonTiles } from "../componentes/Skeleton";
 import { Tabela, type Coluna } from "../componentes/Tabela";
-import {
-  Badge,
-  BarraComposicao,
-  CabecalhoPagina,
-  CartaoDestaque,
-  CartaoKpi,
-  Cascata,
-  Delta,
-  GradeKpis,
-  Nota,
-  Secao,
-  Segmentado,
-} from "../componentes/Visual";
+import { Badge, BarraComposicao, CartaoDestaque, CartaoKpi, Cascata, Delta, GradeKpis, Nota, Secao, Segmentado } from "@compartilhado/ui";
+import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
 import { escreverFiltros, useFiltrosUrl } from "../filtrosUrl";
 import {
   dataCurta,

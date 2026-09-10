@@ -11,7 +11,7 @@ import {
 import { Label } from "@compartilhado/ui/atomos/label";
 import { SeletorMulti } from "./SeletorMulti";
 import { SeletorPeriodo } from "./SeletorPeriodo";
-import { ChipsFiltros } from "./Visual";
+import { ChipsFiltros } from "@widgets/barra-filtros/ChipsFiltros";
 
 type Props = {
   valor: Filtros;

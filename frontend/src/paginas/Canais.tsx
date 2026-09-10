@@ -31,13 +31,8 @@ import { Grafico, baseDoTema, corDaSerie, useOpcaoGrafico } from "../componentes
 import { AvisoMarketplace, Erro, Vazio } from "../componentes/Layout";
 import { SkeletonGrafico, SkeletonTiles } from "../componentes/Skeleton";
 import { SeletorPeriodo } from "../componentes/SeletorPeriodo";
-import {
-  CabecalhoPagina,
-  CartaoKpi,
-  GradeKpis,
-  Secao,
-  Segmentado,
-} from "../componentes/Visual";
+import { CartaoKpi, GradeKpis, Secao, Segmentado } from "@compartilhado/ui";
+import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
 import { useEscolhaUrl, useFiltrosUrl } from "../filtrosUrl";
 import { inteiro, moeda, moedaCurta, percentual, rotuloPeriodo } from "@compartilhado/lib/formato";
 import {
