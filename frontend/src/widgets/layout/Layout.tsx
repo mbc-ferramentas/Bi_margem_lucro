@@ -98,7 +98,7 @@ function Moldura({ children, menu }: { children: React.ReactNode; menu: React.Re
         <SidebarContent>{menu}</SidebarContent>
       </Sidebar>
       <SidebarInset>
-        <main className="w-full max-w-[1400px] px-4 pt-4 pb-12 sm:px-7 sm:pt-6">
+        <main className="mx-auto w-full max-w-[1760px] px-4 pt-4 pb-12 sm:px-7 sm:pt-6">
           {children}
         </main>
       </SidebarInset>

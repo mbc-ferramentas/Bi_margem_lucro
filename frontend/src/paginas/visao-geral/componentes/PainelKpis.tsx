@@ -64,7 +64,7 @@ export function PainelKpis({
             kpis.isFetching ? "opacity-60 transition-opacity" : "transition-opacity"
           }
         >
-          <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,2fr)]">
+          <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2.2fr)] 2xl:grid-cols-[minmax(0,1.05fr)_minmax(0,2fr)]">
             <CartaoDestaque
               rotulo="Margem bruta"
               valor={moeda(k.margem_bruta)}

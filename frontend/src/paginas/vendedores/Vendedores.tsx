@@ -85,10 +85,15 @@ export function Vendedores() {
           label: {
             show: true,
             position: "right" as const,
-            formatter: (p: { dataIndex: number }) =>
-              metrica === "margem_pct"
-                ? moeda(top[p.dataIndex].margem)
-                : percentual(top[p.dataIndex].margem_pct),
+            formatter: (p: { dataIndex: number }) => {
+              // O formatter fecha sobre o `top` deste render: num recorte que
+              // encolhe a lista, o ECharts ainda pede indices da serie anterior.
+              const item = top[p.dataIndex];
+              if (!item) return "";
+              return metrica === "margem_pct"
+                ? moeda(item.margem)
+                : percentual(item.margem_pct);
+            },
             color: token("--muted-foreground"),
             fontSize: 11,
           },

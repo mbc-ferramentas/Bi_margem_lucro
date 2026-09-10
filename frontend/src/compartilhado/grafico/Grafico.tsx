@@ -53,44 +53,62 @@ export function Grafico({ opcao, altura = 300, rotuloAcessivel, aoClicar }: Prop
   // argumento nao existe mais.
   const instancia = useRef<echarts.ECharts | undefined>(undefined);
 
+  // O clique vai por ref, e nao por dependencia de efeito: `aoClicar` costuma
+  // ser uma closure sobre os filtros da tela e muda a cada recorte. Ler pela ref
+  // deixa o ouvinte enxergar sempre o filtro vigente sem reassinar o evento —
+  // e um `off()` a cada recorte era metade do caminho para chamar o ECharts
+  // depois do `dispose()`.
+  const aoClicarRef = useRef(aoClicar);
+  // Sem lista de dependencias de proposito: a ref acompanha todo render, e
+  // atualiza-la no corpo do componente seria escrita durante o render.
+  useEffect(() => {
+    aoClicarRef.current = aoClicar;
+  });
+
+  // Um unico efeito e dono do ciclo de vida inteiro (init, resize, clique,
+  // dispose). Com o registro do clique num efeito proprio, o cleanup dele rodava
+  // *depois* do dispose — React limpa os efeitos na ordem em que foram
+  // declarados — e o `off()` caia numa instancia ja destruida: era exatamente o
+  // "[ECharts] Instance ... has been disposed" do console.
   useEffect(() => {
     if (!alvo.current) return;
     // SVG: nitido em qualquer densidade de tela e imprimivel sem serrilhado.
-    instancia.current = echarts.init(alvo.current, undefined, { renderer: "svg" });
+    const grafico = echarts.init(alvo.current, undefined, { renderer: "svg" });
+    instancia.current = grafico;
 
-    // ResizeObserver e nao `window.resize`: o cartao muda de largura sem a
-    // janela mudar (sidebar recolhendo, aba trocando, grade reflowando) e nesses
-    // casos o SVG ficava esticado na medida antiga ate alguem redimensionar o
-    // navegador.
-    const observador = new ResizeObserver(() => instancia.current?.resize());
-    observador.observe(alvo.current);
-    return () => {
-      observador.disconnect();
-      instancia.current?.dispose();
-    };
-  }, []);
-
-  useEffect(() => {
-    instancia.current?.setOption(opcao, true);
-  }, [opcao]);
-
-  // Efeito proprio, e nao dentro do de inicializacao: `aoClicar` costuma ser
-  // uma closure sobre os filtros da tela e muda a cada recorte. Registrar uma
-  // vez so levaria o clique para o filtro que estava valendo na montagem.
-  useEffect(() => {
-    const grafico = instancia.current;
-    if (!grafico || !aoClicar) return;
     const ouvinte = (params: { name: string; seriesIndex?: number; dataIndex: number }) =>
-      aoClicar({
+      aoClicarRef.current?.({
         nome: params.name,
         serie: params.seriesIndex ?? 0,
         indice: params.dataIndex,
       });
     grafico.on("click", ouvinte);
+
+    // ResizeObserver e nao `window.resize`: o cartao muda de largura sem a
+    // janela mudar (sidebar recolhendo, aba trocando, grade reflowando) e nesses
+    // casos o SVG ficava esticado na medida antiga ate alguem redimensionar o
+    // navegador.
+    const observador = new ResizeObserver(() => {
+      // O navegador pode entregar um callback ja enfileirado depois do
+      // `disconnect()`; sem esta guarda ele redimensiona um grafico descartado.
+      if (!grafico.isDisposed()) grafico.resize();
+    });
+    observador.observe(alvo.current);
+
     return () => {
-      grafico.off("click", ouvinte);
+      observador.disconnect();
+      grafico.dispose();
+      // Zerar a ref e o que faz o `?.` abaixo valer alguma coisa: sem isso ela
+      // segue apontando para a instancia morta e o `setOption` bate nela.
+      instancia.current = undefined;
     };
-  }, [aoClicar]);
+  }, []);
+
+  useEffect(() => {
+    const grafico = instancia.current;
+    if (!grafico || grafico.isDisposed()) return;
+    grafico.setOption(opcao, true);
+  }, [opcao]);
 
   return (
     <div

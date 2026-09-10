@@ -68,7 +68,12 @@ export function opcaoEvolucao({
             value: number | null;
           }[];
           const indice = pontos[0]?.dataIndex ?? 0;
-          const fatia = fatiaDoPeriodo(periodos[indice], granularidade, janela);
+          // Com `setOption(opcao, true)` o formatter fecha sobre os arrays deste
+          // render; num recorte mais apertado o ECharts ainda pode pedir um
+          // `dataIndex` da serie anterior, que aqui ja nao existe.
+          const periodo = periodos[indice];
+          if (periodo === undefined) return "";
+          const fatia = fatiaDoPeriodo(periodo, granularidade, janela);
           const intervalo = rotuloJanela({ data_inicio: fatia.inicio, data_fim: fatia.fim });
           const cabecalho =
             granularidade === "semana" && intervalo
@@ -156,6 +161,7 @@ export function opcaoArmazens(porArmazem: readonly TotalArmazem[]): EChartsOptio
             fontSize: 11,
             formatter: (p: { dataIndex: number }) => {
               const item = ordenados[p.dataIndex];
+              if (!item) return "";
               const pct = item.receita ? item.margem / item.receita : null;
               return `${moedaCurta(item.margem)}  ${percentual(pct)}`;
             },
@@ -204,10 +210,11 @@ export function opcaoDeSkus(extremos: readonly ItemSku[]): EChartsOption {
             position: "right" as const,
             color: token("--muted-foreground"),
             fontSize: 11,
-            formatter: (p: { dataIndex: number }) =>
-              `${moedaCurta(numeroBruto(extremos[p.dataIndex].margem))}  ${percentual(
-                extremos[p.dataIndex].margem_pct,
-              )}`,
+            formatter: (p: { dataIndex: number }) => {
+              const item = extremos[p.dataIndex];
+              if (!item) return "";
+              return `${moedaCurta(numeroBruto(item.margem))}  ${percentual(item.margem_pct)}`;
+            },
           },
           // Rede de seguranca: num recorte apertado varias barras ficam curtas e
           // proximas do zero, e os rotulos se empilhariam ilegiveis. Aqui o

@@ -48,7 +48,7 @@ export function CartaoKpi({
             cartao vem da grade, nao da janela, e um `clamp` em `vw` fazia o
             numero crescer ate vazar de um cartao estreito numa tela larga —
             exatamente onde a grade tem mais colunas e menos espaco por coluna. */}
-        <strong className="mt-2 block h-7 w-full truncate text-xl leading-7 font-semibold tracking-tight sm:text-2xl">
+        <strong className="mt-2 block h-7 w-full truncate text-xl leading-7 font-semibold tracking-tight sm:text-2xl lg:text-xl 2xl:text-2xl">
           {valor}
         </strong>
         {/* Duas linhas reservadas: o apoio mais longo quebra, o mais curto
