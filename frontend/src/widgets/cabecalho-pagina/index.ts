@@ -1,1 +1,0 @@
-export { CabecalhoPagina } from "./CabecalhoPagina";

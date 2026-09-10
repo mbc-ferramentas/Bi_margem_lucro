@@ -41,6 +41,6 @@ export default defineConfig({
   build: { outDir: "dist", sourcemap: false },
   test: {
     environment: "jsdom",
-    setupFiles: ["./src/setupTests.ts"],
+    setupFiles: ["./src/app/setupTests.ts"],
   },
 });

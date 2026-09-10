@@ -28,8 +28,7 @@ import { Input } from "@compartilhado/ui/atomos/input";
 import { AcoesModal, Modal } from "@compartilhado/ui/moleculas/Modal";
 import { SkeletonTabela } from "@compartilhado/ui/moleculas/Skeleton";
 import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
-import { Erro, Secao, Vazio } from "@compartilhado/ui";
-import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
+import { CabecalhoPagina, Erro, Secao, Vazio } from "@compartilhado/ui";
 
 const ROTULO_PERFIL: Record<string, string> = {
   admin: "Administrador",

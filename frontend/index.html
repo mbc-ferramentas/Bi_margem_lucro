@@ -10,7 +10,7 @@
       componentes do shadcn enxergam. So que classe e decidida em JS, e o body ja
       pinta antes do bundle carregar: sem este script a tela pisca clara a cada
       carregamento de quem usa o modo escuro. Ele repete de proposito a leitura
-      que o src/tema.ts faz — e a unica duplicacao que evita o flash.
+      que o src/compartilhado/lib/tema.ts faz — e a unica duplicacao que evita o flash.
     -->
     <script>
       (function () {
@@ -29,6 +29,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/app/main.tsx"></script>
   </body>
 </html>

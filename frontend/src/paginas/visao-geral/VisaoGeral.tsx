@@ -29,8 +29,7 @@ import { useNavigate } from "react-router";
 
 import { BarraFiltros } from "@widgets/barra-filtros";
 import { type EChartsOption, useOpcaoGrafico } from "@compartilhado/grafico";
-import { AvisoMarketplace, Badge } from "@compartilhado/ui";
-import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
+import { AvisoMarketplace, Badge, CabecalhoPagina } from "@compartilhado/ui";
 import { escreverFiltros, useFiltrosUrl } from "@entidades/filtros";
 import { numeroBruto, rotulosDoPeriodo } from "@compartilhado/lib/formato";
 import { type Janela, fatiaDoPeriodo, granularidadeAuto, janelaEfetiva, periodoAnterior, rotuloJanela } from "@entidades/filtros";

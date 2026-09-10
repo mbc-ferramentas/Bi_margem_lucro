@@ -25,8 +25,7 @@ import { BarraFiltros } from "@widgets/barra-filtros";
 import { Grafico, baseDoTema, corDaSerie, token, type EChartsOption, useOpcaoGrafico } from "@compartilhado/grafico";
 import { SkeletonTabela } from "@compartilhado/ui/moleculas/Skeleton";
 import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
-import { Abas, CartaoKpi, Erro, GradeKpis, Secao, Segmentado, Vazio } from "@compartilhado/ui";
-import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
+import { Abas, CabecalhoPagina, CartaoKpi, Erro, GradeKpis, Secao, Segmentado, Vazio } from "@compartilhado/ui";
 import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "@entidades/filtros";
 import { inteiro, moeda, moedaCurta, numeroBruto, percentual } from "@compartilhado/lib/formato";
 

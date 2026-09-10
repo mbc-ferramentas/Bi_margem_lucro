@@ -3,16 +3,30 @@
 // `compartilhado/` passou a depender de dominio. Essa regra e o unico mecanismo
 // que impede a arquitetura de degradar em silencio.
 //
-// A camada `legado` e temporaria: e tudo o que ainda nao foi movido para uma
-// camada FSD. Ela pode ser importada por qualquer uma e importar qualquer uma,
-// para que a migracao aconteca em fatias sem deixar o lint vermelho. Quando
-// `legado` ficar vazia, a lista de `allow` abaixo passa a valer de verdade.
+// A direcao permitida e app -> paginas -> widgets -> entidades -> compartilhado.
+// Cada camada importa so das de baixo, e nunca lateralmente: uma pagina nao
+// conhece outra pagina, uma entidade nao conhece outra entidade. E o que mantem
+// cada fatia removivel sem arrastar o resto.
+//
+// A sintaxe aqui e a do eslint-plugin-boundaries v7 (`boundaries/dependencies`
+// com `policies`). A da v5 (`boundaries/element-types` com `rules`) ainda e
+// aceita, mas nao reprova nada — so imprime avisos de depreciacao. Uma config
+// inerte e pior do que nenhuma, porque parece proteger.
 
 import js from "@eslint/js";
 import boundaries from "eslint-plugin-boundaries";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
+
+/** Cada camada e o que ela pode importar. */
+const CAMADAS = {
+  app: ["paginas", "widgets", "entidades", "compartilhado"],
+  paginas: ["widgets", "entidades", "compartilhado"],
+  widgets: ["entidades", "compartilhado"],
+  entidades: ["compartilhado"],
+  compartilhado: ["compartilhado"],
+};
 
 export default tseslint.config(
   { ignores: ["dist/**", "node_modules/**", "eslint.config.js"] },
@@ -26,53 +40,62 @@ export default tseslint.config(
     },
     plugins: { boundaries, "react-hooks": reactHooks },
     settings: {
+      // Sem o resolvedor, o plugin nao sabe que `@compartilhado/...` e um
+      // arquivo do projeto: trata como pacote externo, nenhuma politica casa e
+      // a regra fica muda. Foi assim que a primeira versao desta config passou
+      // verde com violacoes deliberadas no codigo.
+      "import/resolver": {
+        typescript: { alwaysTryTypes: true, project: "./tsconfig.json" },
+      },
       "boundaries/include": ["src/**/*"],
       "boundaries/elements": [
-        // A ordem importa: o plugin casa o primeiro padrao que bate.
+        // A ordem importa: o plugin casa o primeiro padrao que bate. `capture`
+        // nomeia a fatia, e e o que permite proibir o import lateral entre duas
+        // paginas ou duas entidades.
         { type: "app", pattern: "src/app/**" },
         { type: "paginas", pattern: "src/paginas/*", capture: ["fatia"] },
         { type: "widgets", pattern: "src/widgets/*", capture: ["fatia"] },
         { type: "entidades", pattern: "src/entidades/*", capture: ["fatia"] },
         { type: "compartilhado", pattern: "src/compartilhado/**" },
-        // Nao movido ainda.
-        { type: "legado", pattern: "src/componentes/**" },
-        { type: "legado", pattern: "src/api/**" },
-        { type: "legado", pattern: "src/lib/**" },
-        { type: "legado", pattern: "src/hooks/**" },
-        { type: "legado", pattern: "src/*.{ts,tsx}" },
       ],
+      "boundaries/files": [{ category: "teste", pattern: "**/*.test.{ts,tsx}" }],
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
 
-      "boundaries/element-types": [
-        "warn",
+      "boundaries/dependencies": [
+        "error",
         {
           default: "disallow",
-          rules: [
-            { from: "app", allow: ["paginas", "widgets", "entidades", "compartilhado", "legado"] },
-            { from: "paginas", allow: ["widgets", "entidades", "compartilhado", "legado"] },
-            { from: "widgets", allow: ["entidades", "compartilhado", "legado"] },
-            { from: "entidades", allow: ["compartilhado", "legado"] },
-            { from: "compartilhado", allow: ["compartilhado", "legado"] },
-            { from: "legado", allow: ["app", "paginas", "widgets", "entidades", "compartilhado", "legado"] },
+          policies: [
+            ...Object.entries(CAMADAS).map(([de, para]) => ({
+              from: { element: { type: de } },
+              allow: { to: { element: { types: { anyOf: para } } } },
+            })),
+            // Nao existe politica de paginas -> paginas, widgets -> widgets nem
+            // entidades -> entidades: e assim que o import lateral fica proibido.
+            // Dentro da propria fatia os caminhos sao relativos, e o plugin trata
+            // isso como o mesmo elemento — nao passa por politica nenhuma.
+            // Nenhum modulo de producao depende de um arquivo de teste.
+            { disallow: { to: { file: { categories: "teste" } } } },
           ],
         },
       ],
 
-      // Import lateral: uma pagina nao conhece outra pagina, uma entidade nao
-      // conhece outra entidade. E o que mantem cada fatia removivel.
-      "boundaries/no-private": ["warn", { allowUncles: false }],
-
       // Uma fatia se importa pelo seu `index.ts`, nunca por caminho interno —
-      // senao o barrel nao e contrato nenhum.
+      // senao o barrel nao e contrato nenhum. `compartilhado` e `app` ficam
+      // livres de proposito: os atomos do shadcn e as moleculas sao importados
+      // pelo caminho direto para nao arrastar o kit inteiro a cada tela.
       "boundaries/entry-point": [
-        "warn",
+        "error",
         {
           default: "disallow",
-          rules: [
-            { target: ["paginas", "widgets", "entidades"], allow: "index.ts" },
-            { target: ["app", "compartilhado", "legado"], allow: "**" },
+          policies: [
+            { target: { element: { type: "paginas" } }, allow: "index.ts" },
+            { target: { element: { type: "widgets" } }, allow: "index.ts" },
+            { target: { element: { type: "entidades" } }, allow: "index.ts" },
+            { target: { element: { type: "compartilhado" } }, allow: "**" },
+            { target: { element: { type: "app" } }, allow: "**" },
           ],
         },
       ],
@@ -89,13 +112,12 @@ export default tseslint.config(
     },
   },
   {
-    // Testes atravessam fronteira de proposito: `paginas.test.tsx` monta as 13
-    // paginas, e cada teste colocado importa o vizinho por caminho relativo.
-    files: ["src/**/*.test.{ts,tsx}", "src/setupTests.ts"],
+    // Os testes atravessam fronteira de proposito: `paginas.test.tsx` monta as
+    // 13 paginas para garantir que nenhuma estoura ao renderizar.
+    files: ["src/**/*.test.{ts,tsx}", "src/app/setupTests.ts"],
     rules: {
-      "boundaries/element-types": "off",
+      "boundaries/dependencies": "off",
       "boundaries/entry-point": "off",
-      "boundaries/no-private": "off",
     },
   },
 );

@@ -34,8 +34,7 @@ import {
   SelectValue,
 } from "@compartilhado/ui/atomos/select";
 import { SkeletonTabela } from "@compartilhado/ui/moleculas/Skeleton";
-import { Erro, Secao } from "@compartilhado/ui";
-import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
+import { CabecalhoPagina, Erro, Secao } from "@compartilhado/ui";
 
 const ROTULO_PERFIL: Record<Perfil, string> = {
   admin: "Administrador",

@@ -18,8 +18,7 @@ import { Field, FieldGroup, FieldLabel } from "@compartilhado/ui/atomos/field";
 import { Input } from "@compartilhado/ui/atomos/input";
 import { Spinner } from "@compartilhado/ui/atomos/spinner";
 import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
-import { Erro, Secao } from "@compartilhado/ui";
-import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
+import { CabecalhoPagina, Erro, Secao } from "@compartilhado/ui";
 import { inteiro } from "@compartilhado/lib/formato";
 
 const CAMPOS = [

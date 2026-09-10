@@ -25,8 +25,7 @@ import { Button } from "@compartilhado/ui/atomos/button";
 import { BarraFiltros } from "@widgets/barra-filtros";
 import { SkeletonTabela, SkeletonTiles } from "@compartilhado/ui/moleculas/Skeleton";
 import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
-import { Abas, Badge, BarraComposicao, CartaoKpi, Erro, GradeInsights, GradeKpis, Nota, PainelInsight, Secao, Vazio } from "@compartilhado/ui";
-import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
+import { Abas, Badge, BarraComposicao, CabecalhoPagina, CartaoKpi, Erro, GradeInsights, GradeKpis, Nota, PainelInsight, Secao, Vazio } from "@compartilhado/ui";
 import { escreverFiltros, useAbaUrl, useFiltrosUrl } from "@entidades/filtros";
 import { dataCurta, inteiro, moeda, numeroBruto, percentual, rotuloNota } from "@compartilhado/lib/formato";
 

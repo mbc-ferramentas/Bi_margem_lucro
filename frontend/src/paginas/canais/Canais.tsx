@@ -27,8 +27,7 @@ import {
 import { Grafico, baseDoTema, corDaSerie, type EChartsOption, useOpcaoGrafico } from "@compartilhado/grafico";
 import { SkeletonGrafico, SkeletonTiles } from "@compartilhado/ui/moleculas/Skeleton";
 import { SeletorPeriodo } from "@compartilhado/ui/moleculas/SeletorPeriodo";
-import { AvisoMarketplace, CartaoKpi, Erro, GradeKpis, Secao, Segmentado, Vazio } from "@compartilhado/ui";
-import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
+import { AvisoMarketplace, CabecalhoPagina, CartaoKpi, Erro, GradeKpis, Secao, Segmentado, Vazio } from "@compartilhado/ui";
 import { useEscolhaUrl, useFiltrosUrl } from "@entidades/filtros";
 import { inteiro, moeda, moedaCurta, percentual, rotuloPeriodo } from "@compartilhado/lib/formato";
 import {

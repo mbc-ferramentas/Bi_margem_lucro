@@ -1,6 +1,7 @@
-import { Navigate, Outlet, Route, Routes } from "react-router";
+import { Navigate, Route, Routes } from "react-router";
 
-import { tokens } from "@compartilhado/api/cliente";
+import { Protegido } from "./guarda";
+
 import { Layout } from "@widgets/layout";
 import { Armazens } from "@paginas/armazens";
 import { CadastroUsuario } from "@paginas/cadastro-usuario";
@@ -16,11 +17,7 @@ import { Usuarios } from "@paginas/usuarios";
 import { Vendedores } from "@paginas/vendedores";
 import { VisaoGeral } from "@paginas/visao-geral";
 
-function Protegido() {
-  return tokens.access ? <Outlet /> : <Navigate to="/login" replace />;
-}
-
-export function App() {
+export function Rotas() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />

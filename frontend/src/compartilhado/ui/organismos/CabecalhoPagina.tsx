@@ -1,4 +1,4 @@
-import { SeletorTema } from "@widgets/seletor-tema";
+import { SeletorTema } from "@compartilhado/ui/moleculas/SeletorTema";
 
 export function CabecalhoPagina({
   titulo,

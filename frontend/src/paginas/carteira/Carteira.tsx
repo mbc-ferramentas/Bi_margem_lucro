@@ -28,8 +28,7 @@ import {
 import { SeletorMulti } from "@compartilhado/ui/moleculas/SeletorMulti";
 import { SkeletonTabela, SkeletonTiles } from "@compartilhado/ui/moleculas/Skeleton";
 import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
-import { Abas, Badge, BarraComposicao, CartaoKpi, Erro, GradeInsights, GradeKpis, Nota, PainelInsight, Secao, Segmentado, Vazio } from "@compartilhado/ui";
-import { CabecalhoPagina } from "@widgets/cabecalho-pagina";
+import { Abas, Badge, BarraComposicao, CabecalhoPagina, CartaoKpi, Erro, GradeInsights, GradeKpis, Nota, PainelInsight, Secao, Segmentado, Vazio } from "@compartilhado/ui";
 import { ChipsFiltros } from "@widgets/barra-filtros";
 import { useAbaUrl, useFiltrosUrl } from "@entidades/filtros";
 import { dataCurta, inteiro, moeda, numeroBruto, percentual } from "@compartilhado/lib/formato";

@@ -20,7 +20,9 @@ export { AvisoMarketplace, Erro, Vazio } from "./moleculas/Estados";
 export { GradeInsights, GradeKpis } from "./moleculas/Grades";
 export { Nota } from "./moleculas/Nota";
 export { Secao } from "./moleculas/Secao";
+export { SeletorTema } from "./moleculas/SeletorTema";
 export { Segmentado } from "./moleculas/Segmentado";
 
+export { CabecalhoPagina } from "./organismos/CabecalhoPagina";
 export { Cascata } from "./organismos/Cascata";
 export { PainelInsight } from "./organismos/PainelInsight";
