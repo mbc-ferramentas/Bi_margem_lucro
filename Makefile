@@ -34,20 +34,20 @@ lint:
 	$(DEV) exec $(API) ruff check .
 	$(DEV) exec $(API) ruff format --check .
 
-# O node_modules do front e um volume nomeado que cobre o da imagem: npm so
-# funciona de dentro do container. package.json e package-lock.json sao bind
-# mount e voltam para o host sozinhos.
+# O node_modules do front e um volume nomeado que cobre o da imagem: bun so
+# funciona de dentro do container. package.json e bun.lock sao bind mount e
+# voltam para o host sozinhos (nascem com dono root — devolva com chown).
 web-sh:                   ## shell no container do frontend
 	$(DEV) exec $(WEB) sh
 
 web-lint:                 ## typecheck do frontend (tsc --noEmit)
-	$(DEV) exec $(WEB) npm run lint
+	$(DEV) exec $(WEB) bun run lint
 
 web-test:                 ## vitest do frontend
-	$(DEV) exec $(WEB) npm run test
+	$(DEV) exec $(WEB) bun run test
 
 web-build:                ## build de producao do SPA
-	$(DEV) exec $(WEB) npm run build
+	$(DEV) exec $(WEB) bun run build
 
 deploy:                   ## producao na VPS
 	# migrate e collectstatic rodam no proprio container da api (ver vps.yml).

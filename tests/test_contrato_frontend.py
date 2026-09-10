@@ -1,6 +1,6 @@
 """Contrato entre a API e o SPA.
 
-Os schemas Zod em `frontend/src/api/tipos.ts` sao a leitura que o frontend faz de
+Os schemas Zod em `frontend/src/entidades/<entidade>/modelo/tipos.ts` sao a leitura que o frontend faz de
 cada resposta. Se a API mudar de forma sem que estes testes quebrem primeiro, o
 erro so aparece no navegador do usuario — e como Zod valida em runtime, aparece
 como tela em branco, nao como aviso.

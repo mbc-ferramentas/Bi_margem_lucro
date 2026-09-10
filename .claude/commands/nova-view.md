@@ -11,5 +11,5 @@ Para alterar uma delas: $ARGUMENTS
 2. Crie uma nova migration com `migrations.RunSQL`, com `DROP MATERIALIZED VIEW IF EXISTS`
    + `CREATE` e o `reverse_sql` correspondente.
 3. Recrie todos os índices da view (inclusive o GIN de `descricao`).
-4. Verifique se `apps/api/queries.py` e `frontend/src/api/tipos.ts` precisam acompanhar.
+4. Verifique se `apps/api/queries.py` e o modelo da entidade em `frontend/src/entidades/` precisam acompanhar.
 5. Rode `make migrate` e depois `make test`.

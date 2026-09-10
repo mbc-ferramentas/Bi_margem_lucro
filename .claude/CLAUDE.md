@@ -22,15 +22,16 @@ make shell      # django shell
 make logs       # logs da api
 make deploy     # produção na VPS (docker-compose.vps.yml)
 
-make web-lint   # tsc --noEmit no container do frontend
+make web-lint   # tsc --noEmit + eslint (fronteiras da arquitetura)
 make web-test   # vitest no container do frontend
 make web-build  # build de produção do SPA
 make web-sh     # shell no container do frontend
 ```
 
-O `node_modules` do frontend é um **volume nomeado** que cobre o da imagem: `npm` e
-`npx` (inclusive `npx shadcn@latest add`) só funcionam **de dentro do container**.
-`package.json`/`package-lock.json` são bind mount e voltam para o host sozinhos; os
+O gerenciador e o runtime do frontend são o **Bun**. O `node_modules` é um **volume
+nomeado** que cobre o da imagem: `bun` e `bunx` (inclusive `bunx shadcn@latest add`) só
+funcionam **de dentro do container**.
+`package.json`/`bun.lock` são bind mount e voltam para o host sozinhos; os
 arquivos gerados dentro do container nascem com dono `root` — devolva a posse com
 `chown -R 1000:1000 /app/src` antes de editá-los pelo host.
 
@@ -50,7 +51,7 @@ config/            settings.py, urls.py (health, admin, api/v1)
 apps/core/         models de cadastro + migrations SQL (staging e materialized views)
 apps/etl/          readers (Polars) → Parquet → writers (COPY no Postgres)
 apps/api/          DRF com SQL puro sobre as views + RBAC
-frontend/src/      React + TanStack Query + ECharts + shadcn/ui (páginas em português)
+frontend/src/      React + TanStack Query + ECharts + shadcn/ui (Feature-Sliced Design)
 tests/             ~123 testes ancorados no baseline real de 07/2026
 docs/Dados.md      como extrair cada relatório do Protheus
 data/stack.md      regras de negócio decididas (fonte da verdade, fora do git)
@@ -127,27 +128,47 @@ Alterar `ParamOutlier`, `MapaCanal`, `MapaGrupo`, `MapaArmazem`, `MapaTES` ou
 - Código, nomes de arquivo, models e páginas em **português**; comentários explicam *por quê*,
   não *o quê*.
 - `ruff`, `line-length = 100`, target py312. Lint com `select = ["E","F","I","UP","B","DJ"]`.
-- No frontend, `src/componentes/ui/` é código **vendorizado** pelo shadcn (em inglês, com
-  o alias `@/`): não reescreva à mão — atualize com `npx shadcn@latest add <item> --diff`.
-  Os componentes da casa (`Visual.tsx`, `Tabela.tsx`, `Layout.tsx`, `Filtros.tsx`…)
-  continuam em português e são a única camada que as páginas importam.
-- Tokens de cor em `src/index.css`. Os do shadcn vestem a interface; `--chart-1..5` e
+- **Arquitetura do frontend (FSD + Atomic Design).** Cinco camadas, e a direção é única:
+
+  ```
+  app/            main, rotas, provedores, guarda, index.css
+  paginas/        uma fatia por tela (visao-geral/, skus/…), com componentes/ e modelo/
+  widgets/        blocos que buscam dados (layout, barra-filtros)
+  entidades/      dominio: 10 fatias com modelo/tipos.ts + api/hooks.ts + index.ts
+  compartilhado/  ui/{atomos,moleculas,organismos}, grafico/, lib/, api/, config/
+  ```
+
+  `app → paginas → widgets → entidades → compartilhado`. Cada camada importa só das de
+  baixo e **nunca lateralmente**: uma página não conhece outra página, uma entidade não
+  conhece outra entidade. Fatias se importam pelo `index.ts`, nunca por caminho interno.
+  Isso é **fiscalizado** por `eslint-plugin-boundaries` (`frontend/eslint.config.js`) —
+  violação é erro de lint, não questão de disciplina. O alias nomeia a camada
+  (`@compartilhado/…`, `@entidades/…`), e é isso que torna uma violação visível na leitura.
+  Ao mexer nessa config, **plante uma violação deliberada e confirme que o lint reprova**:
+  a sintaxe da v5 do plugin ainda é aceita, mas não reprova nada — e sem
+  `import/resolver` os aliases passam por pacote externo e a regra fica muda.
+- `src/compartilhado/ui/atomos/` é código **vendorizado** pelo shadcn (em inglês): não
+  reescreva à mão — atualize com `npx shadcn@latest add <item> --diff` (o CLI gera
+  `import { cn } from "cn"`, que precisa ser corrigido a mão). De `moleculas/` para cima é
+  código da casa, em português, e as páginas importam pelo barril `@compartilhado/ui`.
+- Tokens de cor em `src/app/index.css`. Os do shadcn vestem a interface; `--chart-1..5` e
   `--status-*` são a **paleta validada de dataviz** — a ordem dos slots é o mecanismo de
   segurança para daltonismo, e trocar qualquer valor exige rodar o validador da skill
   `dataviz` nos dois modos.
-- Tema claro/escuro/sistema em `src/tema.ts`: publica a classe `.dark` na raiz (é o que o
+- Tema claro/escuro/sistema em `src/compartilhado/lib/tema.ts`: publica a classe `.dark` na raiz (é o que o
   Tailwind enxerga) e o `color-scheme`. O primeiro frame vem de um script inline no
   `<head>` do `index.html` — sem ele a tela pisca clara a cada carregamento.
-- Gráfico novo usa `useOpcaoGrafico(fabrica, deps)` de `Grafico.tsx`, que injeta o tema
+- Gráfico novo usa `useOpcaoGrafico(fabrica, deps)` de `@compartilhado/grafico`, que injeta o tema
   resolvido nas dependências, e `token("--x")` para ler cor — o SVGRenderer do ECharts não
   resolve `var()` dentro de uma string de cor.
-- Tabela nova usa `Tabela` (`src/componentes/Tabela.tsx`), nunca `<table>` à mão.
+- Tabela nova usa `Tabela` (`@compartilhado/ui/organismos/Tabela`), nunca `<table>` à mão.
 - Testes com `pytest-django`; a fixture `carga` (session-scoped, `tests/conftest.py`) roda o
   ETL contra os CSVs reais. Os números esperados são o baseline de 07/2026 — se um teste de
   valor quebra, verifique se o dado mudou antes de mudar o teste.
 - `tests/test_contrato_frontend.py` amarra o contrato da API com o frontend: mudar o payload
-  exige atualizar os tipos em `frontend/src/api/tipos.ts`.
-- Dependências Python via `uv` (`uv.lock`); frontend via npm.
+  exige atualizar o schema Zod da entidade correspondente em
+  `frontend/src/entidades/<entidade>/modelo/tipos.ts`.
+- Dependências Python via `uv` (`uv.lock`); frontend via `bun` (`bun.lock`).
 
 ## Não faça
 
