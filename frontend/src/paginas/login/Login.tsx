@@ -32,11 +32,16 @@ export function Login() {
 
   return (
     // Esta tela fica fora do Layout: sem sessao nao ha menu nem perfil.
-    <div className="grid min-h-screen place-items-center p-5">
-      <Card className="w-full max-w-sm">
+    // Unica tela em que o azul da marca e superficie cheia: sem menu e sem
+    // dado na tela, nao ha nada com que ele possa competir.
+    <div className="grid min-h-screen place-items-center bg-marca p-5">
+      <Card className="w-full max-w-sm shadow-2xl">
         <CardHeader>
-          <CardTitle>Margem de Lucro</CardTitle>
-          <CardDescription>Margem bruta · fase 1</CardDescription>
+          <CardTitle className="flex items-center gap-2.5">
+            <span aria-hidden="true" className="h-5 w-1 rounded-full bg-marca-acento" />
+            Margem de Lucro
+          </CardTitle>
+          <CardDescription className="ml-3.5">Margem bruta · fase 1</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={submeter}>

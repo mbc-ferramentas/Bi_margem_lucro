@@ -80,8 +80,13 @@ function Moldura({ children, menu }: { children: React.ReactNode; menu: React.Re
     <SidebarProvider>
       <Sidebar collapsible="icon">
         <SidebarHeader>
+          {/* A marca vive aqui e so aqui na moldura: o azul #0d1330 com o
+              laranja por cima, num quadrado do tamanho do icone recolhido —
+              assim ela sobrevive a sidebar em modo icone. */}
           <div className="flex items-center gap-2 px-2 py-1.5">
-            <ChartLineIcon className="size-5 shrink-0 text-primary" />
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-marca">
+              <ChartLineIcon className="size-4 text-marca-acento" />
+            </span>
             <div className="grid min-w-0 leading-tight group-data-[collapsible=icon]:hidden">
               <span className="truncate text-sm font-semibold">Margem de Lucro</span>
               <span className="truncate text-[11px] text-muted-foreground">

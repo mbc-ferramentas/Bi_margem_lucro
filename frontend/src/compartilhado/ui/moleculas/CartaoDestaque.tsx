@@ -1,6 +1,6 @@
 import { cn } from "@compartilhado/lib/utils";
 import { Card, CardContent } from "@compartilhado/ui/atomos/card";
-import { FAIXA_TOM, type Tom } from "@compartilhado/ui/tom";
+import { FAIXA_TOM, LAVAGEM_TOM, type Tom } from "@compartilhado/ui/tom";
 
 /** O numero que a tela lidera.
  *
@@ -33,8 +33,15 @@ export function CartaoDestaque({
     // horizontal herdado e o vertical escrito a mao que deixava a margem torta.
     <Card className="relative overflow-hidden py-0 [--card-spacing:--spacing(5)]">
       <span aria-hidden="true" className={cn("absolute inset-y-0 left-0 w-[3px]", FAIXA_TOM[tom])} />
+      <span
+        aria-hidden="true"
+        className={cn("pointer-events-none absolute inset-0", LAVAGEM_TOM[tom])}
+      />
       <CardContent className="flex h-full min-w-0 flex-col py-(--card-spacing)">
-        <span className="text-[11px] leading-4 font-medium tracking-wider text-muted-foreground uppercase">
+        {/* O ponto laranja e o unico traco de marca do cartao: marca a tela
+            como nossa sem entrar na leitura do numero. */}
+        <span className="flex items-center gap-2 text-[11px] leading-4 font-medium tracking-wider text-muted-foreground uppercase">
+          <span aria-hidden="true" className="size-1.5 rounded-full bg-marca-acento" />
           {rotulo}
         </span>
         <div className="mt-2.5 flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -52,7 +59,12 @@ export function CartaoDestaque({
         </div>
         {delta && <div className="mt-2.5">{delta}</div>}
         {apoio && <p className="mt-2 text-xs leading-4 text-muted-foreground">{apoio}</p>}
-        {rodape && <div className="mt-auto pt-4">{rodape}</div>}
+        {/* A sparkline sangra ate as bordas do cartao: margem negativa do
+            proprio `--card-spacing`, entao ela acompanha qualquer mudanca de
+            respiro sem numero magico. */}
+        {rodape && (
+          <div className="mt-auto -mb-(--card-spacing) pt-4 [&>*]:-mx-(--card-spacing)">{rodape}</div>
+        )}
       </CardContent>
     </Card>
   );

@@ -16,3 +16,14 @@ export const FAIXA_TOM: Record<Tom, string> = {
   critico: "bg-status-critico",
 };
 
+
+/** Lavagem de fundo do cartao: a mesma cor da faixa, quase apagada, descendo do
+ *  topo. E acabamento, nao codificacao — a opacidade e baixa de proposito para
+ *  nao alterar o contraste do texto sobre o cartao, e o tom continua sendo lido
+ *  pela faixa e pelo rotulo. */
+export const LAVAGEM_TOM: Record<Tom, string> = {
+  neutro: "",
+  bom: "bg-linear-to-b from-status-bom/[0.07] to-transparent to-40%",
+  atencao: "bg-linear-to-b from-status-atencao/[0.09] to-transparent to-40%",
+  critico: "bg-linear-to-b from-status-critico/[0.07] to-transparent to-40%",
+};

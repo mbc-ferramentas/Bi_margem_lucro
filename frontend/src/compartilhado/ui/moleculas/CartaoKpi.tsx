@@ -1,6 +1,6 @@
 import { cn } from "@compartilhado/lib/utils";
 import { Card, CardContent } from "@compartilhado/ui/atomos/card";
-import { FAIXA_TOM, type Tom } from "@compartilhado/ui/tom";
+import { FAIXA_TOM, LAVAGEM_TOM, type Tom } from "@compartilhado/ui/tom";
 
 export function CartaoKpi({
   rotulo,
@@ -26,6 +26,12 @@ export function CartaoKpi({
           icone. Ela reforca o numero que esta a dois centimetros dali, nunca o
           substitui — por isso e um adorno de borda, e nao o fundo do cartao. */}
       <span aria-hidden="true" className={cn("absolute inset-y-0 left-0 w-[3px]", FAIXA_TOM[tom])} />
+      {/* Lavagem: puro acabamento, presa a mesma variavel de tom para nunca
+          divergir da faixa. `inset-0` sob o conteudo, sem interceptar clique. */}
+      <span
+        aria-hidden="true"
+        className={cn("pointer-events-none absolute inset-0", LAVAGEM_TOM[tom])}
+      />
       {/* Ritmo vertical fixo: cada faixa tem altura propria e nao depende de
           quebra de linha do vizinho. Antes a legenda era empurrada com
           `mt-auto` e o espaco entre valor e legenda mudava de cartao para
@@ -65,7 +71,7 @@ export function CartaoKpi({
   // apoio ao que tem duas linhas de legenda, e cresce quando ha uma linha de
   // variacao a mais para caber.
   const classe = cn(
-    "relative overflow-hidden py-0",
+    "relative overflow-hidden py-0 transition-[box-shadow,--tw-ring-color] duration-150",
     delta === undefined ? "min-h-[7.5rem]" : "min-h-[9rem]",
   );
 
@@ -77,8 +83,10 @@ export function CartaoKpi({
       onClick={aoClicar}
       className={cn(
         classe,
-        "flex w-full flex-col rounded-xl border bg-card text-card-foreground shadow-sm transition-colors",
-        "cursor-pointer hover:border-ring focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none",
+        "flex w-full flex-col rounded-xl bg-card text-card-foreground ring-1 ring-foreground/10",
+        // Elevacao no hover em vez de troca de cor de borda: o cartao clicavel
+        // se anuncia sem repintar a moldura, que e o que a faixa de tom usa.
+        "cursor-pointer hover:ring-foreground/20 hover:shadow-md focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none",
       )}
     >
       {conteudo}

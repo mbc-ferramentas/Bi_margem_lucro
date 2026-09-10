@@ -58,10 +58,14 @@ export function Grafico({ opcao, altura = 300, rotuloAcessivel, aoClicar }: Prop
     // SVG: nitido em qualquer densidade de tela e imprimivel sem serrilhado.
     instancia.current = echarts.init(alvo.current, undefined, { renderer: "svg" });
 
-    const aoRedimensionar = () => instancia.current?.resize();
-    window.addEventListener("resize", aoRedimensionar);
+    // ResizeObserver e nao `window.resize`: o cartao muda de largura sem a
+    // janela mudar (sidebar recolhendo, aba trocando, grade reflowando) e nesses
+    // casos o SVG ficava esticado na medida antiga ate alguem redimensionar o
+    // navegador.
+    const observador = new ResizeObserver(() => instancia.current?.resize());
+    observador.observe(alvo.current);
     return () => {
-      window.removeEventListener("resize", aoRedimensionar);
+      observador.disconnect();
       instancia.current?.dispose();
     };
   }, []);

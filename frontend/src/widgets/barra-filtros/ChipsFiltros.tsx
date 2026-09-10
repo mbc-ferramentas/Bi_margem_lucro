@@ -51,7 +51,7 @@ export function ChipsFiltros({ valor, aoMudar }: { valor: Filtros; aoMudar: (fil
           render={
             <button type="button" onClick={() => remover(chave)} aria-label={`Remover filtro ${ROTULOS_FILTRO[chave] ?? chave}`} />
           }
-          className="cursor-pointer gap-1 hover:border-ring"
+          className="cursor-pointer gap-1 rounded-lg transition-colors hover:border-ring hover:bg-accent"
         >
           <span className="font-semibold text-foreground">{ROTULOS_FILTRO[chave] ?? chave}:</span>
           <span className="max-w-40 truncate">{textoDoChip(chave, item)}</span>

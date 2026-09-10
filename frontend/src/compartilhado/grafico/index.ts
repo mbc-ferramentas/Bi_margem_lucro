@@ -5,5 +5,5 @@
 export type { EChartsOption } from "echarts";
 
 export { Grafico, Sparkline } from "./Grafico";
-export { SERIES, baseDoTema, corDaSerie, token } from "./tema";
+export { SERIES, baseDoTema, corDaSerie, degradeDaSerie, token } from "./tema";
 export { useOpcaoGrafico } from "./useOpcaoGrafico";

@@ -161,7 +161,12 @@ export function Tabela<T>({
       <div className="overflow-x-auto">
         <Table aria-label={rotuloAcessivel}>
           <TableHeader>
-            <TableRow>
+            {/* `bg-card` na linha e `bg-inherit` na celula fixa: a coluna
+                congelada precisa de fundo opaco (senao o conteudo rola por
+                baixo dela), mas com `bg-card` fixo ela ficava imune ao realce
+                de hover da linha — a unica coluna que nao acendia era
+                justamente a que diz de quem e a linha. */}
+            <TableRow className="bg-card">
               {colunas.map((coluna, indice) => {
                 const ordenadaPor = ordenacao?.valor.replace("-", "");
                 const ativa = !!coluna.chave && ordenadaPor === coluna.chave;
@@ -176,7 +181,7 @@ export function Tabela<T>({
                       "text-[11px] tracking-wider uppercase",
                       coluna.num && "text-right",
                       coluna.acao && "w-px whitespace-nowrap",
-                      coluna.fixa && "sticky left-0 z-20 bg-card",
+                      coluna.fixa && "sticky left-0 z-20 bg-inherit",
                       ativa && "text-foreground",
                     )}
                   >
@@ -207,7 +212,7 @@ export function Tabela<T>({
           </TableHeader>
           <TableBody>
             {visiveis.map((linha) => (
-              <TableRow key={linha.id}>
+              <TableRow key={linha.id} className="bg-card">
                 {linha.getVisibleCells().map((celula) => {
                   const coluna = celula.column.columnDef.meta as Coluna<T>;
                   return (
@@ -219,7 +224,7 @@ export function Tabela<T>({
                         coluna.num && "num-tabular text-right",
                         coluna.truncar && "truncate",
                         coluna.acao && "w-px whitespace-nowrap",
-                        coluna.fixa && "sticky left-0 z-10 bg-card",
+                        coluna.fixa && "sticky left-0 z-10 bg-inherit",
                         coluna.negativo?.(linha.original) && "text-destructive",
                       )}
                     >

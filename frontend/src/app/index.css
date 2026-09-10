@@ -9,8 +9,14 @@
  * 2. Os tokens de dados (--chart-1..5, --status-*, --grid, --axis), que são a
  *    paleta validada do método de dataviz e NÃO são escolha estética. A ordem
  *    dos slots é o mecanismo de segurança para daltonismo — nunca cicle, nunca
- *    reordene sem rodar o validador de novo. Rodado em 2026-09-01 contra as
- *    superfícies abaixo: passa em todas as checagens nos dois modos.
+ *    reordene sem rodar o validador de novo. Revalidado em 2026-09-10 contra as
+ *    superfícies novas (clara #fcfcfb, escura #171c2e): passa em todas as
+ *    checagens nos dois modos.
+ *
+ * 3. Os tokens de marca (--marca, --marca-acento), que são o azul #0d1330 e o
+ *    laranja #F0901F da empresa. São *cromo*: indicador de item ativo, faixa de
+ *    cabeçalho, superfície da sidebar, tela de login. Nunca viram série de dado
+ *    nem estado — significado continua sendo do vermelho/verde/azul.
  *
  * No modo claro, aqua/amarelo/magenta ficam abaixo de 3:1 contra a superfície.
  * A contrapartida obrigatória é a regra de relevo: todo gráfico traz rótulo
@@ -38,6 +44,9 @@
     --color-sidebar-primary: var(--sidebar-primary);
     --color-sidebar-foreground: var(--sidebar-foreground);
     --color-sidebar: var(--sidebar);
+    --color-marca: var(--marca);
+    --color-marca-acento: var(--marca-acento);
+    --color-marca-contraste: var(--marca-contraste);
     --color-chart-5: var(--chart-5);
     --color-chart-4: var(--chart-4);
     --color-chart-3: var(--chart-3);
@@ -105,6 +114,11 @@
     --input: oklch(0.9055 0.0095 100);
     --ring: oklch(0.5275 0.1497 255.86);
 
+    /* --- marca: cromo, nunca dado ---------------------------------------- */
+    --marca: oklch(0.2002 0.0581 271.44);          /* #0d1330 */
+    --marca-acento: oklch(0.7386 0.1608 62.71);    /* #F0901F */
+    --marca-contraste: oklch(1 0 89.88);           /* #FFFFFF */
+
     /* --- dados: paleta validada, ordem fixa, nunca ciclada --------------- */
     --chart-1: oklch(0.5753 0.1626 255.53);  /* azul     */
     --chart-2: oklch(0.6708 0.175 40.64);    /* laranja  */
@@ -137,20 +151,26 @@
 }
 
 .dark {
-    --background: oklch(0.1591 0 89.88);
+    /* O escuro é onde o azul da marca cabe como superfície sem disputar com
+       dado: mesmo matiz do #0d1330, croma baixo, degraus de sempre. */
+    --background: oklch(0.1832 0.0402 271.44);
     --foreground: oklch(1 0 89.88);
-    --card: oklch(0.2174 0.0019 106.56);
+    --card: oklch(0.2296 0.0361 271.44);
     --card-foreground: oklch(1 0 89.88);
-    --popover: oklch(0.2174 0.0019 106.56);
+    --popover: oklch(0.2296 0.0361 271.44);
     --popover-foreground: oklch(1 0 89.88);
+
+    --marca: oklch(0.2002 0.0581 271.44);
+    --marca-acento: oklch(0.7386 0.1608 62.71);
+    --marca-contraste: oklch(1 0 89.88);
 
     --primary: oklch(0.6221 0.1612 255.05);
     --primary-foreground: oklch(0.1591 0 89.88);
-    --secondary: oklch(0.2924 0.0036 106.62);
+    --secondary: oklch(0.2924 0.033 271.44);
     --secondary-foreground: oklch(1 0 89.88);
-    --muted: oklch(0.2924 0.0036 106.62);
+    --muted: oklch(0.2924 0.033 271.44);
     --muted-foreground: oklch(0.8118 0.0152 102.51);
-    --accent: oklch(0.2924 0.0036 106.62);
+    --accent: oklch(0.2924 0.033 271.44);
     --accent-foreground: oklch(1 0 89.88);
     --destructive: oklch(0.6224 0.1712 0.84);
     --border: oklch(1 0 89.88 / 10%);
@@ -174,14 +194,15 @@
     --status-critico: oklch(0.5748 0.1862 25.23);
     --delta-bom: oklch(0.621 0.2073 142.56);
 
-    --grid: oklch(0.2924 0.0036 106.62);
-    --axis: oklch(0.3396 0.0051 106.67);
+    --grid: oklch(0.2924 0.033 271.44);
+    --axis: oklch(0.3396 0.03 271.44);
 
-    --sidebar: oklch(0.2174 0.0019 106.56);
+    /* A lateral é a única superfície que assume o #0d1330 cheio. */
+    --sidebar: oklch(0.2002 0.0581 271.44);
     --sidebar-foreground: oklch(1 0 89.88);
     --sidebar-primary: oklch(0.6221 0.1612 255.05);
     --sidebar-primary-foreground: oklch(0.1591 0 89.88);
-    --sidebar-accent: oklch(0.2924 0.0036 106.62);
+    --sidebar-accent: oklch(0.2724 0.045 271.44);
     --sidebar-accent-foreground: oklch(1 0 89.88);
     --sidebar-border: oklch(1 0 89.88 / 10%);
     --sidebar-ring: oklch(0.6221 0.1612 255.05);

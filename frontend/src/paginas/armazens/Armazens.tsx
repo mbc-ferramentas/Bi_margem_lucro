@@ -22,7 +22,7 @@ import {
 } from "@compartilhado/ui/atomos/collapsible";
 import { cn } from "@compartilhado/lib/utils";
 import { BarraFiltros } from "@widgets/barra-filtros";
-import { Grafico, baseDoTema, corDaSerie, token, type EChartsOption, useOpcaoGrafico } from "@compartilhado/grafico";
+import { Grafico, baseDoTema, degradeDaSerie, token, type EChartsOption, useOpcaoGrafico } from "@compartilhado/grafico";
 import { SkeletonTabela } from "@compartilhado/ui/moleculas/Skeleton";
 import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
 import { Abas, CabecalhoPagina, CartaoKpi, Erro, GradeKpis, Secao, Segmentado, Vazio } from "@compartilhado/ui";
@@ -125,7 +125,7 @@ export function Armazens() {
         // Barra empilhada leva um fio da cor da superficie entre os segmentos:
         // sem ele dois grupos de cores proximas viram um bloco so.
         itemStyle: {
-          color: corDaSerie(indice),
+          color: degradeDaSerie(indice, "horizontal"),
           borderColor: token("--card"),
           borderWidth: 2,
         },

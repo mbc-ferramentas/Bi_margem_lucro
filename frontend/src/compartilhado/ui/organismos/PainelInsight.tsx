@@ -22,7 +22,7 @@ export function PainelInsight({
   return (
     <div
       className={cn(
-        "flex flex-col gap-1 rounded-lg border border-l-[3px] bg-card px-3.5 py-3 text-xs text-muted-foreground",
+        "flex flex-col gap-1 rounded-xl border-l-[3px] bg-card px-3.5 py-3 text-xs text-muted-foreground ring-1 ring-foreground/10",
         BORDA_INSIGHT[tom],
       )}
     >

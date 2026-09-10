@@ -9,6 +9,7 @@
 import {
   baseDoTema,
   corDaSerie,
+  degradeDaSerie,
   token,
   type EChartsOption,
 } from "@compartilhado/grafico";
@@ -147,7 +148,7 @@ export function opcaoArmazens(porArmazem: readonly TotalArmazem[]): EChartsOptio
           // Uma cor so: aqui a cor nao identifica armazem nenhum, o eixo faz
           // isso. Pintar cada barra de um tom seria gastar o unico canal livre
           // repetindo o que o comprimento ja diz.
-          itemStyle: { color: corDaSerie(0), borderRadius: [0, 4, 4, 0] },
+          itemStyle: { color: degradeDaSerie(0, "horizontal"), borderRadius: [0, 4, 4, 0] },
           label: {
             show: true,
             position: "right" as const,

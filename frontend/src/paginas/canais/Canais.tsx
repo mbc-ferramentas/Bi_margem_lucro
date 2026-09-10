@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@compartilhado/ui/atomos/select";
-import { Grafico, baseDoTema, corDaSerie, type EChartsOption, useOpcaoGrafico } from "@compartilhado/grafico";
+import { Grafico, baseDoTema, degradeDaSerie, type EChartsOption, useOpcaoGrafico } from "@compartilhado/grafico";
 import { SkeletonGrafico, SkeletonTiles } from "@compartilhado/ui/moleculas/Skeleton";
 import { SeletorPeriodo } from "@compartilhado/ui/moleculas/SeletorPeriodo";
 import { AvisoMarketplace, CabecalhoPagina, CartaoKpi, Erro, GradeKpis, Secao, Segmentado, Vazio } from "@compartilhado/ui";
@@ -92,7 +92,7 @@ export function Canais() {
           name: "Margem bruta",
           type: "bar" as const,
           barMaxWidth: 18,
-          itemStyle: { color: corDaSerie(0), borderRadius: [4, 4, 0, 0] },
+          itemStyle: { color: degradeDaSerie(0), borderRadius: [4, 4, 0, 0] },
           data: pontos.map((p) => Number(p.margem ?? 0)),
         },
       ],

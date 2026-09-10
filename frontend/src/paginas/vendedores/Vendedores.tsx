@@ -6,7 +6,7 @@ import { Link } from "react-router";
 
 import { Button } from "@compartilhado/ui/atomos/button";
 import { BarraFiltros } from "@widgets/barra-filtros";
-import { Grafico, baseDoTema, corDaSerie, token, type EChartsOption, useOpcaoGrafico } from "@compartilhado/grafico";
+import { Grafico, baseDoTema, degradeDaSerie, token, type EChartsOption, useOpcaoGrafico } from "@compartilhado/grafico";
 import { SkeletonTabela } from "@compartilhado/ui/moleculas/Skeleton";
 import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
 import { Abas, CabecalhoPagina, CartaoKpi, Erro, GradeInsights, GradeKpis, PainelInsight, Secao, Segmentado, Vazio } from "@compartilhado/ui";
@@ -81,7 +81,7 @@ export function Vendedores() {
           type: "bar" as const,
           barMaxWidth: 14,
           // Serie unica: sem legenda (o titulo ja a nomeia), com rotulo de valor.
-          itemStyle: { color: corDaSerie(0), borderRadius: [0, 4, 4, 0] },
+          itemStyle: { color: degradeDaSerie(0, "horizontal"), borderRadius: [0, 4, 4, 0] },
           label: {
             show: true,
             position: "right" as const,
