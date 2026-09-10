@@ -85,6 +85,9 @@ export function opcaoEvolucao({
           return [cabecalho, ...linhas].join("<br/>");
         },
       },
+      // Faixa livre a direita para o rotulo de ponta, que agora carrega canal e
+      // valor ("Ecommerce · R$ 1,2 mi") e nao so o nome do canal.
+      grid: { ...base.grid, right: 150 },
       xAxis: { ...base.xAxis, type: "category", data: rotulos },
       yAxis: {
         ...base.yAxis,
@@ -104,10 +107,16 @@ export function opcaoEvolucao({
         // rendia `transform="translate(x NaN)"` no <text> e o navegador recusava
         // o atributo inteiro.
         const ultimo = valores.reduce((acc, v, idx) => (v === null ? acc : idx), -1);
+        const valorFinal = typeof ultimo === "number" && ultimo >= 0 ? valores[ultimo] : null;
         const rotuloDaPonta = {
           show: true,
           position: "right" as const,
-          formatter: canal,
+          // O rotulo carrega o valor da metrica escolhida: com "Margem R$" a
+          // ponta mostra reais, e nao o percentual.
+          formatter:
+            valorFinal === null || valorFinal === undefined
+              ? canal
+              : `${canal} · ${formatar(valorFinal)}`,
           color: corDaSerie(i),
           fontSize: 11,
           distance: 6,

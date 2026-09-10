@@ -90,9 +90,11 @@ export function Vendedores() {
               // encolhe a lista, o ECharts ainda pede indices da serie anterior.
               const item = top[p.dataIndex];
               if (!item) return "";
+              // O rotulo repete a metrica desenhada na barra: quem escolheu
+              // "Margem R$" quer ler reais na ponta, nao o percentual.
               return metrica === "margem_pct"
-                ? moeda(item.margem)
-                : percentual(item.margem_pct);
+                ? percentual(item.margem_pct)
+                : moeda(numeroBruto(item[metrica]));
             },
             color: token("--muted-foreground"),
             fontSize: 11,
