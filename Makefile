@@ -6,7 +6,7 @@ PROD := docker compose -f container/docker-compose.vps.yml
 API  := bi-margem-lucro-api
 WEB  := bi-margem-lucro-web
 
-.PHONY: dev down logs shell migrate carregar test lint deploy web-sh web-lint web-test web-build
+.PHONY: dev down logs shell migrate carregar test lint deploy web-sh web-lint web-test web-build e2e e2e-atualizar
 
 dev:                      ## sobe o ambiente de desenvolvimento
 	$(DEV) up -d --build
@@ -49,9 +49,17 @@ web-test:                 ## vitest do frontend
 web-build:                ## build de producao do SPA
 	$(DEV) exec $(WEB) bun run build
 
+# E2E com prints: compara cada tela contra o baseline em e2e/testes/__prints__/.
+# Relatorio HTML (com o print de cada tela e o diff quando falha) em e2e/relatorio/.
+# Filtre com ARGS, ex.: make e2e ARGS="-g skus --project=desktop"
+e2e:                      ## testes E2E com comparacao de prints (precisa do make dev)
+	$(DEV) run --rm bi-margem-lucro-e2e $(ARGS)
+
+e2e-atualizar:            ## regrava o baseline de prints (revise as imagens no git diff)
+	$(DEV) run --rm bi-margem-lucro-e2e --update-snapshots $(ARGS)
+
 deploy:                   ## producao na VPS
 	# migrate e collectstatic rodam no proprio container da api (ver vps.yml).
 	$(PROD) up -d --build
 
-# Backup do banco de producao NAO e responsabilidade desta stack: o Postgres
 # roda no host da VPS e o dump e agendado la (ver container/README.dev.md).
