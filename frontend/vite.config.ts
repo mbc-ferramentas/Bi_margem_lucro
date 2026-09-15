@@ -29,6 +29,9 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     port: 5173,
+    // O container do E2E (Playwright) acessa pelo nome do servico na rede do
+    // compose; sem isto o Vite responde "Blocked request" e o print sai em branco.
+    allowedHosts: ["bi-margem-lucro-web"],
     // Sem polling o HMR nao enxerga edicao nenhuma: o projeto e montado por bind
     // mount a partir do Windows, e o inotify do container nao recebe os eventos
     // do sistema de arquivos do host. O sintoma e traicoeiro — a tela continua
