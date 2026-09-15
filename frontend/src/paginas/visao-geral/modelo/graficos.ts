@@ -126,13 +126,17 @@ export function opcaoEvolucao({
           type: "line" as const,
           smooth: false,
           symbolSize: 8,
-          lineStyle: { width: 2 },
+          lineStyle: { width: 2, color: corDaSerie(i) },
           // Sem `focus: "series"`: com o tooltip por eixo, apontar um ponto
           // aplicava blur em todas as outras series ao mesmo tempo em que o
           // tooltip listava os valores delas. Na pratica as linhas somiam sob o
           // cursor e sobrava so a grade — e a informacao que o usuario queria
           // comparar era justamente a que desaparecia.
-          emphasis: { focus: "none" as const },
+          //
+          // Cor explicita no estado de destaque: sem ela o ECharts "clareia" a cor
+          // da serie para o hover, e o parser dele nao entende `oklch(...)` — o
+          // traco da linha virava cor invalida e sumia, restando so os marcadores.
+          emphasis: { focus: "none" as const, lineStyle: { width: 2, color: corDaSerie(i) } },
           // Rotulo direto na ponta: exigido pela regra de relevo, porque tres tons
           // da paleta ficam abaixo de 3:1 no modo claro.
           data: valores.map((valor, idx) =>
@@ -244,12 +248,16 @@ export function opcaoDeSkus(extremos: readonly ItemSku[]): EChartsOption {
           data: extremos.map((item) => {
             const valor = numeroBruto(item.margem);
             const perda = valor < 0;
+            const itemStyle = {
+              color: perda ? negativa : positiva,
+              borderRadius: perda ? [4, 0, 0, 4] : [0, 4, 4, 0],
+            };
             return {
               value: valor,
-              itemStyle: {
-                color: perda ? negativa : positiva,
-                borderRadius: perda ? [4, 0, 0, 4] : [0, 4, 4, 0],
-              },
+              itemStyle,
+              // Mesma cor no hover: sem isso o ECharts clareia a cor solida e o
+              // parser dele nao entende `oklch(...)` — a barra sob o mouse sumia.
+              emphasis: { itemStyle },
               // A barra negativa cresce para a esquerda; o rotulo vai para o lado
               // do zero (`right` = borda da barra junto ao zero, crescendo para a
               // direita, area vazia da linha) em vez da ponta esquerda, onde
