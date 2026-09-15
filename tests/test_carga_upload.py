@@ -147,3 +147,88 @@ def test_csv_nao_sobrevive_a_requisicao(tmp_path, settings):
     assert resposta.status_code == 200
     assert not list(tmp_path.glob("**/SC5.csv"))
     assert list((tmp_path / "staging" / "sc5").glob("**/*.parquet"))
+
+
+# --------------------------------------------------------------------------- #
+# Auditoria e historico
+# --------------------------------------------------------------------------- #
+
+ROTA_HISTORICO = "/api/v1/cargas"
+
+
+@pytest.mark.parametrize("grupo", ["gerente", "vendedor"])
+def test_historico_exige_admin(grupo):
+    assert cliente_de(grupo).get(ROTA_HISTORICO).status_code == 403
+
+
+def test_falha_fica_auditada_com_arquivo_e_usuario():
+    conteudo = "SD2;;\n\nFilial;Produto;Quantidade\n101;1;2\n".encode("latin-1")
+    arquivo = SimpleUploadedFile("vendas julho.csv", conteudo, content_type="text/csv")
+    cliente = cliente_de("admin")
+
+    resposta = cliente.post(ROTA, {"SD2": arquivo}, format="multipart")
+    assert resposta.status_code == 400
+    # ValidationError serializa tudo como texto; a lista devolve inteiro.
+    id_ = int(resposta.data["arquivos"][0]["id"])
+
+    detalhe = cliente.get(f"{ROTA_HISTORICO}/{id_}").json()
+    assert detalhe["status"] == "erro"
+    assert detalhe["origem"] == "upload"
+    assert detalhe["usuario"] == "u-admin-False"
+    assert detalhe["nome_original"] == "vendas julho.csv"
+    assert detalhe["tamanho_bytes"] == len(conteudo)
+    assert len(detalhe["sha256"]) == 64
+    assert detalhe["auditoria"]["colunas_ausentes"]
+    assert detalhe["lote"]
+
+    lista = cliente.get(ROTA_HISTORICO).json()
+    assert lista["total"] >= 1
+    assert lista["linhas"][0]["id"] == id_
+
+
+def test_detalhe_inexistente_recebe_404():
+    assert cliente_de("admin").get(f"{ROTA_HISTORICO}/999999").status_code == 404
+
+
+@sem_csv
+def test_upload_registra_metricas_de_limpeza():
+    cliente = cliente_de("admin")
+    resposta = cliente.post(
+        ROTA, {"SB2": upload("SB2"), "SD2": upload("SD2")}, format="multipart"
+    )
+    assert resposta.status_code == 200
+    ids = [a["id"] for a in resposta.data["arquivos"]]
+
+    sd2 = ExecucaoCarga.objects.get(pk=ids[1])
+    a = sd2.auditoria
+    assert (
+        a["linhas_brutas"] - a.get("descartadas_obrigatorias", 0) - a["duplicatas_removidas"]
+        == sd2.linhas_lidas
+    )
+    assert a["estrategia"] in {"periodo", "upsert"}
+    assert "divergencia_aritmetica" in a
+    assert sd2.competencias
+
+    detalhe = cliente.get(f"{ROTA_HISTORICO}/{ids[1]}").json()
+    assert [o["arquivo"] for o in detalhe["mesmo_lote"]] == ["SB2"]
+
+
+def test_contrato_do_historico():
+    """Espelha `listaCargasSchema`/`detalheCargaSchema` em entidades/carga/modelo/tipos.ts."""
+    cliente = cliente_de("admin")
+    arquivo = SimpleUploadedFile("SD2.csv", b"SD2;;\n\nFilial\n1\n", content_type="text/csv")
+    cliente.post(ROTA, {"SD2": arquivo}, format="multipart")
+
+    lista = cliente.get(ROTA_HISTORICO).json()
+    assert {"total", "limite", "offset", "linhas"} <= set(lista)
+    chaves = {
+        "id", "lote", "arquivo", "status", "origem", "usuario", "criado_em", "competencia",
+        "competencias", "linhas_lidas", "linhas_gravadas", "duracao_ms", "alertas", "mensagem",
+    }  # fmt: skip
+    assert chaves <= set(lista["linhas"][0])
+
+    detalhe = cliente.get(f"{ROTA_HISTORICO}/{lista['linhas'][0]['id']}").json()
+    assert chaves | {
+        "nome_original", "tamanho_bytes", "sha256", "dt_carga", "caminho_parquet",
+        "auditoria", "avisos", "mesmo_lote",
+    } <= set(detalhe)  # fmt: skip

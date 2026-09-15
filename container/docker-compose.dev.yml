@@ -46,7 +46,7 @@ services:
     command: python manage.py runserver 0.0.0.0:8000
     environment:
       DEBUG: "1"
-      SECRET_KEY: dev-inseguro
+      SECRET_KEY: chave-alterada-para-padrao
       ALLOWED_HOSTS: localhost,127.0.0.1,bi-margem-lucro-api,${DEV_HOST_IP:-localhost}
       POSTGRES_HOST: bi-margem-lucro-db
       POSTGRES_DB: bi_margem
@@ -57,7 +57,6 @@ services:
     volumes:
       - ..:/app
       # CSVs reais montados somente-leitura: o ETL roda contra os dados de verdade
-      # sem risco de o container alterar o export original.
       - ../data/dados/usarei:/app/data/dados/usarei:ro
     ports:
       - "${API_HOST_PORT:-8000}:8000"
@@ -88,9 +87,33 @@ services:
     networks:
       - internal-services
 
+  # E2E com prints (Playwright). So sobe sob demanda: `make e2e`.
+  # A imagem oficial fixa navegador e fontes — o baseline de imagem so e
+  bi-margem-lucro-e2e:
+    image: mcr.microsoft.com/playwright:v1.63.0-noble
+    container_name: bi-margem-lucro-e2e-dev
+    profiles: ["e2e"]
+    working_dir: /e2e
+    ipc: host
+    environment:
+      E2E_WEB_URL: http://bi-margem-lucro-web:5173
+      E2E_API_URL: http://bi-margem-lucro-api:8000
+      E2E_USUARIO: ${E2E_USUARIO:-admin}
+      E2E_SENHA: ${E2E_SENHA:-mbcti123}
+    volumes:
+      - ../e2e:/e2e
+      - node_modules_e2e:/e2e/node_modules
+    entrypoint: ["sh", "-c", "npm install --no-audit --no-fund --silent && npx playwright test \"$$@\"; status=$$?; chown -R 1000:1000 /e2e/testes /e2e/resultados /e2e/relatorio /e2e/.auth 2>/dev/null; exit $$status", "--"]
+    depends_on:
+      - bi-margem-lucro-web
+      - bi-margem-lucro-api
+    networks:
+      - internal-services
+
 volumes:
   pgdata_dev:
   node_modules_dev:
+  node_modules_e2e:
 
 networks:
   internal-services:

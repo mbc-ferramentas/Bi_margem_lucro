@@ -308,6 +308,10 @@ class ExecucaoCarga(models.Model):
         SUCESSO = "sucesso", "Sucesso"
         ERRO = "erro", "Erro"
 
+    class Origem(models.TextChoices):
+        UPLOAD = "upload", "Upload na tela"
+        CLI = "cli", "Linha de comando"
+
     arquivo = models.CharField("arquivo", max_length=10)
     competencia = models.DateField("competencia", null=True, blank=True)
     dt_carga = models.DateField("data da carga")
@@ -317,6 +321,28 @@ class ExecucaoCarga(models.Model):
     mensagem = models.TextField("mensagem", blank=True)
     caminho_parquet = models.CharField("parquet", max_length=300, blank=True)
     criado_em = models.DateTimeField(auto_now_add=True)
+
+    # Arquivos enviados juntos compartilham o lote: um SD2 so faz sentido ao lado
+    # do SB2 que veio com ele.
+    lote = models.UUIDField("lote", null=True, blank=True, db_index=True)
+    usuario = models.ForeignKey(
+        "core.Usuario",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cargas",
+        verbose_name="enviado por",
+    )
+    origem = models.CharField(
+        "origem", max_length=10, choices=Origem.choices, default=Origem.CLI
+    )
+    nome_original = models.CharField("nome original", max_length=255, blank=True)
+    tamanho_bytes = models.BigIntegerField("tamanho (bytes)", default=0)
+    # O hash e o que prova qual arquivo exato gerou o numero — nome e data se repetem.
+    sha256 = models.CharField("sha256", max_length=64, blank=True)
+    duracao_ms = models.IntegerField("duracao (ms)", default=0)
+    competencias = models.JSONField("competencias", default=list, blank=True)
+    auditoria = models.JSONField("auditoria", default=dict, blank=True)
 
     class Meta:
         verbose_name = "execucao de carga"

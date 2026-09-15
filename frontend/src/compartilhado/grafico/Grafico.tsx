@@ -8,8 +8,6 @@
  *  - tooltip com crosshair por padrao.
  */
 
-// Importacao seletiva: o ECharts completo custa ~1 MB no bundle, e este BI usa
-// apenas linha e barra. Registrar so o necessario derruba o pacote para ~1/3.
 import { BarChart, LineChart } from "echarts/charts";
 import {
   GridComponent,
@@ -32,8 +30,6 @@ echarts.use([
   GridComponent,
   TooltipComponent,
   LegendComponent,
-  // A linha de media do ranking de vendedores depende dele. Sem o registro o
-  // ECharts ignora `markLine` em silencio — a media simplesmente nao aparecia.
   MarkLineComponent,
   SVGRenderer,
 ]);
@@ -49,15 +45,8 @@ type Props = {
 
 export function Grafico({ opcao, altura = 300, rotuloAcessivel, aoClicar }: Props) {
   const alvo = useRef<HTMLDivElement>(null);
-  // O `undefined` explicito e exigencia dos tipos do React 19: useRef sem
-  // argumento nao existe mais.
   const instancia = useRef<echarts.ECharts | undefined>(undefined);
 
-  // O clique vai por ref, e nao por dependencia de efeito: `aoClicar` costuma
-  // ser uma closure sobre os filtros da tela e muda a cada recorte. Ler pela ref
-  // deixa o ouvinte enxergar sempre o filtro vigente sem reassinar o evento —
-  // e um `off()` a cada recorte era metade do caminho para chamar o ECharts
-  // depois do `dispose()`.
   const aoClicarRef = useRef(aoClicar);
   // Sem lista de dependencias de proposito: a ref acompanha todo render, e
   // atualiza-la no corpo do componente seria escrita durante o render.
@@ -163,6 +152,9 @@ export function Sparkline({
             symbolSize: i === valores.length - 1 ? 5 : 0,
           })),
           smooth: false,
+          // Sem estado de destaque: o ECharts clareia a cor para o hover e nao
+          // entende `oklch(...)`, entao a linha sumia ao passar o mouse/dedo.
+          emphasis: { disabled: true },
           symbol: "circle",
           itemStyle: { color: cor },
           lineStyle: { width: 2, color: cor },

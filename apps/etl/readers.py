@@ -45,13 +45,21 @@ def _para_data(coluna: str) -> pl.Expr:
     )
 
 
-def ler(spec: ArquivoProtheus, caminho: Path) -> pl.DataFrame:
+def ler(
+    spec: ArquivoProtheus, caminho: Path, auditoria: dict | None = None
+) -> pl.DataFrame:
     """Le um arquivo do Protheus aplicando o contrato definido em schemas.py.
 
     Tudo entra como String e e convertido depois. A inferencia automatica de tipo
     corromperia dois campos: codigos de produto com zeros a esquerda (viram int) e
     'Num Ped Clie', que ja chega em notacao cientifica.
+
+    `auditoria`, quando informado, recebe o que a limpeza fez com o dado. Sem ele
+    esses numeros so iam para o log, e o log nao responde "por que o SD2 de julho
+    entrou com 300 linhas a menos" semanas depois.
     """
+    if auditoria is None:
+        auditoria = {}
     if not caminho.exists():
         raise ErroLeitura(f"{spec.nome}: arquivo nao encontrado em {caminho}")
 
@@ -71,6 +79,9 @@ def ler(spec: ArquivoProtheus, caminho: Path) -> pl.DataFrame:
         origem for origem, destino in spec.colunas.items() if destino in spec.opcionais
     } - presentes
     faltando = esperadas - presentes - opcionais_ausentes
+    auditoria["linhas_brutas"] = df.height
+    auditoria["colunas_ausentes"] = sorted(faltando)
+    auditoria["opcionais_ausentes"] = sorted(opcionais_ausentes)
     if faltando:
         raise ErroLeitura(
             f"{spec.nome}: colunas obrigatorias ausentes no CSV: {sorted(faltando)}"
@@ -95,6 +106,8 @@ def ler(spec: ArquivoProtheus, caminho: Path) -> pl.DataFrame:
     if spec.obrigatorias:
         df = df.drop_nulls(subset=list(spec.obrigatorias))
         descartadas = linhas_lidas - df.height
+        auditoria["descartadas_obrigatorias"] = descartadas
+        auditoria["colunas_obrigatorias"] = list(spec.obrigatorias)
         if descartadas:
             logger.info(
                 "%s: %d linhas descartadas por falta de %s",
@@ -103,12 +116,24 @@ def ler(spec: ArquivoProtheus, caminho: Path) -> pl.DataFrame:
                 list(spec.obrigatorias),
             )
 
+    # Conversao com strict=False vira NULL em silencio; conta-se o que era texto
+    # preenchido antes e deixou de ser valor depois.
+    convertidas = [c for c in (*spec.numericas, *spec.datas) if c in df.columns]
+    nulos_antes = {c: df[c].null_count() for c in convertidas}
+
     if spec.numericas:
         df = df.with_columns(
             [_para_decimal(c) for c in spec.numericas if c in df.columns]
         )
     if spec.datas:
         df = df.with_columns([_para_data(c) for c in spec.datas if c in df.columns])
+
+    for chave, colunas in (("numeros_invalidos", spec.numericas), ("datas_invalidas", spec.datas)):
+        auditoria[chave] = {
+            c: df[c].null_count() - nulos_antes[c]
+            for c in colunas
+            if c in nulos_antes and df[c].null_count() > nulos_antes[c]
+        }
 
     # O CSV traz os codigos sem zeros a esquerda ('57', '128', '2'); o negocio usa
     # '0057'/'0128' e '02'. Vale para o grupo do cadastro (SB2/SD1), o da linha
@@ -123,6 +148,7 @@ def ler(spec: ArquivoProtheus, caminho: Path) -> pl.DataFrame:
         df = df.with_columns(
             pl.col(spec.coluna_competencia).dt.truncate("1mo").alias("competencia")
         )
+        auditoria["sem_competencia"] = df["competencia"].null_count()
 
     # Colunas opcionais ausentes entram como NULL para o schema do banco bater.
     for destino in spec.opcionais:
@@ -132,6 +158,7 @@ def ler(spec: ArquivoProtheus, caminho: Path) -> pl.DataFrame:
 
     # Deduplicacao so quando a chave natural esta completa. Sem D2_ITEM a chave do
     # SD2 fica incompleta e deduplicar apagaria itens legitimos repetidos na NF.
+    auditoria["duplicatas_removidas"] = 0
     if spec.chave and all(c in df.columns for c in spec.chave):
         chave_completa = not any(
             df[c].null_count() == df.height for c in spec.chave if c in spec.opcionais
@@ -139,6 +166,7 @@ def ler(spec: ArquivoProtheus, caminho: Path) -> pl.DataFrame:
         if chave_completa:
             antes = df.height
             df = df.unique(subset=list(spec.chave), keep="last")
+            auditoria["duplicatas_removidas"] = antes - df.height
             if antes != df.height:
                 logger.info("%s: %d duplicatas removidas pela chave natural",
                             spec.nome, antes - df.height)
@@ -146,11 +174,16 @@ def ler(spec: ArquivoProtheus, caminho: Path) -> pl.DataFrame:
     return df
 
 
-def validar(spec: ArquivoProtheus, df: pl.DataFrame) -> None:
+LIMITE_DIVERGENCIA = 0.005
+
+
+def validar(spec: ArquivoProtheus, df: pl.DataFrame, auditoria: dict | None = None) -> None:
     """Validacoes que abortam a carga.
 
     Falhar ruidosamente e melhor que publicar numero errado no BI.
     """
+    if auditoria is None:
+        auditoria = {}
     if df.is_empty():
         raise ErroLeitura(f"{spec.nome}: nenhuma linha valida apos a limpeza")
 
@@ -161,7 +194,9 @@ def validar(spec: ArquivoProtheus, df: pl.DataFrame) -> None:
     # 5.481 no arquivo de 2025. Incluir essas linhas faria a validacao acusar 2,96%
     # de divergencia num arquivo integro.
     if {"quantidade", "vlr_unitario", "vlr_total"} <= set(df.columns):
+        antes = df.height
         df = df.filter(pl.col("quantidade").cast(pl.Float64) != 0)
+        auditoria["linhas_quantidade_zero"] = antes - df.height
         if df.is_empty():
             return
         conferencia = df.select(
@@ -176,7 +211,13 @@ def validar(spec: ArquivoProtheus, df: pl.DataFrame) -> None:
             ).sum()
         ).item()
         proporcao = conferencia / df.height
-        if proporcao > 0.005:
+        # Registrado mesmo abaixo do limite: divergencia tolerada ainda e sinal.
+        auditoria["divergencia_aritmetica"] = {
+            "linhas": conferencia,
+            "proporcao": round(proporcao, 6),
+            "limite": LIMITE_DIVERGENCIA,
+        }
+        if proporcao > LIMITE_DIVERGENCIA:
             raise ErroLeitura(
                 f"{spec.nome}: {conferencia} linhas ({proporcao:.2%}) com "
                 f"Vlr.Total divergente de Quantidade x Vlr.Unitario"

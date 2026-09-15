@@ -12,7 +12,10 @@ seu proprio vocabulario (`CommandError` na CLI, `ValidationError` no HTTP).
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import time
+import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import date
@@ -75,6 +78,15 @@ def travar() -> Iterator[None]:
             cur.execute("SELECT pg_advisory_unlock(%s)", [LOCK_CARGA])
 
 
+def _sha256(caminho: Path) -> str:
+    """Hash em blocos: o SD1 real passa de 100 MB e nao precisa caber na memoria."""
+    resumo = hashlib.sha256()
+    with caminho.open("rb") as arquivo:
+        for bloco in iter(lambda: arquivo.read(1024 * 1024), b""):
+            resumo.update(bloco)
+    return resumo.hexdigest()
+
+
 def ordenar(nomes: list[str]) -> list[str]:
     return [n for n in ORDEM if n in nomes]
 
@@ -85,6 +97,9 @@ def carregar(
     competencia: date | None = None,
     somente_parquet: bool = False,
     refresh: bool = True,
+    usuario=None,
+    via: str = ExecucaoCarga.Origem.CLI,
+    nomes_originais: dict[str, str] | None = None,
 ) -> list[ExecucaoCarga]:
     """Le, valida e grava os arquivos indicados; devolve a auditoria de cada um.
 
@@ -95,16 +110,31 @@ def carregar(
     origem = Path(origem)
     selecionados = ordenar(nomes or list(ARQUIVOS))
     registros: list[ExecucaoCarga] = []
+    lote = uuid.uuid4()
+    nomes_originais = nomes_originais or {}
     houve_carga = False
 
     for nome in selecionados:
         spec = ARQUIVOS[nome]
         caminho = origem / spec.arquivo
-        registro = ExecucaoCarga(arquivo=nome, dt_carga=dt_carga)
+        registro = ExecucaoCarga(
+            arquivo=nome,
+            dt_carga=dt_carga,
+            lote=lote,
+            usuario=usuario,
+            origem=via,
+            nome_original=nomes_originais.get(nome, spec.arquivo),
+        )
+        auditoria: dict = {}
+        registro.auditoria = auditoria
+        inicio = time.monotonic()
 
         try:
-            df = readers.ler(spec, caminho)
-            readers.validar(spec, df)
+            if caminho.exists():
+                registro.tamanho_bytes = caminho.stat().st_size
+                registro.sha256 = _sha256(caminho)
+            df = readers.ler(spec, caminho, auditoria)
+            readers.validar(spec, df, auditoria)
             registro.linhas_lidas = df.height
 
             periodos = readers.competencias(df)
@@ -114,11 +144,14 @@ def carregar(
                     f"arquivo contem {[f'{p:%Y-%m}' for p in periodos]}"
                 )
             registro.competencia = periodos[0] if periodos else None
+            registro.competencias = [f"{p:%Y-%m}" for p in periodos]
 
             registro.caminho_parquet = str(writers.gravar_parquet(spec, df, dt_carga))
 
             if not somente_parquet:
-                registro.linhas_gravadas = writers.carregar_postgres(spec, df, dt_carga)
+                registro.linhas_gravadas = writers.carregar_postgres(
+                    spec, df, dt_carga, auditoria
+                )
                 houve_carga = True
 
             registro.status = ExecucaoCarga.Status.SUCESSO
@@ -126,10 +159,12 @@ def carregar(
         except (ErroLeitura, ValueError) as exc:
             registro.status = ExecucaoCarga.Status.ERRO
             registro.mensagem = str(exc)
+            registro.duracao_ms = int((time.monotonic() - inicio) * 1000)
             registro.save()
             registros.append(registro)
             raise ErroCarga(str(exc), registros) from exc
 
+        registro.duracao_ms = int((time.monotonic() - inicio) * 1000)
         registro.save()
         registros.append(registro)
 

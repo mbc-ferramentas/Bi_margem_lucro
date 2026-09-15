@@ -83,7 +83,10 @@ export function CartaoKpi({
       onClick={aoClicar}
       className={cn(
         classe,
-        "flex w-full flex-col rounded-xl bg-card text-card-foreground ring-1 ring-foreground/10",
+        // `--card-spacing` e definido pelo Card, que o botao nao e: sem repetir a
+        // variavel aqui o padding do CardContent resolvia para zero e o texto
+        // colava na borda, cortado pela faixa de tom e pelo arredondamento.
+        "flex w-full min-w-0 flex-col rounded-xl bg-card text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)]",
         // Elevacao no hover em vez de troca de cor de borda: o cartao clicavel
         // se anuncia sem repintar a moldura, que e o que a faixa de tom usa.
         "cursor-pointer hover:ring-foreground/20 hover:shadow-md focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none",

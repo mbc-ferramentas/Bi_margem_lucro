@@ -26,7 +26,14 @@ make web-lint   # tsc --noEmit + eslint (fronteiras da arquitetura)
 make web-test   # vitest no container do frontend
 make web-build  # build de produção do SPA
 make web-sh     # shell no container do frontend
+
+make e2e            # Playwright: print de cada tela comparado ao baseline (e2e/testes/__prints__)
+make e2e-atualizar  # regrava o baseline — revise as imagens no git diff antes de commitar
 ```
+
+E2E roda num container próprio (profile `e2e`, precisa do `make dev` no ar) e loga pela tela
+com `E2E_USUARIO`/`E2E_SENHA` (padrão `admin`/`ADMIN_SENHA_INICIAL`). Baseline de print só vale
+se gerado dentro do container. Relatório com prints e diffs em `e2e/relatorio/index.html`.
 
 O gerenciador e o runtime do frontend são o **Bun**. O `node_modules` é um **volume
 nomeado** que cobre o da imagem: `bun` e `bunx` (inclusive `bunx shadcn@latest add`) só

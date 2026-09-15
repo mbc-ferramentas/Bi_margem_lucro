@@ -57,6 +57,10 @@ export type Coluna<T> = {
   /** Coluna de identidade: fica congelada a esquerda na rolagem horizontal.
    *  Numa tabela de doze colunas e justamente a que diz de quem e a linha. */
   fixa?: boolean;
+  /** Largura fixa em px. A tabela ocupa a largura toda e, sem isto, o navegador
+   *  reparte a sobra entre as colunas: uma coluna de rotulo curto fica larga e a
+   *  numerica ao lado, estreita. */
+  largura?: number;
   /** Coluna de acao: nao encolhe e nao quebra linha. */
   acao?: boolean;
 };
@@ -174,6 +178,7 @@ export function Tabela<T>({
                 return (
                   <TableHead
                     key={coluna.chave ?? `${indice}-${coluna.rotulo}`}
+                    style={coluna.largura ? { width: coluna.largura } : undefined}
                     aria-sort={
                       !ativa ? "none" : desc ? "descending" : "ascending"
                     }
@@ -219,7 +224,11 @@ export function Tabela<T>({
                     <TableCell
                       key={celula.id}
                       title={coluna.titulo?.(linha.original)}
-                      style={coluna.truncar ? { maxWidth: coluna.truncar } : undefined}
+                      style={
+                        coluna.truncar || coluna.largura
+                          ? { maxWidth: coluna.truncar, width: coluna.largura }
+                          : undefined
+                      }
                       className={cn(
                         coluna.num && "num-tabular text-right",
                         coluna.truncar && "truncate",
