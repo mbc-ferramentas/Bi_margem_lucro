@@ -33,6 +33,7 @@ from apps.api.permissions import (
     perfis,
 )
 from apps.api.queries import GRANULARIDADES
+from apps.core.models import ExecucaoCarga
 from apps.etl import servicos
 from apps.etl.schemas import ARQUIVOS
 
@@ -377,6 +378,7 @@ class FalhaCarga(APIException):
 def _resumo(registros) -> list[dict]:
     return [
         {
+            "id": r.pk,
             "arquivo": r.arquivo,
             "status": r.status,
             "linhas_lidas": r.linhas_lidas,
@@ -415,7 +417,13 @@ class CargaView(APIView):
 
             try:
                 with servicos.travar():
-                    registros = servicos.carregar(origem=origem, nomes=list(enviados))
+                    registros = servicos.carregar(
+                        origem=origem,
+                        nomes=list(enviados),
+                        usuario=request.user,
+                        via=ExecucaoCarga.Origem.UPLOAD,
+                        nomes_originais={n: a.name for n, a in enviados.items()},
+                    )
             except servicos.CargaEmAndamento as exc:
                 raise Conflito(str(exc)) from exc
             except servicos.ErroCarga as exc:
@@ -484,3 +492,114 @@ class CargaView(APIView):
                 }
             )
         return enviados
+
+
+def alertas_da_auditoria(auditoria: dict) -> list[str]:
+    """Traduz as metricas da limpeza em avisos legiveis.
+
+    Nenhum destes aborta a carga — por isso mesmo precisam aparecer: o arquivo
+    entrou, mas nao inteiro como saiu do Protheus.
+    """
+    avisos = []
+    if auditoria.get("descartadas_obrigatorias"):
+        avisos.append(
+            f"{auditoria['descartadas_obrigatorias']} linhas descartadas por campo "
+            f"obrigatorio vazio ({', '.join(auditoria.get('colunas_obrigatorias', []))})"
+        )
+    if auditoria.get("duplicatas_removidas"):
+        avisos.append(
+            f"{auditoria['duplicatas_removidas']} duplicatas removidas pela chave natural"
+        )
+    for chave, rotulo in (("numeros_invalidos", "numero"), ("datas_invalidas", "data")):
+        for coluna, qtd in (auditoria.get(chave) or {}).items():
+            avisos.append(f"{qtd} valores de {rotulo} invalidos em {coluna} (gravados vazios)")
+    if auditoria.get("opcionais_ausentes"):
+        avisos.append(
+            f"Colunas opcionais ausentes: {', '.join(auditoria['opcionais_ausentes'])}"
+        )
+    divergencia = auditoria.get("divergencia_aritmetica") or {}
+    if divergencia.get("linhas"):
+        avisos.append(
+            f"{divergencia['linhas']} linhas ({divergencia['proporcao']:.2%}) com Vlr.Total "
+            f"divergente de Quantidade x Vlr.Unitario"
+        )
+    if auditoria.get("sem_competencia"):
+        avisos.append(f"{auditoria['sem_competencia']} linhas sem data de competencia")
+    return avisos
+
+
+def _execucao(r: ExecucaoCarga) -> dict:
+    return {
+        "id": r.pk,
+        "lote": str(r.lote) if r.lote else None,
+        "arquivo": r.arquivo,
+        "status": r.status,
+        "origem": r.origem,
+        "usuario": r.usuario.get_username() if r.usuario else None,
+        "criado_em": r.criado_em,
+        "competencia": r.competencia,
+        "competencias": r.competencias,
+        "linhas_lidas": r.linhas_lidas,
+        "linhas_gravadas": r.linhas_gravadas,
+        "duracao_ms": r.duracao_ms,
+        "alertas": len(alertas_da_auditoria(r.auditoria)),
+        "mensagem": r.mensagem,
+    }
+
+
+class CargasView(APIView):
+    """Historico das importacoes, mais recente primeiro."""
+
+    permission_classes = [IsAuthenticated, PodeAdministrar]
+
+    def get(self, request: Request) -> Response:
+        limite, offset = filtros.paginacao(request, limite_maximo=200)
+        consulta = ExecucaoCarga.objects.select_related("usuario")
+        arquivo = request.query_params.get("arquivo")
+        if arquivo:
+            consulta = consulta.filter(arquivo=arquivo)
+        situacao = request.query_params.get("status")
+        if situacao:
+            consulta = consulta.filter(status=situacao)
+        total = consulta.count()
+        linhas = consulta[offset : offset + limite]
+        return Response(
+            {
+                "total": total,
+                "limite": limite,
+                "offset": offset,
+                "linhas": [_execucao(r) for r in linhas],
+            }
+        )
+
+
+class CargaDetalheView(APIView):
+    """Uma importacao com a auditoria completa e os demais arquivos do mesmo lote."""
+
+    permission_classes = [IsAuthenticated, PodeAdministrar]
+
+    def get(self, request: Request, pk: int) -> Response:
+        try:
+            r = ExecucaoCarga.objects.select_related("usuario").get(pk=pk)
+        except ExecucaoCarga.DoesNotExist as exc:
+            raise NotFound("Importacao nao encontrada.") from exc
+        lote = (
+            ExecucaoCarga.objects.filter(lote=r.lote).exclude(pk=r.pk).order_by("pk")
+            if r.lote
+            else ExecucaoCarga.objects.none()
+        )
+        return Response(
+            {
+                **_execucao(r),
+                "nome_original": r.nome_original,
+                "tamanho_bytes": r.tamanho_bytes,
+                "sha256": r.sha256,
+                "dt_carga": r.dt_carga,
+                "caminho_parquet": r.caminho_parquet,
+                "auditoria": r.auditoria,
+                "avisos": alertas_da_auditoria(r.auditoria),
+                "mesmo_lote": [
+                    {"id": o.pk, "arquivo": o.arquivo, "status": o.status} for o in lote
+                ],
+            }
+        )

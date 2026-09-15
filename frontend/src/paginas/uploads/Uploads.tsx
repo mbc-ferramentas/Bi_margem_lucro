@@ -9,7 +9,6 @@
  */
 
 import { ResultadoArquivo, useUploads } from "@entidades/carga";
-import { CheckIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
 import { ErroApi } from "@compartilhado/api/cliente";
@@ -20,6 +19,10 @@ import { Spinner } from "@compartilhado/ui/atomos/spinner";
 import { Tabela, type Coluna } from "@compartilhado/ui/organismos/Tabela";
 import { CabecalhoPagina, Erro, Secao } from "@compartilhado/ui";
 import { inteiro } from "@compartilhado/lib/formato";
+import { AcoesCarga } from "./componentes/AcoesCarga";
+import { DetalheCarga } from "./componentes/DetalheCarga";
+import { HistoricoCargas } from "./componentes/HistoricoCargas";
+import { Situacao } from "./componentes/Situacao";
 
 const CAMPOS = [
   { nome: "SB2", rotulo: "SB2 — Saldos e custo de estoque" },
@@ -29,46 +32,45 @@ const CAMPOS = [
   { nome: "SD2", rotulo: "SD2 — Itens faturados" },
 ] as const;
 
-const COLUNAS: readonly Coluna<ResultadoArquivo>[] = [
-  { chave: null, rotulo: "Arquivo", fixa: true, celula: (l) => l.arquivo },
-  {
-    chave: null,
-    rotulo: "Situação",
-    // Icone + rotulo, nunca a cor sozinha: no modo claro o verde de sucesso
-    // fica abaixo de 3:1 contra o cartao.
-    celula: (l) => (
-      <div>
-        <span
-          className={
-            l.status === "sucesso"
-              ? "flex items-center gap-1 text-delta-bom"
-              : "flex items-center gap-1 text-destructive"
-          }
-        >
-          {l.status === "sucesso" ? (
-            <CheckIcon className="size-4" aria-hidden="true" />
-          ) : (
-            <XIcon className="size-4" aria-hidden="true" />
-          )}
-          {l.status === "sucesso" ? "Carregado" : "Erro"}
-        </span>
-        {l.mensagem && <div className="text-xs text-muted-foreground">{l.mensagem}</div>}
-      </div>
-    ),
-  },
-  { chave: null, rotulo: "Linhas lidas", num: true, celula: (l) => inteiro(l.linhas_lidas) },
-  {
-    chave: null,
-    rotulo: "Linhas gravadas",
-    num: true,
-    celula: (l) => inteiro(l.linhas_gravadas),
-  },
-  { chave: null, rotulo: "Competência", celula: (l) => l.competencia ?? "—" },
-];
-
 export function Uploads() {
   const [arquivos, setArquivos] = useState<Record<string, File>>({});
   const envio = useUploads();
+  const [detalhe, setDetalhe] = useState<number | null>(null);
+
+  // Colunas dentro do componente: a acao abre o detalhe, que e estado da tela.
+  const COLUNAS: readonly Coluna<ResultadoArquivo>[] = [
+    { chave: null, rotulo: "Arquivo", fixa: true, celula: (l) => l.arquivo },
+    {
+      chave: null,
+      rotulo: "Situação",
+      celula: (l) => (
+        <div>
+          <Situacao status={l.status} />
+          {/* Mensagem de erro inteira alargava a coluna e espremia as numericas;
+              o texto completo fica no title e no detalhe. */}
+          {l.mensagem && (
+            <div className="max-w-60 truncate text-xs text-muted-foreground" title={l.mensagem}>
+              {l.mensagem}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    { chave: null, rotulo: "Linhas lidas", num: true, celula: (l) => inteiro(l.linhas_lidas) },
+    {
+      chave: null,
+      rotulo: "Linhas gravadas",
+      num: true,
+      celula: (l) => inteiro(l.linhas_gravadas),
+    },
+    { chave: null, rotulo: "Competência", celula: (l) => l.competencia ?? "—" },
+    {
+      chave: null,
+      rotulo: "Ações",
+      acao: true,
+      celula: (l) => <AcoesCarga arquivo={l.arquivo} aoVerDetalhes={() => setDetalhe(l.id)} />,
+    },
+  ];
 
   const selecionados = Object.keys(arquivos);
   const erro =
@@ -102,9 +104,11 @@ export function Uploads() {
         descricao="Envie os arquivos exportados do Protheus. Você pode mandar um, dois ou os cinco — o que não for enviado permanece como está. O envio substitui a competência inteira contida no arquivo, então reenviar o mesmo mês é seguro."
       />
 
-      <div className="max-w-2xl">
+      <div>
         <Secao titulo="Arquivos do Protheus">
-          <FieldGroup>
+          {/* Largura toda, alinhada ao historico: os campos se repartem em grade para
+              nao virar cinco inputs de 1.200 px com o botao "Escolher" perdido. */}
+          <FieldGroup className="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2 xl:grid-cols-3">
             {CAMPOS.map((campo) => (
               <Field key={campo.nome}>
                 <FieldLabel htmlFor={`arquivo-${campo.nome}`}>{campo.rotulo}</FieldLabel>
@@ -161,6 +165,14 @@ export function Uploads() {
           </Secao>
         </div>
       )}
+
+      <div className="mt-5">
+        <Secao titulo="Histórico de importações">
+          <HistoricoCargas aoVerDetalhes={setDetalhe} />
+        </Secao>
+      </div>
+
+      {detalhe !== null && <DetalheCarga id={detalhe} aoFechar={() => setDetalhe(null)} />}
     </>
   );
 }

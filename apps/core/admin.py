@@ -142,9 +142,12 @@ class ExecucaoCargaAdmin(admin.ModelAdmin):
         "linhas_lidas",
         "linhas_gravadas",
         "status",
+        "origem",
+        "usuario",
         "criado_em",
     )
-    list_filter = ("arquivo", "status", "dt_carga")
+    list_filter = ("arquivo", "status", "origem", "dt_carga")
+    search_fields = ("sha256", "nome_original", "lote")
     readonly_fields = tuple(f.name for f in ExecucaoCarga._meta.fields)
 
     def has_add_permission(self, request) -> bool:

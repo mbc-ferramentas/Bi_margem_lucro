@@ -58,16 +58,22 @@ def _preparar(df: pl.DataFrame, dt_carga: date) -> pl.DataFrame:
     return df.with_columns(pl.lit(dt_carga).alias("dt_carga"))
 
 
-def carregar_snapshot(spec: ArquivoProtheus, df: pl.DataFrame, dt_carga: date) -> int:
+def carregar_snapshot(
+    spec: ArquivoProtheus, df: pl.DataFrame, dt_carga: date, auditoria: dict | None = None
+) -> int:
     """SB2 e SC6: substitui a fotografia do dia, preservando as anteriores."""
     df = _preparar(df, dt_carga)
     with transaction.atomic(), connection.cursor() as cur:
         cur.execute(f"DELETE FROM {spec.tabela} WHERE dt_carga = %s", [dt_carga])
+        if auditoria is not None:
+            auditoria["linhas_substituidas"] = cur.rowcount
         _copy(cur, spec.tabela, df)
     return df.height
 
 
-def carregar_periodo(spec: ArquivoProtheus, df: pl.DataFrame, dt_carga: date) -> int:
+def carregar_periodo(
+    spec: ArquivoProtheus, df: pl.DataFrame, dt_carga: date, auditoria: dict | None = None
+) -> int:
     """SD2: substitui as competencias presentes no arquivo.
 
     Preserva duplicatas legitimas (itens repetidos na mesma NF) porque nao tenta
@@ -81,6 +87,8 @@ def carregar_periodo(spec: ArquivoProtheus, df: pl.DataFrame, dt_carga: date) ->
     with transaction.atomic(), connection.cursor() as cur:
         cur.execute(f"DELETE FROM {spec.tabela} WHERE competencia = ANY(%s)", [periodos])
         removidas = cur.rowcount
+        if auditoria is not None:
+            auditoria["linhas_substituidas"] = removidas
         _copy(cur, spec.tabela, df)
     logger.info(
         "%s: competencias %s — %d linhas removidas, %d inseridas",
@@ -92,7 +100,9 @@ def carregar_periodo(spec: ArquivoProtheus, df: pl.DataFrame, dt_carga: date) ->
     return df.height
 
 
-def carregar_upsert(spec: ArquivoProtheus, df: pl.DataFrame, dt_carga: date) -> int:
+def carregar_upsert(
+    spec: ArquivoProtheus, df: pl.DataFrame, dt_carga: date, auditoria: dict | None = None
+) -> int:
     """SC5 hoje, SD2 quando `D2_ITEM` existir."""
     df = _preparar(df, dt_carga)
     colunas = df.columns
@@ -127,10 +137,14 @@ def estrategia_de(spec: ArquivoProtheus, df: pl.DataFrame):
     return carregar_upsert
 
 
-def carregar_postgres(spec: ArquivoProtheus, df: pl.DataFrame, dt_carga: date) -> int:
+def carregar_postgres(
+    spec: ArquivoProtheus, df: pl.DataFrame, dt_carga: date, auditoria: dict | None = None
+) -> int:
     estrategia = estrategia_de(spec, df)
     logger.info("%s: carga por %s", spec.nome, estrategia.__name__)
-    return estrategia(spec, df, dt_carga)
+    if auditoria is not None:
+        auditoria["estrategia"] = estrategia.__name__.removeprefix("carregar_")
+    return estrategia(spec, df, dt_carga, auditoria)
 
 
 VIEWS = (
